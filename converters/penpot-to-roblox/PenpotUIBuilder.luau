@@ -1,301 +1,250 @@
 --!strict
--- PenpotUIBuilder: Builds Roblox ScreenGuis from Penpot-derived UI specifications
--- Usage: Load this in execute_luau (datamodel_type "Edit"), then call buildFromSpec(spec)
+--[[
+PenpotUIBuilder.luau - builds a ScreenGui from a penpot-to-roblox spec (version 2).
+
+Use (Studio MCP execute_luau, Edit mode). The file ends in `return M`, so wrap it:
+
+    local Builder = (function()
+        -- paste this whole file here
+    end)()
+    local screen, report = Builder.build([==[ <spec JSON> ]==], {
+        images = { ["<image key>"] = "rbxassetid://123" },  -- from penpot/save_images.py; optional
+        -- parent = game.StarterGui,  name = "<ScreenGui name>",  -- defaults: StarterGui, board name
+    })
+    print(Builder.report(report))
+
+Idempotent: re-running replaces the ScreenGui it built before (marked with the attribute
+PenpotBoardId). It refuses to replace a same-named ScreenGui it did not build.
+Everything is scale-based (UDim2 scale), anchors and aspect constraints come from the spec;
+text is TextScaled with a UITextSizeConstraint at the design size.
+]]
 
 local HttpService = game:GetService("HttpService")
 local StarterGui = game:GetService("StarterGui")
 
-type UDim2Data = { scaleX: number, scaleY: number, offsetX: number, offsetY: number }
-type Vector2Data = { x: number, y: number }
-type Color3Data = { r: number, g: number, b: number }
+local M = {}
+M.SPEC_VERSION = 2
 
-type RobloxUISpec = {
-	version: string,
-	board: { name: string, width: number, height: number },
-	elements: { RobloxElement },
-	warnings: { string }
-}
+export type Options = { parent: Instance?, name: string?, images: { [string]: string }? }
+export type Report = { screen: string, built: number, warnings: { string } }
 
-type RobloxElement = {
-	id: string,
-	name: string,
-	type: string,
-	position: UDim2Data,
-	size: UDim2Data,
-	anchorPoint: Vector2Data?,
-	zIndex: number?,
-	
-	backgroundColor: Color3Data?,
-	backgroundTransparency: number?,
-	
-	corner: { radius: number }?,
-	stroke: { thickness: number, color: Color3Data, transparency: number? }?,
-	gradient: any?,
-	aspectRatio: number?,
-	
-	text: string?,
-	font: { family: string, weight: string }?,
-	fontSize: number?,
-	textColor: Color3Data?,
-	textXAlignment: string?,
-	textYAlignment: string?,
-	textWrapped: boolean?,
-	textScaled: boolean?,
-	
-	image: { contentHash: string, sourceUrl: string?, rbxAssetId: string? }?,
-	
-	layout: any?,
-	padding: any?,
-	
-	children: { RobloxElement }?
-}
+type Ctx = { images: { [string]: string }, warnings: { string }, built: number }
 
--- Convert data structures to Roblox types
-local function toUDim2(data: UDim2Data): UDim2
-	return UDim2.new(data.scaleX, data.offsetX, data.scaleY, data.offsetY)
+local function udim2(d: any): UDim2
+	return UDim2.new(d.scaleX or 0, d.offsetX or 0, d.scaleY or 0, d.offsetY or 0)
 end
 
-local function toVector2(data: Vector2Data): Vector2
-	return Vector2.new(data.x, data.y)
+local function udim(d: any): UDim
+	return UDim.new(d.scale or 0, d.offset or 0)
 end
 
-local function toColor3(data: Color3Data): Color3
-	return Color3.new(data.r, data.g, data.b)
+-- Enum item by name, or the fallback (never throws on unknown names).
+local function enumItem(enum: any, name: string?, fallback: EnumItem): any
+	if name == nil then
+		return fallback
+	end
+	local ok, item = pcall(function()
+		return enum[name]
+	end)
+	return if ok and item then item else fallback
 end
 
--- Create a GuiObject from element spec
-local function createElement(element: RobloxElement, imageCache: { [string]: string }): Instance
-	local className = element.type
-	local inst: Instance = Instance.new(className :: any)
-	
-	-- Common properties
-	inst.Name = element.name
-	(inst :: any).Position = toUDim2(element.position)
-	(inst :: any).Size = toUDim2(element.size)
-	
-	if element.anchorPoint then
-		(inst :: any).AnchorPoint = toVector2(element.anchorPoint)
+-- Sets a property that newer Studio builds have; older ones just skip it.
+local function trySet(inst: Instance, prop: string, value: any)
+	pcall(function()
+		(inst :: any)[prop] = value
+	end)
+end
+
+local function decorate(inst: GuiObject, el: any)
+	if el.corner then
+		local c = Instance.new("UICorner")
+		c.CornerRadius = udim(el.corner)
+		c.Parent = inst
 	end
-	
-	if element.zIndex then
-		(inst :: any).ZIndex = element.zIndex
+	if el.stroke then
+		local s = Instance.new("UIStroke")
+		s.Thickness = el.stroke.thickness
+		s.Color = Color3.fromHex(el.stroke.color)
+		s.Transparency = el.stroke.transparency or 0
+		s.ApplyStrokeMode = enumItem(Enum.ApplyStrokeMode, el.stroke.mode, Enum.ApplyStrokeMode.Border)
+		trySet(s, "BorderStrokePosition", enumItem(Enum.BorderStrokePosition, el.stroke.position, Enum.BorderStrokePosition.Outer))
+		s.Parent = inst
 	end
-	
-	-- Background
-	if element.backgroundColor then
-		(inst :: any).BackgroundColor3 = toColor3(element.backgroundColor)
-	else
-		(inst :: any).BackgroundTransparency = 1
+	if el.gradient then
+		local g = Instance.new("UIGradient")
+		local colors = {}
+		for _, k in el.gradient.color do
+			table.insert(colors, ColorSequenceKeypoint.new(k.time, Color3.fromHex(k.color)))
+		end
+		local alphas = {}
+		for _, k in el.gradient.transparency do
+			table.insert(alphas, NumberSequenceKeypoint.new(k.time, k.value))
+		end
+		g.Color = ColorSequence.new(colors)
+		g.Transparency = NumberSequence.new(alphas)
+		g.Rotation = el.gradient.rotation or 0
+		g.Parent = inst
 	end
-	
-	if element.backgroundTransparency then
-		(inst :: any).BackgroundTransparency = element.backgroundTransparency
+	if el.aspectRatio then
+		local a = Instance.new("UIAspectRatioConstraint")
+		a.AspectRatio = el.aspectRatio
+		a.Parent = inst
 	end
-	
-	-- Border (set to none, we use UIStroke)
-	if (inst :: any).BorderSizePixel then
-		(inst :: any).BorderSizePixel = 0
+	if el.textScaled and el.textSize then
+		local t = Instance.new("UITextSizeConstraint")
+		t.MaxTextSize = math.max(1, math.floor(el.textSize + 0.5))
+		t.MinTextSize = 1
+		t.Parent = inst
 	end
-	
-	-- Text properties
-	if element.text and (className == "TextLabel" or className == "TextButton") then
-		(inst :: any).Text = element.text
-		
-		if element.font then
-			local weight = (Enum.FontWeight :: any)[element.font.weight] or Enum.FontWeight.Regular
-			(inst :: any).FontFace = Font.fromName(element.font.family, weight)
+	local layout = el.layout
+	if layout and layout.type == "List" then
+		local l = Instance.new("UIListLayout")
+		l.SortOrder = Enum.SortOrder.LayoutOrder
+		l.FillDirection = enumItem(Enum.FillDirection, layout.fillDirection, Enum.FillDirection.Vertical)
+		l.HorizontalAlignment = enumItem(Enum.HorizontalAlignment, layout.horizontalAlignment, Enum.HorizontalAlignment.Left)
+		l.VerticalAlignment = enumItem(Enum.VerticalAlignment, layout.verticalAlignment, Enum.VerticalAlignment.Top)
+		l.Padding = udim(layout.padding or {})
+		trySet(l, "Wraps", layout.wraps == true)
+		if layout.flex then
+			local flex = enumItem(Enum.UIFlexAlignment, layout.flex, Enum.UIFlexAlignment.None)
+			trySet(l, if layout.fillDirection == "Horizontal" then "HorizontalFlex" else "VerticalFlex", flex)
 		end
-		
-		if element.fontSize then
-			(inst :: any).TextSize = element.fontSize
+		l.Parent = inst
+	elseif layout and layout.type == "Grid" then
+		local l = Instance.new("UIGridLayout")
+		l.SortOrder = Enum.SortOrder.LayoutOrder
+		l.FillDirection = enumItem(Enum.FillDirection, layout.fillDirection, Enum.FillDirection.Horizontal)
+		l.CellSize = udim2(layout.cellSize)
+		l.CellPadding = udim2(layout.cellPadding)
+		l.StartCorner = Enum.StartCorner.TopLeft
+		l.Parent = inst
+	end
+	if el.padding then
+		local p = Instance.new("UIPadding")
+		p.PaddingTop = udim(el.padding.top)
+		p.PaddingRight = udim(el.padding.right)
+		p.PaddingBottom = udim(el.padding.bottom)
+		p.PaddingLeft = udim(el.padding.left)
+		p.Parent = inst
+	end
+end
+
+local function create(el: any, ctx: Ctx): GuiObject
+	local inst = Instance.new(el.type :: any) :: GuiObject
+	inst.Name = el.name
+	inst.Position = udim2(el.position)
+	inst.Size = udim2(el.size)
+	inst.AnchorPoint = Vector2.new(el.anchorPoint.x, el.anchorPoint.y)
+	inst.ZIndex = el.zIndex or 1
+	inst.Visible = el.visible ~= false
+	inst.BorderSizePixel = 0
+	inst.BackgroundTransparency = el.backgroundTransparency or 1
+	if el.backgroundColor then
+		inst.BackgroundColor3 = Color3.fromHex(el.backgroundColor)
+	end
+	if el.rotation then
+		inst.Rotation = el.rotation
+	end
+	if el.layoutOrder then
+		inst.LayoutOrder = el.layoutOrder
+	end
+	if el.clipsDescendants then
+		inst.ClipsDescendants = true
+	end
+	if inst:IsA("CanvasGroup") then
+		inst.GroupTransparency = el.groupTransparency or 0
+	end
+	inst:SetAttribute("PenpotId", el.id)
+
+	if inst:IsA("TextLabel") or inst:IsA("TextButton") then
+		local t = inst :: any
+		t.Text = el.text or ""
+		if el.font then
+			t.FontFace = Font.fromName(el.font.family,
+				enumItem(Enum.FontWeight, el.font.weight, Enum.FontWeight.Regular),
+				enumItem(Enum.FontStyle, el.font.style, Enum.FontStyle.Normal))
 		end
-		
-		if element.textColor then
-			(inst :: any).TextColor3 = toColor3(element.textColor)
+		t.TextSize = el.textSize or 14
+		t.TextScaled = el.textScaled == true
+		t.TextWrapped = el.textWrapped ~= false
+		if el.textColor then
+			t.TextColor3 = Color3.fromHex(el.textColor)
 		end
-		
-		if element.textXAlignment then
-			local align = element.textXAlignment
-			(inst :: any).TextXAlignment = (Enum.TextXAlignment :: any)[align] or Enum.TextXAlignment.Left
+		t.TextTransparency = el.textTransparency or 0
+		t.TextXAlignment = enumItem(Enum.TextXAlignment, el.textXAlignment, Enum.TextXAlignment.Center)
+		t.TextYAlignment = enumItem(Enum.TextYAlignment, el.textYAlignment, Enum.TextYAlignment.Center)
+		if el.lineHeight then
+			t.LineHeight = el.lineHeight
 		end
-		
-		if element.textYAlignment then
-			local align = element.textYAlignment
-			(inst :: any).TextYAlignment = (Enum.TextYAlignment :: any)[align] or Enum.TextYAlignment.Center
-		end
-		
-		if element.textWrapped ~= nil then
-			(inst :: any).TextWrapped = element.textWrapped
-		end
-		
-		if element.textScaled ~= nil then
-			(inst :: any).TextScaled = element.textScaled
+		if inst:IsA("TextButton") then
+			inst.AutoButtonColor = true
 		end
 	end
-	
-	-- Image properties
-	if element.image and (className == "ImageLabel" or className == "ImageButton") then
-		local assetId = element.image.rbxAssetId or imageCache[element.image.contentHash]
-		if assetId then
-			(inst :: any).Image = assetId
+
+	if el.image and (inst:IsA("ImageLabel") or inst:IsA("ImageButton")) then
+		local i = inst :: any
+		local asset = ctx.images[el.image.key]
+		if asset then
+			i.Image = asset
 		else
-			warn("Image not uploaded yet for element: " .. element.name .. " (hash: " .. element.image.contentHash .. ")")
+			table.insert(ctx.warnings, `{el.name}: image {el.image.key} not uploaded yet (no entry in images)`)
 		end
-		(inst :: any).BackgroundTransparency = 1
+		i.ScaleType = enumItem(Enum.ScaleType, el.image.scaleType, Enum.ScaleType.Fit)
 	end
-	
-	-- Children: corner, stroke, gradient, constraints
-	if element.corner then
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0, element.corner.radius)
-		corner.Parent = inst
+
+	decorate(inst, el)
+	for _, child in el.children or {} do
+		create(child, ctx).Parent = inst
 	end
-	
-	if element.stroke then
-		local stroke = Instance.new("UIStroke")
-		stroke.Thickness = element.stroke.thickness
-		stroke.Color = toColor3(element.stroke.color)
-		if element.stroke.transparency then
-			stroke.Transparency = element.stroke.transparency
-		end
-		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		stroke.Parent = inst
-	end
-	
-	if element.gradient and element.gradient.type == "linear" then
-		local gradient = Instance.new("UIGradient")
-		gradient.Rotation = element.gradient.rotation
-		
-		local keypoints = {}
-		for i, stop in element.gradient.stops do
-			local color = toColor3(stop.color)
-			local transparency = stop.transparency or 0
-			table.insert(keypoints, ColorSequenceKeypoint.new(stop.position, color))
-		end
-		gradient.Color = ColorSequence.new(keypoints)
-		gradient.Parent = inst
-	end
-	
-	if element.aspectRatio then
-		local constraint = Instance.new("UIAspectRatioConstraint")
-		constraint.AspectRatio = element.aspectRatio
-		constraint.Parent = inst
-	end
-	
-	-- Layout
-	if element.layout then
-		local layout = element.layout
-		
-		if layout.type == "List" then
-			local listLayout = Instance.new("UIListLayout")
-			
-			if layout.fillDirection then
-				listLayout.FillDirection = (Enum.FillDirection :: any)[layout.fillDirection] or Enum.FillDirection.Horizontal
-			end
-			
-			if layout.horizontalAlignment then
-				listLayout.HorizontalAlignment = (Enum.HorizontalAlignment :: any)[layout.horizontalAlignment] or Enum.HorizontalAlignment.Left
-			end
-			
-			if layout.verticalAlignment then
-				listLayout.VerticalAlignment = (Enum.VerticalAlignment :: any)[layout.verticalAlignment] or Enum.VerticalAlignment.Top
-			end
-			
-			if layout.sortOrder then
-				listLayout.SortOrder = (Enum.SortOrder :: any)[layout.sortOrder] or Enum.SortOrder.LayoutOrder
-			end
-			
-			if layout.padding then
-				listLayout.Padding = UDim.new(layout.padding.scale, layout.padding.offset)
-			end
-			
-			listLayout.Parent = inst
-			
-		elseif layout.type == "Grid" then
-			local gridLayout = Instance.new("UIGridLayout")
-			
-			if layout.sortOrder then
-				gridLayout.SortOrder = (Enum.SortOrder :: any)[layout.sortOrder] or Enum.SortOrder.LayoutOrder
-			end
-			
-			if layout.cellSize then
-				gridLayout.CellSize = UDim2.fromScale(layout.cellSize.scaleX, layout.cellSize.scaleY)
-			end
-			
-			if layout.cellPadding then
-				gridLayout.CellPadding = UDim2.fromScale(layout.cellPadding.scaleX, layout.cellPadding.scaleY)
-			end
-			
-			gridLayout.Parent = inst
-		end
-	end
-	
-	-- Padding
-	if element.padding then
-		local padding = Instance.new("UIPadding")
-		local p = element.padding
-		padding.PaddingTop = UDim.new(p.top.scale, p.top.offset)
-		padding.PaddingRight = UDim.new(p.right.scale, p.right.offset)
-		padding.PaddingBottom = UDim.new(p.bottom.scale, p.bottom.offset)
-		padding.PaddingLeft = UDim.new(p.left.scale, p.left.offset)
-		padding.Parent = inst
-	end
-	
+	ctx.built += 1
 	return inst
 end
 
--- Recursively build element tree
-local function buildElement(element: RobloxElement, imageCache: { [string]: string }): Instance
-	local inst = createElement(element, imageCache)
-	
-	if element.children then
-		for _, child in element.children do
-			local childInst = buildElement(child, imageCache)
-			childInst.Parent = inst
-		end
+-- Build (or rebuild) the ScreenGui. spec: JSON string or decoded table.
+function M.build(spec: any, options: Options?): (ScreenGui, Report)
+	local opts: Options = options or {}
+	if type(spec) == "string" then
+		spec = HttpService:JSONDecode(spec)
 	end
-	
-	return inst
-end
+	assert(type(spec) == "table" and spec.board and spec.elements, "not a penpot-to-roblox spec")
+	assert(spec.version == M.SPEC_VERSION, `spec version {spec.version}; this builder reads version {M.SPEC_VERSION} (re-run the converter)`)
+	local parent: Instance = opts.parent or StarterGui
+	local name = opts.name or spec.board.name
+	local existing = parent:FindFirstChild(name)
+	if existing and existing:GetAttribute("PenpotBoardId") == nil then
+		error(`refusing to replace {existing:GetFullName()}: it was not built by PenpotUIBuilder (pass another name)`)
+	end
 
--- Main entry point: build ScreenGui from spec
-local function buildFromSpec(specJson: string, imageCache: { [string]: string }?): ScreenGui
-	local cache = imageCache or {}
-	local spec: RobloxUISpec = HttpService:JSONDecode(specJson) :: any
-	
-	-- Create or replace ScreenGui
-	local screenName = spec.board.name
-	local existing = StarterGui:FindFirstChild(screenName)
+	local ctx: Ctx = { images = opts.images or {}, warnings = {}, built = 0 }
+	local screen = Instance.new("ScreenGui")
+	screen.Name = name
+	screen.ResetOnSpawn = false
+	screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	screen.IgnoreGuiInset = false
+	trySet(screen, "ScreenInsets", Enum.ScreenInsets.CoreUISafeInsets)
+	screen:SetAttribute("PenpotBoardId", spec.board.id)
+	screen:SetAttribute("PenpotBoard", spec.board.name)
+	screen:SetAttribute("PenpotSpecVersion", spec.version)
+	for _, el in spec.elements do
+		create(el, ctx).Parent = screen
+	end
+	for _, w in spec.warnings or {} do
+		table.insert(ctx.warnings, "converter: " .. w)
+	end
 	if existing then
 		existing:Destroy()
 	end
-	
-	local screen = Instance.new("ScreenGui")
-	screen.Name = screenName
-	screen.ResetOnSpawn = false
-	screen.IgnoreGuiInset = false
-	screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	screen.Parent = StarterGui
-	
-	-- Build all top-level elements
-	for _, element in spec.elements do
-		local inst = buildElement(element, cache)
-		inst.Parent = screen
-	end
-	
-	-- Report warnings
-	if #spec.warnings > 0 then
-		warn("Penpot conversion warnings for " .. screenName .. ":")
-		for _, warning in spec.warnings do
-			warn("  - " .. warning)
-		end
-	end
-	
-	print("Built " .. screenName .. " with " .. #spec.elements .. " top-level element(s)")
-	return screen
+	screen.Parent = parent -- parent last: one atomic swap
+	return screen, { screen = screen:GetFullName(), built = ctx.built, warnings = ctx.warnings }
 end
 
--- Export
-return {
-	buildFromSpec = buildFromSpec
-}
+function M.report(r: Report): string
+	local lines = { `built {r.screen}: {r.built} elements, {#r.warnings} warning(s)` }
+	for _, w in r.warnings do
+		table.insert(lines, "  warning: " .. w)
+	end
+	return table.concat(lines, "\n")
+end
+
+return M
