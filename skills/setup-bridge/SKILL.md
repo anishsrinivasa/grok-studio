@@ -1,205 +1,170 @@
 ---
 name: setup-bridge
 description: >-
-  Connect Roblox Studio (and optionally Blender) running on the user's local PC
-  to this remote GrokBot agent. Runs entirely through ExternalShell: checks
-  prerequisites, starts the bridge + ngrok tunnel, parses the connection details,
-  and registers the MCP connectors automatically. Use when the user says
-  "setup bridge", "connect Studio", "connect Roblox", or when the orchestrator's
-  preflight detects that Studio is unreachable.
+  The one command that sets up grok-studio on Grok Bot. Connects the user's Roblox Studio
+  through the bridge, creates the Lead, Coding, Designer, Builder and Animator GrokBots,
+  installs headless Blender on the cloud computer, checks Figma and an optional Open
+  Cloud key, smoke-tests that every Bot reaches Studio, then hands the user's game idea
+  to Lead GrokBot. Safe to re-run: it only reconnects or repairs what's missing. Use for
+  "setup bridge", "set up grok studio", "connect Studio", right after installing the
+  plugin, or when any Bot finds the team or Studio missing.
 user-invocable: true
-argument-hint: "[--no-blender]"
+argument-hint: "[--no-figma] [--no-blender]"
 ---
 
-# Setup Bridge
+# /setup-bridge: set up everything
 
-Connect Roblox Studio (and optionally Blender) on the user's local PC to this
-GrokBot agent. After this skill finishes, Studio and Blender tools are available
-as custom MCP connectors — no manual copy-paste needed.
+After installing the plugin, the user runs `/setup-bridge` once and the team is ready to
+build. Run the steps in order. Before each step, tell the user in one short line what
+you're on. Only stop for what needs them: approving PC commands, opening Studio, signing
+in. Re-running is safe: every step checks what already exists and skips or repairs it.
 
-**This skill uses ExternalShell (local execution).** The user must have "Execution
-on Local Computer" enabled (the default "Ask every time" is fine — they will see
-approval prompts).
+`<plugin>` = `/workspace/grok-studio/plugin` (Step 1 creates it).
 
-## Step 0 — Determine the user's OS
+## Step 1 - Plugin files and workspace (cloud computer)
 
-Run via ExternalShell:
+The Bots need the plugin's files (Bot instructions, the Blender installer, helper scripts)
+at one fixed path. Take them from wherever this skill was loaded. If that isn't known,
+search for them, and as a last resort download the same version from GitHub:
 
-```
-echo %OS%
-```
-
-- If the output contains `Windows_NT`, this is **Windows**. Use PowerShell commands
-  and `start-bridge.ps1`.
-- If the command fails or returns nothing, try `uname -s`. If the output is `Darwin`,
-  this is **macOS**. Use bash commands and `start-bridge.sh`.
-- If the result is `Linux`, stop: Roblox Studio does not run on Linux. Tell the
-  user they need to run this from their Windows or macOS machine.
-
-## Step 1 — Locate the plugin files on the user's PC
-
-The bridge scripts ship with this plugin. When the plugin is installed locally by
-GrokBot, its files are in the plugin directory. Check if the bridge script exists
-via ExternalShell.
-
-**Windows:**
-```
-if exist "%USERPROFILE%\.cursor\plugins\*grok-studio*\bridge\start-bridge.ps1" (echo FOUND) else (echo MISSING)
-```
-
-**macOS:**
-```
-ls ~/Library/Application\ Support/Cursor/plugins/*grok-studio*/bridge/start-bridge.sh 2>/dev/null && echo FOUND || echo MISSING
-```
-
-If MISSING, the plugin may not be installed locally, or GrokBot's local execution
-does not have access to the plugin directory. Fall back: ask the user to clone the
-repo manually:
-
-```
-git clone https://github.com/brain-xiang/grok-studio.git ~/grok-studio
+```bash
+GS=/workspace/grok-studio
+mkdir -p "$GS/games" "$GS/.tools"
+if [ ! -f "$GS/plugin/skills/setup-bridge/lead-bot.md" ]; then
+  # a) the folder this SKILL.md was loaded from, two levels up (fill in if you know it)
+  SRC_ROOT=""
+  # b) otherwise search for it
+  [ -z "$SRC_ROOT" ] && SRC_ROOT=$(timeout 60 find / -xdev -path '*/skills/setup-bridge/lead-bot.md' \
+      -not -path "$GS/*" 2>/dev/null | head -n1 | sed 's#/skills/setup-bridge/lead-bot.md##')
+  if [ -n "$SRC_ROOT" ]; then
+    ln -sfn "$SRC_ROOT" "$GS/plugin"
+  else
+    # c) download: release tag, then the dev branch, then main
+    VER=0.2.0
+    for REF in tags/v$VER heads/multi-bot-team heads/main; do
+      rm -rf "$GS/plugin.tmp" && mkdir -p "$GS/plugin.tmp"
+      curl -fsSL "https://github.com/brain-xiang/grok-studio/archive/refs/$REF.tar.gz" |
+        tar -xz -C "$GS/plugin.tmp" --strip-components=1 2>/dev/null &&
+        [ -f "$GS/plugin.tmp/skills/setup-bridge/lead-bot.md" ] && break
+    done
+    rm -rf "$GS/plugin" && mv "$GS/plugin.tmp" "$GS/plugin"
+  fi
+fi
+ls "$GS/plugin/agents" "$GS/plugin/scripts"
 ```
 
-Then use `~/grok-studio/bridge/` as the bridge path.
+If this fails, stop and tell the user. Every later step needs these files.
 
-Record the bridge directory path as `$BRIDGE_DIR` for the steps below.
+Then start the Blender install **in the background** (skip with `--no-blender`, or if
+`cloud_blender.sh version` already works). It downloads a few hundred MB, so let it run
+while you do Step 2:
 
-## Step 2 — Check prerequisites
-
-Run each check via ExternalShell. For any failure, tell the user what to install
-and **wait for them to confirm** before re-checking. Do not proceed with missing
-prerequisites.
-
-### 2a. Node.js / npx
-
-**Windows:** `where npx`
-**macOS:** `which npx`
-
-If missing: "Install Node.js LTS from https://nodejs.org, then reopen your terminal."
-
-### 2b. ngrok
-
-**Windows:** `where ngrok`
-**macOS:** `which ngrok`
-
-If missing: "Install ngrok from https://ngrok.com/download and run
-`ngrok config add-authtoken <your-token>` once."
-
-If present, check that it has an authtoken:
-**Both:** `ngrok config check`
-Look for "Valid configuration file" in the output. If it says the config is missing
-or invalid, tell the user to run `ngrok config add-authtoken <token>`.
-
-### 2c. Roblox Studio MCP enabled
-
-**Windows:** `if exist "%LOCALAPPDATA%\Roblox\mcp.bat" (echo OK) else (echo MISSING)`
-**macOS:** `test -x /Applications/RobloxStudio.app/Contents/MacOS/StudioMCP && echo OK || echo MISSING`
-
-If MISSING: "Open Roblox Studio, go to Assistant settings, and turn on 'Enable
-Studio as MCP server'. Then check again."
-
-### 2d. Roblox Studio running (optional check)
-
-**Windows:** `tasklist /fi "imagename eq RobloxStudioBeta.exe" /nh`
-**macOS:** `pgrep -x RobloxStudio`
-
-If not running: "Please open Roblox Studio with a place loaded before continuing."
-
-### 2e. uv/uvx (only if Blender is wanted)
-
-If the user did NOT say `--no-blender`:
-
-**Windows:** `where uvx`
-**macOS:** `which uvx`
-
-If missing: "Install uv from https://docs.astral.sh/uv/getting-started/installation/,
-then run `uvx mcp-for-blender setup`."
-
-If the user doesn't need Blender, note that we will add `--no-blender` to the
-bridge command.
-
-## Step 3 — Start the bridge
-
-All prerequisites passed. Start the bridge in the background via ExternalShell.
-The `--json-output` flag makes it emit a single JSON line with the connection
-details that we can parse.
-
-**Windows:**
-```
-powershell -ExecutionPolicy Bypass -File "$BRIDGE_DIR\start-bridge.ps1" -Tunnel -Yes -JsonOutput [-NoBlender]
+```bash
+B="$GS/plugin/skills/blender-assets/reference/cloud_blender.sh"
+bash "$B" version >/dev/null 2>&1 || nohup bash "$B" install > "$GS/.tools/blender-install.log" 2>&1 &
 ```
 
-**macOS:**
+## Step 2 - Connect Roblox Studio (the user's PC)
+
+Studio only runs on Windows or macOS, so it stays on the user's PC, and the bridge exposes
+it to the cloud. Run the **`connect-studio`** skill now, here in this chat: the user
+approves its PC commands here. It:
+- checks Studio is open with **Enable Studio as MCP server** on, and that Node.js is
+  installed (it offers to install it)
+- starts the bridge and tunnel on the PC
+- writes `/workspace/grok-studio/.bridge.json`
+- registers or updates the one shared `roblox-studio` connector
+- verifies with `list_roblox_studios`
+
+If Studio already answers `list_roblox_studios` and `.bridge.json` exists, skip this
+step. If more than one Studio window is open, ask the user which place to build in, and
+remember its name for Step 7.
+
+## Step 3 - Create the team
+
+Create these Bots, skipping any that already exist with the same name. For each one, set
+the name, the title, the sidebar section **Grok Studio**, and the instructions: the text of
+the listed file **without** its `---` frontmatter block. Copy it exactly, without
+summarizing.
+
+| Name | Title | Instructions file |
+|---|---|---|
+| Lead GrokBot | Producer: plans the game, runs the team, playtests | `<plugin>/skills/setup-bridge/lead-bot.md` |
+| Coding GrokBot | Programmer: all Luau scripts | `<plugin>/agents/coder.md` |
+| Designer GrokBot | UI designer: HUD, menus, icon, thumbnails | `<plugin>/agents/designer.md` |
+| Builder GrokBot | World builder + 3D modeler (Studio and Blender) | `<plugin>/agents/builder.md` |
+| Animator GrokBot | Animator: rigs and animations | `<plugin>/agents/animator.md` |
+
+Skills are shared by all of the user's Bots, so there is nothing to attach. If a Bot with
+that name exists but has different instructions (an older plugin version), ask the user
+once whether to update them all. Never delete a Bot.
+
+Message each Bot:
+
 ```
-"$BRIDGE_DIR/start-bridge.sh" --tunnel --yes --json-output [--no-blender]
+[GS] HELLO from setup. Load the team-protocol skill and your role skills, then reply
+"READY <role>" in one line.
 ```
 
-**IMPORTANT:** This command runs in the foreground and stays alive (the bridge
-process). Use `AwaitExternalShell` to wait for the first line of output (the JSON),
-then leave the process running. The user will Ctrl+C it when they are done.
+Don't wait here. Collect the replies during Steps 4-6.
 
-## Step 4 — Parse the JSON output
+## Step 4 - Blender (cloud computer)
 
-The bridge prints exactly one JSON line to stdout before blocking:
+Wait for the background install from Step 1 (`tail "$GS/.tools/blender-install.log"`),
+then check it:
 
-```json
-{"studio_url":"https://abc.ngrok-free.app/roblox-studio/mcp","blender_url":"https://abc.ngrok-free.app/blender/mcp","api_key":"...","port":8765}
+```bash
+bash "$GS/plugin/skills/blender-assets/reference/cloud_blender.sh" version
 ```
 
-Parse it. Extract:
-- `studio_url` — the public HTTPS URL for Studio MCP (present unless `--no-blender`)
-- `blender_url` — the public HTTPS URL for Blender MCP (absent if `--no-blender`)
-- `api_key` — the ephemeral bearer token
+If it failed (no space, unsupported CPU), say so in the Step 6 table. Builder and Animator
+then work in Studio only.
 
-If parsing fails or the bridge exits early, read the last lines of output for
-error messages and report them to the user.
+## Step 5 - Optional connectors
 
-## Step 5 — Register the MCP connectors
+- **Figma** (skip with `--no-figma`): call the Figma connector's `whoami`. If it asks to
+  sign in, the user clicks **Authorize** once. Free Figma plans can only read, about 20
+  calls a month, so Designer builds UI directly in Studio either way. Never block on
+  Figma.
+- **Roblox Open Cloud key** (ask once, optional): with it, Builder's Blender models upload
+  and insert into Studio automatically. Without it, each batch needs one **File > Import
+  3D** click from the user, with the file already on their PC. If they want it:
+  1. They create a key at https://create.roblox.com/dashboard/credentials with the
+     **Assets API** (read + write) for their account (IP list open, or the cloud
+     computer's IP).
+  2. They save it through Grok Bot's secret prompt as `ROBLOX_OPEN_CLOUD_API_KEY`, plus
+     their numeric user id as `ROBLOX_CREATOR_USER_ID` (or `ROBLOX_CREATOR_GROUP_ID`).
+     Secrets are available to the shell as environment variables. Never take a key in
+     plain chat, and never write it to `/workspace`.
+  3. Check: `test -n "$ROBLOX_OPEN_CLOUD_API_KEY" && echo set`.
 
-Tell yourself (the bot) to add custom MCP connectors using the parsed details.
-Use a message like:
+## Step 6 - Smoke test
 
-> Add a custom MCP server called roblox-studio at <studio_url> with
-> Authorization header: Bearer <api_key>
+Send each specialist:
 
-If Blender was included:
+```
+[GS] TASK ping: call list_roblox_studios and get_studio_state (read-only) and reply
+"DONE ping <studio name> <state>".
+```
 
-> Add a custom MCP server called blender at <blender_url> with
-> Authorization header: Bearer <api_key>
+All four answering with the same Studio proves the shared connector works for Bots
+running in parallel. Then show the user:
 
-Wait for confirmation that the connectors were registered.
+| Part | Status |
+|---|---|
+| Roblox Studio | connected to "<place name>" / not connected: <why> |
+| Bots | 5/5 ready, or which are missing |
+| Blender (cloud) | Blender <version> / not installed: <why> |
+| Figma | signed in / read-only / skipped |
+| Model uploads | automatic (Open Cloud key) / one Import 3D click per batch |
 
-## Step 6 — Verify
+## Step 7 - Ready to build
 
-Call `list_roblox_studios` through the newly registered roblox-studio connector.
-
-- **Success (returns studio instances):** Tell the user which Studio instances are
-  connected, and that they are ready to go. Suggest they try the `/grok-studio`
-  skill or just ask to build something.
-- **Empty list:** "Studio is connected but no places are open. Please open a place
-  in Roblox Studio."
-- **Failure / timeout:** "The connector was registered but Studio didn't respond.
-  Check that Studio is open with MCP enabled, and that the bridge terminal on your
-  PC shows 'Gateway is up'."
-
-## Step 7 — Tell the user how to stop
-
-> Your bridge is running in a terminal on your local PC. When you are done with
-> this build session:
-> 1. Press Ctrl+C in that terminal to stop the bridge and tunnel.
-> 2. The API key is now useless — no one can connect with it.
-> 3. The connectors in this bot will stop working. You can remove them or leave
->    them (they will just fail until you run /setup-bridge again).
-
-## Error handling
-
-- If ExternalShell is not available or the user has set "Never allow" for local
-  execution, explain that this skill needs local execution permission. Point them
-  to Settings > General > Bot > Execution on Local Computer > "Ask every time".
-- If any prerequisite install fails after two attempts, stop and give the user
-  the manual instructions from `bridge/README.md` as a fallback.
-- If the bridge script itself fails, show the error output and suggest the user
-  run it manually in their own terminal for easier debugging:
-  - Windows: `powershell -ExecutionPolicy Bypass -File .\bridge\start-bridge.ps1 -Tunnel`
-  - macOS: `./bridge/start-bridge.sh --tunnel`
-  Then they can copy-paste the URLs and key manually.
+Tell the user:
+- **Build:** describe the game right here, or in Lead GrokBot. If they describe it here,
+  send it to Lead GrokBot as `[GS] NEW GAME from the user: <their words, verbatim>` plus
+  the Studio place name from Step 2, then say "Lead GrokBot is on it. Follow along there."
+- **Stop:** tell any grok-studio Bot "disconnect Studio" (`connect-studio` disconnect
+  section), or press Ctrl+C in the bridge window. The bridge key dies with it.
+- **Next time:** run `/setup-bridge` again. It only reconnects Studio, because everything
+  else is already there.

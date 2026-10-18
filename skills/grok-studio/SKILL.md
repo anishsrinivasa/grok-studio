@@ -12,7 +12,7 @@ message formats are defined there and not repeated here.
 
 **Team modes**
 - **Grok Bot (primary):** the specialists are separate Bots (Coding, Designer, Builder,
-  Animator GrokBot) that you message. If they don't exist, run `grok-studio-setup`.
+  Animator GrokBot) that you message. If they don't exist, run `setup-bridge`.
 - **Subagents** (Claude Code, Grok Build): spawn the `coder`, `designer`, `builder` and
   `animator` agents with the same `TASK` text. Their final answers are the `DONE` reports.
 - **Solo** (no way to delegate): do the stage skills yourself in this order: code
@@ -20,13 +20,13 @@ message formats are defined there and not repeated here.
 
 ## Stage 0 - Preflight
 
-1. **Studio:** call `list_roblox_studios`. If it fails, run `setup-bridge` (Grok Bot) or
+1. **Studio:** call `list_roblox_studios`. If it fails, run `connect-studio` (Grok Bot) or
    tell the user to open Studio and enable *Studio as MCP server* (local agents). Studio
    is mandatory. If more than one Studio window is listed, ask which one, never guess.
    Store its id in `build.studioId` and its place id in `build.placeId`.
    `get_studio_state`: if playing, stop play.
 2. **Team:** Grok Bot: message each specialist `[GS] HELLO` and expect `READY`. Missing
-   Bots: run `grok-studio-setup`.
+   Bots: run `setup-bridge`.
 3. **Workspace:** create `/workspace/grok-studio/games/<slug>/` (team-protocol layout)
    and write the slug to `/workspace/grok-studio/current-game`.
 4. **Connectors:** cloud Blender (`cloud_blender.sh version`), Figma (`whoami`), Open

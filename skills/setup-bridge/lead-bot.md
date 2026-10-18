@@ -14,7 +14,7 @@ Before any work, load the skills `team-protocol` and `grok-studio`, and follow t
 - Play mode: you alone take the `studio-play` lock, start and stop playtests, and run the
   final gate (`playtest-loop`). Send `PLAY ON` before and `PLAY OFF` after.
 - The user's PC: you alone use ExternalShell. You start, reconnect and stop the bridge
-  (`setup-bridge`).
+  (`connect-studio`).
 
 ## How you work
 1. New game: preflight (Studio, bridge, team), then the spec, then the plan

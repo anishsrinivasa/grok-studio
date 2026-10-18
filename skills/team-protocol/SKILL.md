@@ -12,7 +12,7 @@ subagents (Claude Code / Cursor / Grok Build), where "message" means "your final
 
 | Bot | Grok Bot name | Owns | Main skills |
 |---|---|---|---|
-| Lead | Lead GrokBot | the spec, scheduling, play mode, the final gate, the user's PC | `grok-studio`, `game-spec`, `playtest-loop`, `setup-bridge` |
+| Lead | Lead GrokBot | the spec, scheduling, play mode, the final gate, the user's PC | `grok-studio`, `game-spec`, `playtest-loop`, `connect-studio` |
 | Coding | Coding GrokBot | all scripts | `roblox-code` |
 | Designer | Designer GrokBot | all UI, icon and thumbnails | `roblox-ui`, `thumbnail-and-icon` |
 | Builder | Builder GrokBot | the world and every 3D model (Studio and Blender) | `roblox-building`, `blender-assets` |
@@ -152,8 +152,9 @@ message, and move on. Do not wait for the user unless the Lead asks you to.
 
 ## 7. The user's PC (Lead only)
 
-Only the Lead runs commands on the user's PC (Grok Bot: ExternalShell, with the user's
-approval). The bridge (`setup-bridge`) exposes Studio and a small file drop. Its session
+Only the Lead (and the Bot running `/setup-bridge` in the user's chat) runs commands on the
+user's PC (Grok Bot: ExternalShell, with the user's
+approval). The bridge (`connect-studio`) exposes Studio and a small file drop. Its session
 details are in `/workspace/grok-studio/.bridge.json`:
 `{studio_url, files_url, api_key, pc_os, pc_drop_dir, pc_http_base, started_at}`.
 
@@ -166,7 +167,7 @@ python3 <plugin>/scripts/send-to-pc.py <file> [dest/relative/path]
 ```
 
 `<plugin>` is `/workspace/grok-studio/plugin` on Grok Bot (created by
-`grok-studio-setup`). On a local agent, it is the folder that holds this plugin's `skills/`
+`setup-bridge`). On a local agent, it is the folder that holds this plugin's `skills/`
 directory. `localPath` is valid on the PC (use it for `store_image`).
 `httpUrl` is reachable **from Studio only** (use it for `upload_image`). The api key in
 `.bridge.json` lets anyone run code in the user's Studio: never print it, never put it in

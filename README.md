@@ -33,24 +33,25 @@ PC with your approval.
 
 **In Grok Bot:**
 1. Install **grok-studio** from the plugin marketplace. Until it is listed, tell any Bot:
-   *"Install the grok-studio plugin from https://github.com/brain-xiang/grok-studio"*. If
+   *"Install the grok-studio plugin from https://github.com/brain-xiang/grok-studio"* (branch
+   `multi-bot-team` until it is merged). If
    it can't install unlisted plugins, ask it to clone the repo into
    `/workspace/grok-studio/plugin` and save every `skills/*/SKILL.md` there as a skill.
-2. Type **`/grok-studio-setup`**. It:
+2. Type **`/setup-bridge`**. It sets up everything:
    - creates the five Bots in a **Grok Studio** sidebar section, with their instructions
    - installs headless Blender on the Bots' cloud computer (nothing to install on your PC)
-   - has Lead GrokBot start the bridge on your PC and connect your Studio
-     (approve its commands)
+   - starts the bridge on your PC and connects your Studio
+     (approve its commands in that chat)
    - checks Figma (optional, one Authorize click) and an optional Roblox Open Cloud key
-   - pings Studio from every Bot and shows a ready table
-3. Open **Lead GrokBot** and describe the game:
+   - pings Studio from every Bot, shows a ready table, and hands your game idea to the Lead
+3. Describe the game in the same chat (it goes to **Lead GrokBot**), or in Lead GrokBot:
 
 > Make a co-op tycoon where players run a volcano-powered hot sauce factory. Conveyor
 > droppers make sauce bottles, players collect cash, buy upgrades and unlock a second
 > floor. Low-poly cartoon style, mobile-friendly UI, no monetization. Save progress.
 > Make a thumbnail and icon.
 
-**Next session:** `/grok-studio-setup --reconnect`, or just ask the Lead to build: it
+**Next session:** run `/setup-bridge` again (it only reconnects Studio), or just ask the Lead to build: it
 reconnects Studio itself. **Stop:** tell the Lead "disconnect Studio", or press Ctrl+C in
 the bridge window. The bridge key dies with it.
 
@@ -96,10 +97,10 @@ flowchart LR
 mcp.json, .mcp.json          MCP servers (local agents; Grok Bot uses the bridge)
 agents/                      coder, designer, builder, animator (subagents + Grok Bot instructions)
 skills/
-  grok-studio-setup/         one-command setup: creates the Bots, Blender, bridge, smoke test (+ lead-bot.md)
+  setup-bridge/              /setup-bridge: the one setup command - Studio, the Bots, Blender, Figma, smoke test (+ lead-bot.md)
   team-protocol/             workspace layout, ownership, locks, message formats
   grok-studio/               Lead playbook: preflight, spec, plan, dispatch, playtests, gate, handoff
-  setup-bridge/              starts the bridge on the user's PC via ExternalShell, registers the connector
+  connect-studio/            starts/stops the bridge on the user's PC via ExternalShell, registers the connector
   game-spec/                 prompt -> game-spec.json (+ schema.json, example)
   roblox-code/               Luau architecture, remotes, DataStores, anti-exploit (+ reference/*.luau)
   roblox-ui/                 Studio-direct ScreenGui builder, Figma path (+ reference/UiKit.luau)
