@@ -39,6 +39,7 @@ try:
     from roblox_export import (  # noqa: F401  (re-exported for job scripts)
         ROBLOX_TRI_LIMIT, apply_transforms, audit, export_fbx, flat_material,
         setup_scene_for_roblox, triangle_count, split_by_material, split_all_by_material,
+        material_hex, manifest_path_for,
     )
 except ImportError:  # plain Python: checkpoint listing and rollback only
     bpy = None
@@ -98,6 +99,8 @@ def asset_paths(asset_id, slug=None, root=None):
         "renders": os.path.join(game, "renders"),
         "exports": os.path.join(game, "exports"),
         "fbx": os.path.join(game, "exports", f"{asset_id}.fbx"),
+        # written by export_asset; must match roblox_export.manifest_path_for(fbx)
+        "manifest": os.path.join(game, "exports", f"{asset_id}_manifest.json"),
         "collection": f"Asset_{asset_id}",
     }
     for key in ("checkpoints", "renders", "exports"):
@@ -208,23 +211,22 @@ def checkpoint(paths, label):
 
 
 def export_asset(paths, names=None, with_animation=False, split_materials=True):
-    """Export the asset collection (or `names`) to exports/<id>.fbx. Returns path, size, and manifest.
-    
-    If split_materials=True (default), multi-material meshes are split and a manifest is created.
+    """Export the asset collection (or `names`) to exports/<id>.fbx.
+
+    split_materials=True (default): multi-material meshes are split into one mesh per
+    material (<Object>_<Material>, origin kept at the limb joint), the pre-export audit runs,
+    and exports/<id>_manifest.json is written. The split changes the open scene (not the
+    saved .blend unless you save/checkpoint afterwards); exporting again is safe.
+    Returns {"fbx", "manifest", "objects", "audit", "bytes"}.
     """
     _require_bpy()
     names = names or [n for n in asset_object_names(paths)
                       if bpy.data.objects[n].type in {"MESH", "ARMATURE", "EMPTY"}]
     if not names:
         raise SystemExit(f"nothing to export: collection {paths['collection']} is empty")
-    
-    result = export_fbx(paths["fbx"], names, with_animation=with_animation, split_materials=split_materials)
+    result = export_fbx(paths["fbx"], names, with_animation=with_animation,
+                        split_materials=split_materials)
     result["bytes"] = os.path.getsize(paths["fbx"])
-    
-    # Store manifest path in the result
-    if result.get("manifest"):
-        paths["manifest"] = result["manifest"]
-    
     return result
 
 

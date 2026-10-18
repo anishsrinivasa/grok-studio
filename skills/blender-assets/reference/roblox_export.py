@@ -16,8 +16,15 @@ Conventions (see https://create.roblox.com/docs/art/blender):
   * Hard limit: 20,000 triangles per mesh
     (https://create.roblox.com/docs/art/modeling/specifications).
 """
-import bpy
-import bmesh
+import json
+import os
+import re
+
+try:
+    import bpy
+    import bmesh
+except ImportError:  # plain Python: colour/name helpers only (unit tests)
+    bpy = bmesh = None
 
 ROBLOX_TRI_LIMIT = 20_000
 
@@ -55,14 +62,29 @@ def _non_manifold_edges(obj) -> int:
         bm.free()
 
 
-def audit(budget_by_name=None, names=None, check_single_material=True, check_flat_materials=True):
-    """Report triangles, size in studs, scale, n-gons and holes for every mesh. Use before export.
-    
+def _material_is_flat(mat):
+    """True when the material is a single flat colour (no image textures, nothing driving Base Color)."""
+    if mat is None or not mat.node_tree:
+        return True
+    if any(n.type == "TEX_IMAGE" for n in mat.node_tree.nodes):
+        return False
+    bsdf = next((n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
+    return not (bsdf and bsdf.inputs["Base Color"].is_linked)
+
+
+def audit(budget_by_name=None, names=None, check_single_material=False, check_flat_materials=True):
+    """Report triangles, size in studs, scale, n-gons, holes and materials for every mesh.
+
     budget_by_name: {object name: max triangles}; names: only audit these objects.
-    check_single_material: fail if any mesh has more than one material (pre-export check).
-    check_flat_materials: fail if any material is not flat (has textures or complex nodes).
-    Returns text; every line ends in OK or lists the issues. Lines with issues must be fixed
-    (or the issue accepted on purpose) before export.
+    check_single_material: False (default, the step-5 audit): a mesh with several materials is
+        fine and is noted as "[N materials, split at export]" because export_fbx splits it.
+        True (the pre-export audit export_fbx runs after splitting): more than one material
+        slot is an issue ("MULTIPLE MATERIALS").
+    check_flat_materials: flag materials that use image textures or drive Base Color with nodes
+        (their manifest colour would not match what Roblox shows).
+    Returns text, one line per mesh. Every line must end in OK; lines that list issues must be
+    fixed (or the issue accepted on purpose) before export. Split pieces may be open where two
+    materials met; that is noted, not an issue, when the source mesh was watertight.
     """
     budget_by_name = budget_by_name or {}
     report = []
@@ -73,7 +95,7 @@ def audit(budget_by_name=None, names=None, check_single_material=True, check_fla
         budget = budget_by_name.get(obj.name, ROBLOX_TRI_LIMIT)
         ngons = sum(1 for p in obj.data.polygons if len(p.vertices) > 4)
         holes = _non_manifold_edges(obj)
-        issues = []
+        issues, notes = [], []
         if tris > ROBLOX_TRI_LIMIT:
             issues.append(f"OVER ROBLOX LIMIT ({tris} > {ROBLOX_TRI_LIMIT})")
         elif tris > budget:
@@ -83,27 +105,26 @@ def audit(budget_by_name=None, names=None, check_single_material=True, check_fla
         if ngons:
             issues.append(f"{ngons} n-gons (triangulate or quad)")
         if holes:
-            issues.append(f"{holes} non-manifold edges (not watertight)")
-        if not obj.data.materials:
+            if holes <= int(obj.get(PROP_SEAM_EDGES, 0)):
+                notes.append("open at material seams")
+            else:
+                issues.append(f"{holes} non-manifold edges (not watertight)")
+        mats = _used_materials(obj)
+        if not obj.data.materials or not mats:
             issues.append("no material")
         elif check_single_material and len(obj.data.materials) > 1:
-            issues.append(f"MULTIPLE MATERIALS ({len(obj.data.materials)}); must split before export")
-        
-        # Check for flat materials (only Principled BSDF with base color, no textures)
+            issues.append(f"MULTIPLE MATERIALS ({len(obj.data.materials)} slots); split before export")
+        elif len(mats) > 1:
+            notes.append(f"{len(mats)} materials, split at export")
         if check_flat_materials:
-            for mat in obj.data.materials:
-                if not mat or not mat.node_tree:
-                    continue
-                bsdf = next((n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
-                if bsdf:
-                    # Check if Base Color input has a texture/node connected
-                    base_input = bsdf.inputs["Base Color"]
-                    if base_input.is_linked:
-                        issues.append(f"material {mat.name} has texture/nodes (not flat color)")
-                        break
-        
+            textured = [m.name for m in mats if not _material_is_flat(m)]
+            if textured:
+                issues.append(f"not flat (textures/nodes): {', '.join(textured)}")
         dims = tuple(round(d, 2) for d in obj.dimensions)
-        report.append(f"{obj.name}: {tris} tris, dims(studs)={dims} " + ("; ".join(issues) or "OK"))
+        line = f"{obj.name}: {tris} tris, dims(studs)={dims} "
+        if notes:
+            line += "[" + "; ".join(notes) + "] "
+        report.append(line + ("; ".join(issues) or "OK"))
     return "\n".join(report)
 
 
@@ -119,10 +140,7 @@ def apply_transforms(obj_names):
 
 def flat_material(name, hex_color, roughness=0.8, metallic=0.0):
     """Simple Principled BSDF material from a hex color (imports as MeshPart color/texture)."""
-    h = hex_color.lstrip('#')
-    rgb = tuple(int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
-    # sRGB -> linear for the BSDF base color
-    lin = tuple(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in rgb)
+    lin = srgb_hex_to_linear(hex_color)  # palette hex is sRGB; the BSDF wants linear
     mat = bpy.data.materials.get(name) or bpy.data.materials.new(name)
     if not mat.node_tree:  # Blender 5.x materials always have nodes; older ones need this
         mat.use_nodes = True
@@ -143,149 +161,283 @@ def flat_material(name, hex_color, roughness=0.8, metallic=0.0):
     return mat.name
 
 
+# --------------------------------------------------------------------------- colours / names
+
+# Custom properties written on split pieces, so a second export (or a re-opened .blend) still
+# knows which limb each piece belongs to and which piece carries the limb's joint.
+PROP_LIMB = "gs_limb"
+PROP_MAIN = "gs_main"
+PROP_SEAM_EDGES = "gs_seam_edges"
+MANIFEST_SUFFIX = "_manifest.json"
+
+
+def linear_to_srgb_hex(rgb):
+    """Blender stores colours scene-linear; Roblox Color3 / hex are sRGB. -> '#RRGGBB'."""
+    out = []
+    for c in rgb[:3]:
+        c = min(max(float(c), 0.0), 1.0)
+        s = c * 12.92 if c <= 0.0031308 else 1.055 * (c ** (1 / 2.4)) - 0.055
+        out.append(min(255, max(0, round(s * 255))))
+    return "#{:02X}{:02X}{:02X}".format(*out)
+
+
+def srgb_hex_to_linear(hex_color):
+    """'#RRGGBB' (sRGB, what Roblox and palettes use) -> linear (r, g, b) for Blender."""
+    h = hex_color.lstrip('#')
+    rgb = tuple(int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
+    return tuple(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in rgb)
+
+
+def material_hex(mat):
+    """sRGB '#RRGGBB' of a flat material: Principled Base Color, else the viewport colour."""
+    if mat is None:
+        return "#A3A2A5"  # Roblox default part grey
+    if mat.node_tree:
+        bsdf = next((n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
+        if bsdf is not None:
+            return linear_to_srgb_hex(bsdf.inputs["Base Color"].default_value)
+    return linear_to_srgb_hex(mat.diffuse_color)
+
+
+def safe_name(text):
+    """Roblox-friendly instance name part: letters, digits and underscores only."""
+    return re.sub(r"[^A-Za-z0-9_]+", "_", text or "").strip("_") or "Material"
+
+
+def manifest_path_for(fbx_path):
+    """exports/<id>.fbx -> exports/<id>_manifest.json (the name Studio-side helpers expect)."""
+    return os.path.splitext(fbx_path)[0] + MANIFEST_SUFFIX
+
+
+def _used_materials(obj):
+    """Distinct materials actually used by the mesh's faces, in slot order (None = empty slot)."""
+    slots = obj.material_slots
+    if not slots:
+        return []
+    used_idx = sorted({min(p.material_index, len(slots) - 1) for p in obj.data.polygons})
+    seen, out = set(), []
+    for i in used_idx:
+        mat = slots[i].material
+        key = mat.name if mat else None
+        if key not in seen:
+            seen.add(key)
+            out.append(mat)
+    return out
+
+
+# --------------------------------------------------------------------------- split by material
+
+def _baked_mesh(obj):
+    """Mesh data with every modifier except Armature applied (so seams match what you see,
+    and skinned meshes keep their weights). Returns (mesh, baked: bool)."""
+    if not any(m.type != 'ARMATURE' for m in obj.modifiers):
+        return obj.data, False
+    toggled = []
+    for m in obj.modifiers:
+        if m.type == 'ARMATURE' and m.show_viewport:
+            m.show_viewport = False
+            toggled.append(m)
+    try:
+        depsgraph = bpy.context.evaluated_depsgraph_get()
+        eval_obj = obj.evaluated_get(depsgraph)
+        mesh = bpy.data.meshes.new_from_object(eval_obj, preserve_all_data_layers=True,
+                                               depsgraph=depsgraph)
+    finally:
+        for m in toggled:
+            m.show_viewport = True
+    return mesh, True
+
+
+def _keep_faces(mesh, slot_indices):
+    """Delete faces whose material slot is not in slot_indices, plus the loose verts/edges left."""
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    try:
+        last = max(len(mesh.materials) - 1, 0)
+        drop = [f for f in bm.faces if min(f.material_index, last) not in slot_indices]
+        bmesh.ops.delete(bm, geom=drop, context='FACES_ONLY')
+        loose_e = [e for e in bm.edges if not e.link_faces]
+        bmesh.ops.delete(bm, geom=loose_e, context='EDGES')
+        loose_v = [v for v in bm.verts if not v.link_faces]
+        bmesh.ops.delete(bm, geom=loose_v, context='VERTS')
+        for f in bm.faces:
+            f.material_index = 0
+        bm.to_mesh(mesh)
+    finally:
+        bm.free()
+    mesh.update()
+
+
+def _record(obj, limb, main):
+    mat = obj.material_slots[0].material if obj.material_slots else None
+    return {"name": obj.name, "limb": limb, "main": main,
+            "material": mat.name if mat else None, "color": material_hex(mat)}
+
+
 def split_by_material(obj):
     """Split a mesh object into one object per material, named <Object>_<Material>.
-    
-    Returns [(new_obj_name, material_name, sRGB_hex)] for all pieces. The original object
-    is removed. Origins are kept at the parent limb's joint (the original object's origin),
-    so animation still works. Intended for export: call this right before export_fbx.
+
+    * Each piece keeps the original object's transform, parent, modifiers (Armature),
+      vertex groups, UVs and shading, so its origin stays at the limb's joint and it
+      animates exactly like the original. Only that material's faces are kept; loose
+      vertices are removed, so each piece's bounds are its own geometry.
+    * The piece made from the first used material slot is the limb's MAIN piece (the one
+      the Animator puts the Motor6D on; the others are welded to it in Studio). Override
+      with the custom property obj["gs_main_material"] = "<material name>".
+    * Children of the original are re-parented to the main piece (world transform kept).
+    * Duplicate slots of the same material become one piece; unused slots are ignored.
+    * Objects with one material are not renamed; they are their own main piece.
+
+    The original object is removed. Returns a list of records
+    {"name", "limb", "main", "material", "color"} (color = sRGB "#RRGGBB").
+    Safe to call again on its own output (pieces remember their limb via custom properties).
     """
-    if obj.type != 'MESH' or len(obj.data.materials) <= 1:
-        return [(obj.name, obj.data.materials[0].name if obj.data.materials else "Material", "#808080")]
-    
-    original_name = obj.name
-    original_location = obj.location.copy()
-    original_rotation = obj.rotation_euler.copy()
-    original_scale = obj.scale.copy()
-    original_parent = obj.parent
-    original_parent_type = obj.parent_type
-    
-    pieces = []
-    depsgraph = bpy.context.evaluated_depsgraph_get()
-    eval_obj = obj.evaluated_get(depsgraph)
-    mesh = eval_obj.to_mesh()
-    
+    if obj.type != 'MESH':
+        return []
+    limb = obj.get(PROP_LIMB, obj.name)
+    mats = _used_materials(obj)
+    if len(mats) <= 1:
+        # Already single-material: drop unused slots so the FBX carries exactly one material.
+        if len(obj.data.materials) > 1 and mats:
+            keep = mats[0]
+            if obj.data.users > 1:
+                obj.data = obj.data.copy()
+            for p in obj.data.polygons:
+                p.material_index = 0
+            obj.data.materials.clear()
+            obj.data.materials.append(keep)
+        obj[PROP_LIMB] = limb
+        obj[PROP_MAIN] = bool(obj.get(PROP_MAIN, True))
+        return [_record(obj, limb, bool(obj[PROP_MAIN]))]
+
+    main_name = obj.get("gs_main_material")
+    main_mat = next((m for m in mats if m and m.name == main_name), mats[0])
+    src_holes = _non_manifold_edges(obj)
+    base, baked = _baked_mesh(obj)
+    slots = obj.material_slots
+    pieces, main_obj = [], None
     try:
-        for mat_idx, material in enumerate(obj.data.materials):
-            mat_name = material.name if material else f"Material{mat_idx}"
-            # Extract RGB from material
-            hex_color = "#808080"
-            if material and material.node_tree:
-                bsdf = next((n for n in material.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
-                if bsdf:
-                    base_color = bsdf.inputs["Base Color"].default_value
-                    # linear to sRGB
-                    srgb = tuple(
-                        c * 12.92 if c <= 0.0031308 else 1.055 * (c ** (1 / 2.4)) - 0.055
-                        for c in base_color[:3]
-                    )
-                    hex_color = "#{:02x}{:02x}{:02x}".format(
-                        int(srgb[0] * 255), int(srgb[1] * 255), int(srgb[2] * 255)
-                    )
-            
-            # Create a new mesh with only faces using this material
-            new_mesh = bpy.data.meshes.new(f"{original_name}_{mat_name}")
-            verts = [v.co.copy() for v in mesh.vertices]
-            edges = []
-            faces = []
-            face_to_verts = {}
-            
-            for poly in mesh.polygons:
-                if poly.material_index == mat_idx:
-                    face_to_verts[poly.index] = list(poly.vertices)
-                    faces.append(list(poly.vertices))
-            
-            if not faces:
+        for mat in mats:
+            idx = {i for i, s in enumerate(slots)
+                   if (s.material.name if s.material else None) == (mat.name if mat else None)}
+            mesh = base.copy()
+            _keep_faces(mesh, idx)
+            if not mesh.polygons:
+                bpy.data.meshes.remove(mesh)
                 continue
-            
-            new_mesh.from_pydata(verts, edges, faces)
-            new_mesh.update()
-            new_mesh.materials.append(material)
-            
-            new_obj = bpy.data.objects.new(f"{original_name}_{mat_name}", new_mesh)
-            new_obj.location = original_location
-            new_obj.rotation_euler = original_rotation
-            new_obj.scale = original_scale
-            new_obj.parent = original_parent
-            new_obj.parent_type = original_parent_type
-            
+            mesh.materials.clear()
+            mesh.materials.append(mat)
+            piece = obj.copy()  # transform, parent (+inverse), modifiers, constraints, props
+            piece.data = mesh
+            if baked:
+                for m in [m for m in piece.modifiers if m.type != 'ARMATURE']:
+                    piece.modifiers.remove(m)
+            if piece.material_slots:
+                piece.material_slots[0].link = 'DATA'
+            piece.name = f"{limb}_{safe_name(mat.name if mat else 'Material')}"
+            mesh.name = piece.name
             for coll in obj.users_collection:
-                coll.objects.link(new_obj)
-            
-            pieces.append((new_obj.name, mat_name, hex_color))
-    
+                coll.objects.link(piece)
+            piece[PROP_LIMB] = limb
+            piece[PROP_MAIN] = (mat == main_mat)
+            if src_holes == 0:
+                piece[PROP_SEAM_EDGES] = _non_manifold_edges(piece)
+            if mat == main_mat:
+                main_obj = piece
+            pieces.append(piece)
     finally:
-        eval_obj.to_mesh_clear()
-    
-    # Remove original object
+        if baked:
+            bpy.data.meshes.remove(base)
+
+    for child in list(obj.children):
+        world = child.matrix_world.copy()
+        child.parent = main_obj
+        child.matrix_world = world
+
+    old_mesh = obj.data
     bpy.data.objects.remove(obj, do_unlink=True)
-    
-    return pieces
+    if old_mesh.users == 0:
+        bpy.data.meshes.remove(old_mesh)
+    return [_record(p, limb, bool(p[PROP_MAIN])) for p in pieces]
 
 
 def split_all_by_material(obj_names):
-    """Split all multi-material objects in obj_names, return manifest data.
-    
-    Returns {
-        "meshes": {mesh_name: {"parentLimb": parent_name, "color": hex, "material": mat_name}},
-        "split": [(original_name, [(piece_name, mat_name, hex)])]
+    """Split every multi-material mesh in obj_names. Returns (manifest, final_object_names).
+
+    manifest = {
+      "version": 1, "colorSpace": "sRGB",
+      "meshes": {piece: {"limb", "main", "material", "color", "parent"}},
+      "limbs":  {limb: {"main": piece, "pieces": [piece, ...], "joint": [x, y, z]}},
     }
-    Modifies the scene: multi-material objects are replaced by single-material pieces.
+    "parent" is the Blender parent object of the piece after splitting (None at top level).
+    "joint" is the limb origin (the pivot every piece shares) in Roblox axes and studs,
+    relative to the Blender world origin, i.e. (x, z, -y).
+    Non-mesh objects (armatures, empties) are passed through in final_object_names.
     """
-    manifest = {"meshes": {}, "split": []}
-    all_new_names = []
-    
+    records, final = [], []
     for name in obj_names:
-        if name not in bpy.data.objects:
+        obj = bpy.data.objects.get(name)
+        if obj is None:
             continue
-        obj = bpy.data.objects[name]
         if obj.type != 'MESH':
-            all_new_names.append(name)
+            final.append(name)
             continue
-        
-        parent_name = obj.parent.name if obj.parent else obj.name
-        pieces = split_by_material(obj)
-        
-        if len(pieces) > 1:
-            manifest["split"].append((name, pieces))
-        
-        for piece_name, mat_name, hex_color in pieces:
-            all_new_names.append(piece_name)
-            manifest["meshes"][piece_name] = {
-                "parentLimb": parent_name,
-                "color": hex_color,
-                "material": mat_name,
-            }
-    
-    return manifest, all_new_names
+        recs = split_by_material(obj)
+        records.extend(recs)
+        final.extend(r["name"] for r in recs)
+
+    manifest = {"version": 1, "colorSpace": "sRGB", "meshes": {}, "limbs": {}}
+    for r in records:
+        obj = bpy.data.objects[r["name"]]  # parent read now: earlier splits may have re-parented it
+        manifest["meshes"][r["name"]] = {
+            "limb": r["limb"], "main": r["main"], "material": r["material"],
+            "color": r["color"], "parent": obj.parent.name if obj.parent else None,
+        }
+        t = obj.matrix_world.translation  # Blender Z-up -> Roblox Y-up, as the FBX export does
+        joint = [round(t.x, 4) + 0.0, round(t.z, 4) + 0.0, round(-t.y, 4) + 0.0]  # no -0.0
+        limb = manifest["limbs"].setdefault(r["limb"], {"main": None, "pieces": [], "joint": joint})
+        limb["pieces"].append(r["name"])
+        if r["main"]:
+            limb["main"] = r["name"]
+    for limb, info in manifest["limbs"].items():
+        if info["main"] is None:  # e.g. the main piece was deleted by hand after a first split
+            info["main"] = info["pieces"][0]
+            manifest["meshes"][info["main"]]["main"] = True
+    return manifest, final
 
 
 def export_fbx(filepath, obj_names, with_animation=False, split_materials=True):
     """Export the named objects to a Roblox-ready FBX.
-    
-    If split_materials=True (default), multi-material meshes are split into one mesh per
-    material, and a manifest JSON is written next to the FBX mapping each mesh to its color
-    and parent limb. Returns {"fbx": path, "manifest": path or None, "split": bool}.
+
+    split_materials=True (default): split multi-material meshes first (split_all_by_material,
+    this changes the open scene), run the pre-export audit, refuse to export if any mesh still
+    has more than one material, and write <fbx stem>_manifest.json next to the FBX.
+    Returns {"fbx", "manifest" (path or None), "objects", "audit"}.
     """
-    manifest_data = None
     final_names = list(obj_names)
-    
+    manifest_path = None
+    audit_text = ""
     if split_materials:
-        manifest_data, final_names = split_all_by_material(obj_names)
-        manifest_path = filepath.rsplit(".", 1)[0] + "_manifest.json"
-        import json
+        manifest, final_names = split_all_by_material(obj_names)
+        meshes = [n for n in final_names if bpy.data.objects[n].type == 'MESH']
+        audit_text = audit(names=meshes, check_single_material=True)
+        bad = [line for line in audit_text.splitlines() if "MULTIPLE MATERIALS" in line]
+        if bad:
+            raise RuntimeError("pre-export audit failed:\n" + "\n".join(bad))
+        manifest["fbx"] = os.path.basename(filepath)
+        manifest_path = manifest_path_for(filepath)
         with open(manifest_path, "w", encoding="utf-8") as f:
-            json.dump(manifest_data, f, indent=2)
-    
+            json.dump(manifest, f, indent=2)
+
     bpy.ops.object.select_all(action='DESELECT')
     for name in final_names:
         if name in bpy.data.objects:
             bpy.data.objects[name].select_set(True)
-    
+
     bpy.ops.export_scene.fbx(
         filepath=filepath,
         use_selection=True,
-        apply_scale_options='FBX_SCALE_UNITS',
+        apply_scale_options='FBX_SCALE_UNITS',  # "FBX Unit Scale"
         axis_forward='-Z',
         axis_up='Y',
         apply_unit_scale=True,
@@ -298,6 +450,4 @@ def export_fbx(filepath, obj_names, with_animation=False, split_materials=True):
         path_mode='COPY',
         embed_textures=True,
     )
-    
-    result = {"fbx": filepath, "manifest": manifest_path if split_materials else None, "split": split_materials}
-    return result
+    return {"fbx": filepath, "manifest": manifest_path, "objects": final_names, "audit": audit_text}
