@@ -236,16 +236,27 @@ def _safe_name(text):
     return re.sub(r"[^A-Za-z0-9_]+", "", text.replace(" ", "_").replace("-", "_")) or "Mat"
 
 
-def split_by_material(asset_id, obj_or_names=None, merge_same_material=True):
+def split_by_material(asset_id, obj_or_names=None, merge_same_material=True, by_object=False):
     """One object per material: Roblox MeshParts carry one Color/Material each.
 
     Splits every mesh of the asset (or obj_or_names: an object, a name, or a list) by
-    material, with modifiers applied, and rebuilds the pieces as objects named
-    <id>_<Material> in the asset collection. Pieces sharing a material are merged into one
-    object (merge_same_material=False keeps them apart as <id>_<Material>_2, ...). Each new
-    object has rotation 0, scale 1 and its origin at its bounding-box centre.
-    Don't use it on skinned meshes (rigs): it would detach them from the armature.
-    Returns {"parts": [names], "removed": [old names]}.
+    material, with modifiers applied, and rebuilds the pieces as objects in the asset
+    collection. Each new object has rotation 0, scale 1 and its origin at its bounding-box
+    centre. Don't use it on skinned meshes (rigs): it would detach them from the armature.
+
+    by_object=False: pieces are named <id>_<Material>; pieces sharing a material are merged
+    into one object across ALL source objects (merge_same_material=False keeps them apart as
+    <id>_<Material>_2, ...). Fine for a static prop.
+    by_object=True: for anything built from separate limbs (animated creatures, doors,
+    wheels): pieces stay per source object, named <Object>_<Material>, and each piece records
+    its limb (the source object's name), whether it is the limb's MAIN piece (the biggest;
+    the Animator's Motor6D goes on it, apply_manifest.luau welds the other pieces to it) and
+    the limb's joint (the source object's origin). The manifest gets a "limbs" table.
+
+    Children of a split object that are not split themselves (empties, attachments, other
+    meshes) are re-parented to the new MAIN piece of that object, keeping their world
+    transform (they would otherwise be orphaned and jump).
+    Returns {"parts": [names], "removed": [old names], "limbs": {limb: main piece}}.
     """
     if obj_or_names is None:
         objs = asset_meshes(asset_id)
@@ -259,9 +270,17 @@ def split_by_material(asset_id, obj_or_names=None, merge_same_material=True):
     if not objs:
         raise ValueError("split_by_material: no mesh objects for asset %r" % asset_id)
 
+    split_names = set(o.name for o in objs)
     depsgraph = bpy.context.evaluated_depsgraph_get()
     buckets, mats, order = {}, {}, []
+    joints, limb_parent, children = {}, {}, []
     for obj in objs:
+        joints[obj.name] = obj.matrix_world.translation.copy()
+        # A split limb parented to another split limb: remember the limb hierarchy.
+        limb_parent[obj.name] = obj.parent.name if obj.parent and obj.parent.name in split_names else None
+        for child in obj.children:
+            if child.name not in split_names:
+                children.append((child, obj.name, child.matrix_world.copy()))
         ev = obj.evaluated_get(depsgraph)
         me = ev.to_mesh()
         bm = bmesh.new()
@@ -269,17 +288,20 @@ def split_by_material(asset_id, obj_or_names=None, merge_same_material=True):
         ev.to_mesh_clear()
         bm.transform(obj.matrix_world)  # world space: bakes location/rotation/scale
         slots = [s.material for s in obj.material_slots]
-        for mi in sorted({f.material_index for f in bm.faces}):
+        for mi in sorted(set(f.material_index for f in bm.faces)):
             mat = slots[mi] if mi < len(slots) else None
-            key = mat.name if mat else "Default"
+            mkey = mat.name if mat else "Default"
+            key = (obj.name, mkey) if by_object else mkey
             piece = bm.copy()
+            # context FACES also removes the edges and verts only those faces used: no loose
+            # verts, so every piece's bounds are its own.
             bmesh.ops.delete(piece, geom=[f for f in piece.faces if f.material_index != mi], context="FACES")
             for f in piece.faces:
                 f.material_index = 0
             if key not in buckets:
                 buckets[key] = []
                 order.append(key)
-            buckets[key].append(piece)
+            buckets[key].append((piece, obj.name))
             mats[key] = mat
         bm.free()
 
@@ -292,13 +314,16 @@ def split_by_material(asset_id, obj_or_names=None, merge_same_material=True):
         if data is not None and data.users == 0:
             bpy.data.meshes.remove(data)
 
-    parts = []
+    parts, by_limb = [], {}
     for key in order:
         pieces = buckets[key]
-        groups = [pieces] if merge_same_material else [[p] for p in pieces]
+        groups = [pieces] if (merge_same_material or by_object) else [[p] for p in pieces]
         for gi, group in enumerate(groups):
             merged = bmesh.new()
-            for piece in group:
+            contributors = []
+            for piece, src in group:
+                if src not in contributors:
+                    contributors.append(src)
                 tmp = bpy.data.meshes.new("_gs_tmp")
                 piece.to_mesh(tmp)
                 piece.free()
@@ -308,7 +333,12 @@ def split_by_material(asset_id, obj_or_names=None, merge_same_material=True):
             hi = Vector((max(v.co.x for v in merged.verts), max(v.co.y for v in merged.verts), max(v.co.z for v in merged.verts)))
             centre = (lo + hi) / 2
             bmesh.ops.translate(merged, vec=-centre, verts=merged.verts)
-            name = "%s_%s" % (asset_id, _safe_name(key)) + ("_%d" % (gi + 1) if gi else "")
+            if by_object:
+                name = "%s_%s" % (_safe_name(key[0]), _safe_name(key[1]))
+            else:
+                name = "%s_%s" % (asset_id, _safe_name(key)) + ("_%d" % (gi + 1) if gi else "")
+            volume = max(hi.x - lo.x, 0.01) * max(hi.y - lo.y, 0.01) * max(hi.z - lo.z, 0.01)
+            nfaces = len(merged.faces)
             mesh = bpy.data.meshes.new(name)
             merged.to_mesh(mesh)
             merged.free()
@@ -318,7 +348,39 @@ def split_by_material(asset_id, obj_or_names=None, merge_same_material=True):
             obj.location = centre
             coll.objects.link(obj)
             parts.append(obj.name)
-    return {"parts": parts, "removed": removed}
+            for src in contributors:  # merged parts can hold pieces of several objects
+                by_limb.setdefault(src, []).append((volume, nfaces, obj))
+
+    # Main piece per source object: the biggest (volume, then faces).
+    mains = {}
+    for limb, entries in by_limb.items():
+        best = entries[0]
+        for e in entries[1:]:
+            if (e[0], e[1]) > (best[0], best[1]):
+                best = e
+        mains[limb] = best[2]
+        if by_object:
+            for _, _, o in entries:
+                o["gs_limb"] = limb
+                o["gs_main"] = o is best[2]
+                o["gs_joint"] = list(joints[limb])
+                o["gs_limb_parent"] = limb_parent[limb] or ""
+
+    # Re-parent children of split objects to that object's main piece, same world transform.
+    reparented = []
+    if children:
+        bpy.context.view_layer.update()  # new objects' matrix_world is identity until updated
+    for child, limb, world in children:
+        target = mains.get(limb)
+        if target is None:
+            continue
+        child.parent = target
+        child.matrix_parent_inverse = target.matrix_world.inverted()
+        child.matrix_world = world
+        reparented.append([child.name, target.name])
+    return {"parts": parts, "removed": removed,
+            "limbs": dict((limb, o.name) for limb, o in mains.items()) if by_object else {},
+            "reparented": reparented}
 
 
 def _world_bounds(objs):
@@ -356,7 +418,7 @@ def asset_manifest(asset_id, names=None, anchored=True, can_collide=True, collis
         raise ValueError("asset_manifest: no mesh objects for asset %r" % asset_id)
     lo, hi, per = _world_bounds(objs)
     pivot = Vector(((lo.x + hi.x) / 2, (lo.y + hi.y) / 2, lo.z))
-    parts, total, biggest = [], 0, (None, -1.0)
+    parts, total, biggest, limbs = [], 0, (None, -1.0), {}
     for obj in objs:
         olo, ohi = per[obj.name]
         size_b = ohi - olo
@@ -376,8 +438,18 @@ def asset_manifest(asset_id, names=None, anchored=True, can_collide=True, collis
             "rotated": any(abs(a) > 1e-4 for a in obj.rotation_euler) or any(abs(s - 1) > 1e-4 for s in obj.scale),
             "multiMaterial": multi,
         })
+        if obj.get("gs_limb"):
+            joint = Vector(tuple(obj["gs_joint"]))
+            parts[-1].update(limb=str(obj["gs_limb"]), main=bool(obj["gs_main"]),
+                             joint=roblox_vec(joint - pivot))
+            entry = limbs.setdefault(str(obj["gs_limb"]), {"main": None, "pieces": [],
+                                                            "joint": roblox_vec(joint - pivot),
+                                                            "parent": str(obj.get("gs_limb_parent", "")) or None})
+            entry["pieces"].append(obj.name)
+            if obj["gs_main"]:
+                entry["main"] = obj.name
     size_b = hi - lo
-    return {
+    out = {
         "version": MANIFEST_VERSION,
         "id": asset_id,
         "fbx": asset_id + ".fbx",
@@ -392,6 +464,10 @@ def asset_manifest(asset_id, names=None, anchored=True, can_collide=True, collis
         "collisionFidelity": "Box" if collision == "none" else collision,
         "parts": parts,
     }
+    if limbs:
+        # limb -> {main piece, pieces, joint (Roblox axes, from the pivot), parent limb or None}
+        out["limbs"] = limbs
+    return out
 
 
 # --------------------------------------------------------------------------- export

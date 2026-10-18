@@ -235,15 +235,16 @@ def write_manifest(paths, anchored=None, can_collide=None, collision=None):
     return manifest
 
 
-def split_by_material(paths, obj_or_names=None, merge_same_material=True, **physics):
-    """Split the asset's meshes into one object per material (<id>_<Material>), then write
-    the manifest. See gs_core.split_by_material. Checkpoint before calling it."""
+def split_by_material(paths, obj_or_names=None, merge_same_material=True, by_object=False, **physics):
+    """Split the asset's meshes into one object per material, then write the manifest.
+    by_object=True keeps limbs apart (<Object>_<Material>, limb/main/joint in the manifest):
+    use it for anything that animates. See gs_core.split_by_material. Checkpoint first."""
     _require_bpy()
-    result = gs_core.split_by_material(paths["id"], obj_or_names, merge_same_material)
+    result = gs_core.split_by_material(paths["id"], obj_or_names, merge_same_material, by_object)
     manifest = write_manifest(paths, **physics)
     result["manifest"] = paths["manifest"]
-    result["parts"] = [{k: p[k] for k in ("name", "hex", "robloxMaterial", "size", "triangles")}
-                       for p in manifest["parts"]]
+    result["parts"] = [{k: p[k] for k in ("name", "hex", "robloxMaterial", "size", "triangles", "limb", "main")
+                        if k in p} for p in manifest["parts"]]
     return result
 
 
