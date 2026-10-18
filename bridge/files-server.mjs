@@ -15,6 +15,7 @@
 //
 // Environment (set by start-bridge.ps1 / start-bridge.sh):
 //   GROK_STUDIO_DROP_DIR    the drop folder (default ~/grok-studio/drop)
+//   GROK_STUDIO_DROP_DIR_DISPLAY  (WSL) the same folder as Windows sees it, used for localPath
 //   GROK_STUDIO_HTTP_BASE   http://127.0.0.1:<port>/<token> - returned as httpUrl by put_file
 //   GROK_STUDIO_HTTP_TOKEN  the token the --http mode requires as its first path segment
 //
@@ -29,6 +30,9 @@ import process from "node:process";
 const DROP_DIR = path.resolve(process.env.GROK_STUDIO_DROP_DIR || path.join(os.homedir(), "grok-studio", "drop"));
 const HTTP_BASE = (process.env.GROK_STUDIO_HTTP_BASE || "").replace(/\/+$/, "");
 const HTTP_TOKEN = process.env.GROK_STUDIO_HTTP_TOKEN || "";
+// Under WSL the drop folder is a Linux path but Studio runs on Windows: when this is set,
+// localPath is reported in the Windows form (e.g. \\wsl.localhost\<distro>\home\me\grok-studio\drop).
+const DISPLAY_DIR = (process.env.GROK_STUDIO_DROP_DIR_DISPLAY || "").replace(/[\\/]+$/, "");
 
 const MAX_FILE_BYTES = 200 * 1024 * 1024; // a dropped file may grow to 200 MB through appends
 const MAX_CHUNK_BASE64 = 16 * 1024 * 1024; // one put_file call carries at most ~12 MB
@@ -55,6 +59,12 @@ function resolveInDrop(rel) {
   const abs = path.resolve(DROP_DIR, ...parts);
   if (abs !== DROP_DIR && !abs.startsWith(DROP_DIR + path.sep)) throw new Error("path escapes the drop folder");
   return { abs, rel: parts.join("/") };
+}
+
+function displayPath(abs, rel) {
+  if (!DISPLAY_DIR) return abs;
+  const sep = DISPLAY_DIR.includes("\\") ? "\\" : "/";
+  return DISPLAY_DIR + sep + rel.split("/").join(sep);
 }
 
 function httpUrlFor(rel) {
@@ -115,7 +125,7 @@ function toolPutFile(args) {
   if (append) fs.appendFileSync(abs, data);
   else fs.writeFileSync(abs, data);
   const bytes = fs.statSync(abs).size;
-  return { localPath: abs, httpUrl: httpUrlFor(rel), bytes, path: rel };
+  return { localPath: displayPath(abs, rel), httpUrl: httpUrlFor(rel), bytes, path: rel };
 }
 
 function toolListFiles(args) {
@@ -140,7 +150,7 @@ function toolListFiles(args) {
     }
   };
   walk(DROP_DIR, "");
-  return { dropDir: DROP_DIR, files: out, truncated: out.length >= 500 };
+  return { dropDir: DISPLAY_DIR || DROP_DIR, files: out, truncated: out.length >= 500 };
 }
 
 function toolDeleteFile(args) {

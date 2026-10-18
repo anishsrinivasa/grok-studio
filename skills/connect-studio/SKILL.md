@@ -62,11 +62,37 @@ It prints one JSON line, and transient failures are already retried with backoff
 - `"bridge": "down"` or `"unknown"`, or `"studio": "error"`: go to Step 1. Specialists
   stop here and message the Lead with the `error` and `fix` fields.
 
+## Heal (any Bot, when Step 0 fails)
+
+Any Bot may run this one repair. Everything else on the PC stays with the Lead.
+
+1. Re-run Step 0 once: `python3 <plugin>/scripts/bridge-check.py --studio`.
+2. Still `down`: restart the bridge on the PC. This is local execution, so the user approves
+   it like any PC command.
+   - Windows:
+     `powershell -NoProfile -ExecutionPolicy Bypass -File "%USERPROFILE%\grok-studio\bridge\start-bridge.ps1" restart -JsonOutput`
+   - macOS / Linux (WSL):
+     `bash ~/grok-studio/bridge/start-bridge.sh restart --json-output`
+   - It prints ONE JSON line: the session, with the same fields as `.bridge.json`. With
+     `"status": "error"` it has an `error` field instead.
+3. If that line's `api_key` or `studio_url` differs from `/workspace/grok-studio/.bridge.json`
+   (key rotated, or a Cloudflare URL), write the line to `.bridge.json` (mode 600) and update
+   the `roblox-studio` connector in place (Step 3). With ngrok's static domain, normally
+   nothing changes.
+4. Re-check: `python3 <plugin>/scripts/bridge-check.py --studio --wait 30`.
+5. Still failing: stop. Message the Lead with bridge-check's `error` and `fix`, plus the
+   `error` from step 2. Don't retry in a loop.
+
 ## Step 1 - Status on the PC
 
 Find the OS once: run `echo %OS%` (`Windows_NT` = Windows), else `uname -s` (`Darwin` =
-macOS). `Linux`: stop, because Studio can't run there; the user must use their Windows or
-Mac PC. Then run `BR status`. It's cheap (about a second) and prints JSON:
+macOS). `Linux` means WSL on a Windows PC: either use the Windows side (preferred), or run
+`start-bridge.sh` inside WSL. There, the bridge reaches Studio through WSL interop: add
+`--studio-mcp-path /mnt/c/Users/<you>/AppData/Local/Roblox/mcp.bat`, and the service is a
+`systemd --user` unit (needs `[boot] systemd=true` in `/etc/wsl.conf`; `loginctl
+enable-linger` is optional). Studio can't run on plain Linux. Then run `BR status`.
+`-JsonOutput` (macOS/Linux `--json-output`) on any command prints one compact JSON line
+instead. It's cheap (about a second) and prints JSON:
 `running, gateway_up, files_up, tunnel_up, url, tunnel, tunnel_stable, tunnel_error,
 state, key_present`. Exit code 0 = healthy, 1 = degraded, 3 = not running.
 

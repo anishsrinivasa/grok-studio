@@ -154,11 +154,18 @@ pings. Report when the task is done or blocked, or when you need something.
    - **Transient errors** (`fetch failed`, timeouts, 502/503/504, "session not found"):
      retry with backoff, 2 s, 5 s, 15 s, 30 s, before calling it a failure. Apply the
      same retry to any Studio call mid-task.
-   - **Still failing:** send `BLOCKED #n: health <error text>` to the Lead. The Lead runs
-     `connect-studio` (status, restart, re-register the connector), then re-sends the
-     task. The bridge restarts itself on the PC, so most outages heal within a minute.
-     A PC that is asleep or off, or Studio closed, needs the user, and the Lead asks
-     them.
+   - **Still down: heal it yourself** (any Bot; `connect-studio` > Heal):
+     1. `python3 <plugin>/scripts/bridge-check.py --studio`
+     2. If it's down, restart the bridge on the PC. This is the one PC command every Bot
+        may run, and the user approves it like any local command:
+        - Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File "%USERPROFILE%\grok-studio\bridge\start-bridge.ps1" restart -JsonOutput`
+        - macOS/Linux: `bash ~/grok-studio/bridge/start-bridge.sh restart --json-output`
+     3. If the printed line's `api_key` or `studio_url` differs from `.bridge.json`, write
+        the line there (mode 600) and update the `roblox-studio` connector in place.
+     4. Re-check: `python3 <plugin>/scripts/bridge-check.py --studio --wait 30`.
+     5. Still failing: send `BLOCKED #n: health <error> <fix>` to the Lead, and don't loop.
+        A PC that is asleep or off, or Studio closed, needs the user, and the Lead asks
+        them.
 1. Read the task and the spec refs. Check `holder studio-play` before any Studio write.
 2. Mark your task `in-progress` in `build.tasks[]` (under the `spec` lock).
 3. Work in small verified steps (write, then read back or inspect).

@@ -61,8 +61,10 @@ param(
   [switch]$Purge,
   [switch]$FromTask,
   [switch]$UnsafeBlender,
+  # One compact JSON line on stdout instead of KEY=... lines (nothing else goes to stdout).
+  [switch]$JsonOutput,
   # Accepted for compatibility with older callers; they change nothing.
-  [switch]$Tunnel, [switch]$NoBlender, [switch]$Yes, [switch]$JsonOutput, [string]$NgrokUrl = '', [string]$ApiKey = ''
+  [switch]$Tunnel, [switch]$NoBlender, [switch]$Yes, [string]$NgrokUrl = '', [string]$ApiKey = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -99,8 +101,15 @@ function Log($msg) {
   try { [System.IO.File]::AppendAllText((Join-Path $LogDir 'supervisor.log'), "$line`r`n", (New-Object System.Text.UTF8Encoding($false))) } catch { }
   if ($Interactive) { [Console]::Error.WriteLine("[bridge] $msg") }
 }
-function Fail($msg) { Log "ERROR: $msg"; [Console]::Out.WriteLine('STATUS=error'); [Console]::Out.WriteLine("ERROR=$msg"); exit 1 }
 function Out-Line($text) { [Console]::Out.WriteLine($text) }
+# A short result (stopped, uninstalled, error, ...): STATUS=/ERROR= lines, or one JSON line.
+function Out-Result([string]$status, [string]$err = '') {
+  if ($JsonOutput) {
+    $o = [ordered]@{ status = $status }; if ($err) { $o.error = $err }
+    Out-Line ($o | ConvertTo-Json -Compress)
+  } else { Out-Line "STATUS=$status"; if ($err) { Out-Line "ERROR=$err" } }
+}
+function Fail($msg) { Log "ERROR: $msg"; Out-Result 'error' $msg; exit 1 }
 # Windows PowerShell 5.1 turns a native program's stderr into a terminating error while
 # $ErrorActionPreference is Stop; run native programs through this.
 function Invoke-Quiet([scriptblock]$sb) { $ErrorActionPreference = 'Continue'; & $sb }
@@ -302,6 +311,17 @@ function Build-Session($key, $public, $state, $pids, $tunnelError) {
 }
 
 function Write-SessionLines($s) {
+  if ($JsonOutput) {
+    # The same fields as /workspace/grok-studio/.bridge.json, on ONE line.
+    $o = [ordered]@{ status = (Get-Prop $s 'state' $null) }
+    foreach ($k in 'api_key', 'studio_url', 'files_url', 'blender_url', 'pc_drop_dir', 'pc_http_base', 'public_url', 'tunnel', 'tunnel_stable', 'tunnel_error', 'port') {
+      $v = Get-Prop $s $k $null
+      if ($null -ne $v -and "$v" -ne '') { $o[$k] = $v }
+    }
+    $o.pc_os = 'windows'; $o.session_file = $SessionPath
+    Out-Line ($o | ConvertTo-Json -Compress)
+    return
+  }
   Out-Line "STATUS=$($s.state)"
   Out-Line "KEY=$($s.api_key)"
   foreach ($pair in @(@('STUDIO_URL', 'studio_url'), @('FILES_URL', 'files_url'), @('BLENDER_URL', 'blender_url'),
@@ -603,8 +623,7 @@ function Invoke-Start {
   }
   $s = Wait-Ready 45 $since
   if (-not $s) {
-    Out-Line 'STATUS=error'
-    Out-Line ('ERROR=the bridge did not come up in 45 s. Last log lines: ' + ((Get-Content (Join-Path $LogDir 'supervisor.log') -Tail 4 -ErrorAction SilentlyContinue) -join ' | '))
+    Out-Result 'error' ('the bridge did not come up in 45 s. Last log lines: ' + ((Get-Content (Join-Path $LogDir 'supervisor.log') -Tail 4 -ErrorAction SilentlyContinue) -join ' | '))
     exit 1
   }
   Write-SessionLines $s
@@ -651,7 +670,7 @@ function Invoke-UninstallService {
       Remove-Item -Recurse -Force -LiteralPath $p -ErrorAction SilentlyContinue
     }
   }
-  Out-Line 'STATUS=uninstalled'
+  Out-Result 'uninstalled'
 }
 
 switch ($Command) {
@@ -659,12 +678,12 @@ switch ($Command) {
   'install-service'   { Invoke-InstallService }
   'uninstall-service' { Invoke-UninstallService }
   'start'             { Resolve-Tunnel; Save-Config; if ($RotateKey) { [void](Get-Key) }; Invoke-Start }
-  'stop'              { Invoke-Stop $true; Out-Line 'STATUS=stopped' }
+  'stop'              { Invoke-Stop $true; Out-Result 'stopped' }
   'restart'           { Resolve-Tunnel; Save-Config; Invoke-Stop $false; if ($RotateKey) { [void](Get-Key) }; Invoke-Start }
-  'status'            { $o = Get-Status ([bool]$Deep); Out-Line ($o | ConvertTo-Json); if (-not $o.running) { exit 3 } elseif (-not ($o.gateway_up -and $o.tunnel_up -and $o.files_up)) { exit 1 } }
+  'status'            { $o = Get-Status ([bool]$Deep); Out-Line ($o | ConvertTo-Json -Compress:([bool]$JsonOutput)); if (-not $o.running) { exit 3 } elseif (-not ($o.gateway_up -and $o.tunnel_up -and $o.files_up)) { exit 1 } }
   'session'           {
     $s = Read-Json $SessionPath
-    if (-not $s) { Out-Line 'STATUS=none'; Out-Line 'ERROR=no session yet: run start or install-service'; exit 3 }
+    if (-not $s) { Out-Result 'none' 'no session yet: run start or install-service'; exit 3 }
     $st = Get-Status $false
     $s.state = $st.state
     Write-SessionLines $s

@@ -6,10 +6,12 @@ command runs on the user's PC, so no approval is needed: every Bot can run this 
 of a task.
 
 Usage:
-  python3 bridge-check.py [--studio] [--bridge-json PATH]
+  python3 bridge-check.py [--studio] [--wait SECONDS] [--bridge-json PATH]
 
   default   GET <bridge>/healthz (gateway + tunnel up?)                       ~0.2-1 s
   --studio  also open an MCP session and call list_roblox_studios (read-only)  ~1-2 s
+  --wait N  keep checking every 2 s until it passes or N seconds are up (use right after
+            a restart of the bridge on the PC)
 
 Transient failures (DNS, connection reset, HTTP 502/503/504/530, "fetch failed") are retried
 with backoff (1 s, 3 s, 8 s) before reporting "down".
@@ -35,6 +37,7 @@ LINE_KEYS = {"KEY": "api_key", "STUDIO_URL": "studio_url", "FILES_URL": "files_u
              "PC_DROP_DIR": "pc_drop_dir", "PC_HTTP_BASE": "pc_http_base", "TUNNEL": "tunnel", "PC_OS": "pc_os"}
 TRANSIENT_HTTP = {502, 503, 504, 520, 521, 522, 523, 524, 530}
 BACKOFF = (1, 3, 8)
+RETRY = True   # --wait polls instead
 
 
 def load_bridge(path):
@@ -94,7 +97,7 @@ def request(url, key=None, body=None, session=None, timeout=15, parse=True):
 
 def with_retry(fn):
     last = None
-    for delay in (0,) + BACKOFF:
+    for delay in (0,) + (BACKOFF if RETRY else ()):
         if delay:
             time.sleep(delay)
         try:
@@ -116,23 +119,42 @@ def fix_for(err):
 
 
 def main():
+    global RETRY
     ap = argparse.ArgumentParser(description="Check the grok-studio bridge from the cloud side.")
     ap.add_argument("--studio", action="store_true", help="also call list_roblox_studios (read-only)")
+    ap.add_argument("--wait", type=float, default=0, help="poll until it passes or this many seconds pass")
     ap.add_argument("--bridge-json", default=DEFAULT_BRIDGE_JSON)
     args = ap.parse_args()
-    t0 = time.time()
+    if args.wait <= 0:
+        return check(args, time.time())
+    RETRY = False
+    t0, deadline = time.time(), time.time() + args.wait
+    while True:
+        code, line = check(args, t0, quiet=True)
+        if code == 0 or code == 2 or time.time() + 2 > deadline:
+            print(line)
+            return code
+        time.sleep(2)
+
+
+def check(args, t0, quiet=False):
+    """Returns the exit code; prints (or, quiet, returns (code, line)) one JSON line."""
+    def done(code, obj):
+        line = json.dumps(obj)
+        if quiet:
+            return code, line
+        print(line)
+        return code
+
     try:
         b = load_bridge(args.bridge_json)
     except FileNotFoundError:
-        print(json.dumps({"bridge": "unknown", "error": f"{args.bridge_json} not found", "fix": "Studio was never connected from here: run connect-studio."}))
-        return 2
+        return done(2, {"bridge": "unknown", "error": f"{args.bridge_json} not found", "fix": "Studio was never connected from here: run connect-studio."})
     except (OSError, ValueError) as e:
-        print(json.dumps({"bridge": "unknown", "error": f"cannot read {args.bridge_json}: {e}", "fix": "Run connect-studio."}))
-        return 2
+        return done(2, {"bridge": "unknown", "error": f"cannot read {args.bridge_json}: {e}", "fix": "Run connect-studio."})
     url, key = b.get("studio_url") or b.get("files_url"), b.get("api_key")
     if not url or not key:
-        print(json.dumps({"bridge": "unknown", "error": "no studio_url/api_key in the session file", "fix": "Run connect-studio."}))
-        return 2
+        return done(2, {"bridge": "unknown", "error": "no studio_url/api_key in the session file", "fix": "Run connect-studio."})
     base = url.rsplit("/", 2)[0]   # https://host/roblox-studio/mcp -> https://host
     out = {"url": base}
     try:
@@ -140,8 +162,7 @@ def main():
         out["bridge"] = "up"
     except Exception as e:
         out.update(bridge="down", error=str(e), fix=fix_for(e), ms=int((time.time() - t0) * 1000))
-        print(json.dumps(out))
-        return 1
+        return done(1, out)
     if args.studio:
         studio_url = b.get("studio_url")
         try:
@@ -172,8 +193,7 @@ def main():
         except Exception as e:
             out.update(studio="error", error=str(e), fix=fix_for(e))
     out["ms"] = int((time.time() - t0) * 1000)
-    print(json.dumps(out))
-    return 0 if out.get("studio", "ok") == "ok" else 1
+    return done(0 if out.get("studio", "ok") == "ok" else 1, out)
 
 
 if __name__ == "__main__":
