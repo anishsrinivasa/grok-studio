@@ -1,0 +1,11 @@
+# ngrok tunnel config for grok-studio
+# Replace the domain below with your free ngrok static domain.
+# Claim one at: https://dashboard.ngrok.com/domains
+
+version: "2"
+
+tunnels:
+  roblox:
+    proto: http
+    addr: 8787
+    domain: fox-becoming-meerkat.ngrok-free.app
