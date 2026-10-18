@@ -298,7 +298,13 @@ local function check(): { [string]: any }
 		for i = 1, #meshList do
 			for j = i + 1, #meshList do
 				local a, b = meshList[i], meshList[j]
-				if (a.CFrame.Position - b.CFrame.Position).Magnitude < 0.02 and (a.Size - b.Size).Magnitude < 0.02 then
+				-- Same mesh in the same place = a duplicate. Two pieces split from one object can
+				-- share a bounding box (a lantern's glass sides and its caps) but not a MeshId.
+				if
+					a.MeshId == b.MeshId
+					and (a.CFrame.Position - b.CFrame.Position).Magnitude < 0.02
+					and (a.Size - b.Size).Magnitude < 0.02
+				then
 					table.insert(dupes, `{a.Name} and {b.Name} coincide`)
 				end
 			end
@@ -329,7 +335,9 @@ local function check(): { [string]: any }
 				if ov > 0 and dv > 0 and ov / dv >= TOL.overlay then
 					local p = box.part
 					if
-						(d.CFrame.Position - p.CFrame.Position).Magnitude < 0.02
+						d:IsA("MeshPart")
+						and (d :: MeshPart).MeshId == p.MeshId
+						and (d.CFrame.Position - p.CFrame.Position).Magnitude < 0.02
 						and (d.Size - p.Size).Magnitude < 0.02
 					then
 						table.insert(dupes, `{d:GetFullName()} coincides with {p.Name}`)

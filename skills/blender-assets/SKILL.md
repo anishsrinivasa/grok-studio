@@ -144,7 +144,15 @@ print(audit(names=asset_object_names(a), allow_open=True))   # parts cut out of 
 ```
 
 One object per material, named `<id>_<Material>` (pieces with the same material merge into
-one part; `merge_same_material=False` keeps them apart). Rotation/scale are baked in, each
+one part across ALL objects; `merge_same_material=False` keeps them apart). **Anything built
+from separate limbs or moving parts (creatures, doors, wheels, a lamp whose lantern is a child
+object): `split_by_material(a, by_object=True)`** - pieces stay per object
+(`<Object>_<Material>`) and the manifest records each piece's `limb`, `main` (the biggest
+piece; the Animator's Motor6D goes there) and `joint` (the object's origin), plus a `limbs`
+table with parent limbs. Children of a split object that aren't split are re-parented to its
+main piece, keeping their world position. Model facing **-Y** in Blender (the Front view):
+Roblox's importer maps Blender (x, y, z) to Roblox (-x, z, y), so -Y becomes Roblox's front
+(-Z, `LookVector`). Rotation/scale are baked in, each
 part's origin is its bounding-box centre. It writes `exports/<id>.manifest.json`: per part
 name, hex colour, Roblox material, size and position in studs (Roblox axes, relative to the
 bottom-centre pivot), triangles; for the asset size, pivot, triangle total, primary part,
@@ -183,8 +191,13 @@ Send `reference/apply_manifest.luau` through `execute_luau` (Edit) with `MANIFES
 manifest file's contents and `MODEL_PATH` = the model (e.g. `"Workspace.<id>"`). It renames
 the model to the id, matches each MeshPart to a manifest part (exact name, case-insensitive,
 contained name, then closest size), sets Color / Material / Anchored / CanCollide /
-CollisionFidelity, clears textures that would hide the colour, sets PrimaryPart, a
-bottom-centre `WorldPivot` and the `BuiltBy` / `GsAssetId` attributes. It is safe to re-run.
+CollisionFidelity, clears textures that would hide the colour, sets PrimaryPart and a
+bottom-centre pivot (through `PrimaryPart.PivotOffset`: the importer leaves a 90° X rotation
+there, and with a PrimaryPart `GetPivot`/`PivotTo` ignore `WorldPivot`) and the `BuiltBy` /
+`GsAssetId` attributes. With a `limbs` manifest it welds every non-main piece to its limb's
+main piece (`OPTIONS.motors = true` also adds a Motor6D per limb at the joint). Safe to re-run.
+The raw import is grey `#A3A2A5` Plastic, unanchored, CollisionFidelity Default, MeshParts
+named after the Blender objects, flat under the Model (a package): this step is required.
 **Gate B:** `ok: true` (no `missing`, no `extra`).
 
 ### 8. Gate C - post-import check
@@ -192,7 +205,8 @@ bottom-centre `WorldPivot` and the `BuiltBy` / `GsAssetId` attributes. It is saf
 Send `reference/post_import_check.luau` the same way. Read-only. **`pass: true`** required:
 part count and names, only MeshParts in the model, sizes and positions (tolerance 0.05
 studs + 3 %), colours (3/255 per channel), materials, no texture hiding the colour,
-physics, pivot at the bottom centre, model bounds = manifest size, no scripts, **no plain
+physics, limbs welded (when the manifest has limbs), pivot at the bottom centre and upright
+(`pivotUpright`), model bounds = manifest size, no scripts, **no plain
 Parts layered on or coincident with the MeshParts and no duplicate coincident parts**, and no
 loose copies of the asset's parts outside a copy of the asset. Checked in Workspace (a
 template in ReplicatedStorage is checked without the world-overlap scan). A size that
@@ -208,10 +222,17 @@ matches only with axes swapped means the import came in rotated: check the expor
    `Workspace._GS_CaptureBooth` high above the map, unrotated and shadowless, in front of a
    flat backdrop. It returns `camera_position` / `look_at_position`. If it reports
    `fovMatches: false`, re-render with `fov=<its fieldOfView>`.
-3. `screen_capture` with those two positions. Save the image as
-   `renders/<id>_capture_<view>.png`.
+   Set `BOOTH_PARENT` to keep the booth with other test objects.
+3. `screen_capture` with those two positions and look at it. For the numeric compare you need
+   it as a file: if the client can't save it (a Grok Bot subagent got a "Saved ... .jpg" path
+   that didn't exist on the box), run `reference/capture_pixels.luau` with the same positions
+   (MCP `write_to_file`), then `python3 reference/decode_capture.py <result> renders/<id>_capture_<view>.png`.
 4. Cloud job: `print_json(compare_capture(a, "<capture png>", "three_quarter"))` ->
-   `pass`, plus `silhouette.iouNormalized` (>= 0.80) and `color.intersection` (>= 0.70).
+   `pass`, plus `silhouette.iouNormalized` (>= 0.80) and `palette` (the manifest's colours
+   grouped by hue: `agreement` >= 0.75 and no group that is >= 3 % of the render may drop
+   below 35 % of that share in the capture). Studio lighting makes pastels much lighter, Neon
+   cyan-ish and Metal bluish, so hue groups, not exact colours, are compared here; exact
+   colours are Gate C's job.
    Silhouette and colour are normalised for framing, so a wrong shape, a missing part, a
    wrong orientation or a wrong colour fails; Studio's different lighting and window size
    don't.
@@ -273,5 +294,16 @@ Blender 5.2.2, headless:
   - apply matched importer-style names
   - the check passed the good import and a second copy, and failed overlays, coincident
     duplicates, extra parts, wrong size, wrong colour and scripts
-- **Not yet checked:** Studio itself, and Roblox's real FBX import axes. The positions and
-  sizes checks will catch a mismatch on the first real import.
+- **Live Studio (Oct 18 2026, Open Cloud upload + insert_asset + execute_luau):**
+  - 2-colour smoke block (asset 78707418989252), lion merged (106184897832197), lion by
+    limb (83565496610449, 21 parts, 13 welds), 4-colour lamp post with child objects, Neon,
+    Metal, Slate and a bevel (124423443376871): all Gate B/C PASS after the fixes below;
+    Gate D: smoke 0.967 / 0.992, lion 0.929 / 0.87, lamp 0.84 / 0.82 (silhouette / palette)
+  - found and fixed: axes were mirrored (X and Z), the pivot was tilted 90° (PivotOffset),
+    the hue histogram passed a hidden Neon top and failed the correct capture, the booth's
+    sun highlight broke the backdrop key, Workbench rendered non-flat_material .blends grey,
+    two pieces of one object sharing a bounding box were flagged as duplicates
+  - negative checks: the old apply fails `positions`/`pivot`/`pivotUpright`; a removed weld
+    fails `limbs`; a duplicate MeshPart and a plain Part overlay fail `noOverlays`
+  - captures include the place's ScreenGuis and Studio's weld gizmos; the centre-square crop
+    keeps the HUD out at the default window size

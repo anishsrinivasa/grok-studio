@@ -34,7 +34,7 @@ BACKDROPS = ["#FF00FF", "#00FFFF", "#00FF00", "#FFFF00", "#0000FF", "#FF0000"]
 MIN_IOU = 0.80     # silhouette overlap after normalising position and scale
 MIN_COLOR = 0.70   # colour histogram intersection (used when no palette is given)
 MIN_PALETTE = 0.75  # palette share agreement, 1 - L1/2 over the manifest's hue groups
-MIN_KEEP = 0.35    # a colour with >= 5 % of the render must keep >= 35 % of that share
+MIN_KEEP = 0.35    # a colour group with >= 3 % of the render must keep >= 35 % of that share
 HUE_NAMES = ["red", "orange", "yellow", "lime", "green", "spring", "cyan", "azure",
              "blue", "violet", "magenta", "rose", "dark", "grey", "light"]
 
@@ -369,16 +369,20 @@ def _group_shares(px, mask, groups):
             continue
         h, sat, v = _hsv(p)
         n += 1
-        if (sat < 0.08 or not hued) and (light is not None or dark is not None):
-            k = light if (v >= 0.5 and light is not None) or dark is None else dark
-            counts[k] += 1
-            continue
-        if not hued:
-            continue
-        best = hued[0]
-        for i in hued[1:]:
-            if _hue_dist(groups[i]["hue"], h) < _hue_dist(groups[best]["hue"], h):
-                best = i
+        best = None
+        if hued and sat >= 0.08:
+            best = hued[0]
+            for i in hued[1:]:
+                if _hue_dist(groups[i]["hue"], h) < _hue_dist(groups[best]["hue"], h):
+                    best = i
+            # A hue far from every palette hue is not one of them: Studio's Metal turns the
+            # lamp's dark grey iron navy blue; count it by brightness instead.
+            if _hue_dist(groups[best]["hue"], h) > 0.1 and (light is not None or dark is not None):
+                best = None
+        if best is None:
+            if light is None and dark is None:
+                continue
+            best = light if (v >= 0.5 and light is not None) or dark is None else dark
         counts[best] += 1
     return [c / n for c in counts] if n else counts
 
@@ -427,7 +431,7 @@ def compare_images(render_png, capture_png, size=128, min_iou=MIN_IOU, min_color
         sa = _group_shares(a, ma, groups)
         sb = _group_shares(b, mb, groups)
         agree = 1 - 0.5 * sum(abs(x - y) for x, y in zip(sa, sb))
-        missing = [names[i] for i in range(len(groups)) if sa[i] >= 0.05 and sb[i] < min_keep * sa[i]]
+        missing = [names[i] for i in range(len(groups)) if sa[i] >= 0.03 and sb[i] < min_keep * sa[i]]
         pal_ok = visible and agree >= min_palette and not missing
         pal = {"agreement": round(agree, 3), "missing": missing, "pass": pal_ok,
                "render": dict((names[i], round(sa[i], 3)) for i in range(len(groups))),

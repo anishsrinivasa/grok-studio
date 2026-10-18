@@ -1,0 +1,235 @@
+{
+  "version": 1,
+  "id": "lamp",
+  "fbx": "lamp.fbx",
+  "units": "studs",
+  "axes": "Roblox: +Y up, -Z forward (LookVector) = Blender -Y front; Roblox (x, y, z) = Blender (-x, z, y)",
+  "size": [
+    2.0,
+    7.2,
+    2.4
+  ],
+  "pivot": {
+    "description": "bottom centre of the asset bounds",
+    "blender": [
+      0.0,
+      -0.2,
+      0.0
+    ]
+  },
+  "triangles": 80,
+  "primaryPart": "Base_Lamp_Stone",
+  "anchored": true,
+  "canCollide": true,
+  "collisionFidelity": "Box",
+  "parts": [
+    {
+      "name": "Base_Lamp_Stone",
+      "material": "Lamp_Stone",
+      "hex": "#A39B8B",
+      "robloxMaterial": "Slate",
+      "size": [
+        2.0,
+        1.0,
+        2.0
+      ],
+      "position": [
+        0.0,
+        0.5,
+        0.2
+      ],
+      "triangles": 31,
+      "rotated": false,
+      "multiMaterial": false,
+      "limb": "Base",
+      "main": true,
+      "joint": [
+        0.0,
+        0.5,
+        0.2
+      ]
+    },
+    {
+      "name": "Base_Lamp_Brass",
+      "material": "Lamp_Brass",
+      "hex": "#D4A72C",
+      "robloxMaterial": "SmoothPlastic",
+      "size": [
+        2.0,
+        0.08,
+        2.0
+      ],
+      "position": [
+        0.0,
+        0.96,
+        0.2
+      ],
+      "triangles": 13,
+      "rotated": false,
+      "multiMaterial": false,
+      "limb": "Base",
+      "main": false,
+      "joint": [
+        0.0,
+        0.5,
+        0.2
+      ]
+    },
+    {
+      "name": "Post_Lamp_Iron",
+      "material": "Lamp_Iron",
+      "hex": "#3C3F45",
+      "robloxMaterial": "Metal",
+      "size": [
+        0.4,
+        5.0,
+        0.4
+      ],
+      "position": [
+        0.0,
+        3.5,
+        0.2
+      ],
+      "triangles": 12,
+      "rotated": false,
+      "multiMaterial": false,
+      "limb": "Post",
+      "main": true,
+      "joint": [
+        0.0,
+        3.5,
+        0.2
+      ]
+    },
+    {
+      "name": "Lantern_Lamp_Iron",
+      "material": "Lamp_Iron",
+      "hex": "#3C3F45",
+      "robloxMaterial": "Metal",
+      "size": [
+        1.4142,
+        1.2,
+        1.4142
+      ],
+      "position": [
+        0.0,
+        6.6,
+        0.2
+      ],
+      "triangles": 4,
+      "rotated": false,
+      "multiMaterial": false,
+      "limb": "Lantern",
+      "main": false,
+      "joint": [
+        0.0,
+        6.6,
+        0.2
+      ]
+    },
+    {
+      "name": "Lantern_Lamp_Glow",
+      "material": "Lamp_Glow",
+      "hex": "#FFE07A",
+      "robloxMaterial": "Neon",
+      "size": [
+        1.4142,
+        1.2,
+        1.4142
+      ],
+      "position": [
+        0.0,
+        6.6,
+        0.2
+      ],
+      "triangles": 8,
+      "rotated": false,
+      "multiMaterial": false,
+      "limb": "Lantern",
+      "main": true,
+      "joint": [
+        0.0,
+        6.6,
+        0.2
+      ]
+    },
+    {
+      "name": "Arm_Lamp_Brass",
+      "material": "Lamp_Brass",
+      "hex": "#D4A72C",
+      "robloxMaterial": "SmoothPlastic",
+      "size": [
+        0.2,
+        0.2,
+        1.2
+      ],
+      "position": [
+        0.0,
+        5.4,
+        -0.6
+      ],
+      "triangles": 12,
+      "rotated": false,
+      "multiMaterial": false,
+      "limb": "Arm",
+      "main": true,
+      "joint": [
+        0.0,
+        5.4,
+        -0.6
+      ]
+    }
+  ],
+  "limbs": {
+    "Base": {
+      "main": "Base_Lamp_Stone",
+      "pieces": [
+        "Base_Lamp_Stone",
+        "Base_Lamp_Brass"
+      ],
+      "joint": [
+        0.0,
+        0.5,
+        0.2
+      ],
+      "parent": null
+    },
+    "Post": {
+      "main": "Post_Lamp_Iron",
+      "pieces": [
+        "Post_Lamp_Iron"
+      ],
+      "joint": [
+        0.0,
+        3.5,
+        0.2
+      ],
+      "parent": null
+    },
+    "Lantern": {
+      "main": "Lantern_Lamp_Glow",
+      "pieces": [
+        "Lantern_Lamp_Iron",
+        "Lantern_Lamp_Glow"
+      ],
+      "joint": [
+        0.0,
+        6.6,
+        0.2
+      ],
+      "parent": "Post"
+    },
+    "Arm": {
+      "main": "Arm_Lamp_Brass",
+      "pieces": [
+        "Arm_Lamp_Brass"
+      ],
+      "joint": [
+        0.0,
+        5.4,
+        -0.6
+      ],
+      "parent": "Post"
+    }
+  }
+}
