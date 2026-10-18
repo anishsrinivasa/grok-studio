@@ -144,9 +144,13 @@ pings. Report when the task is done or blocked, or when you need something.
 
 ## 6. Doing a task
 
-0. **Health check first.** Call `get_studio_state` with `build.studioId`. Then, if the
-   task needs Blender, run `bash <plugin>/skills/blender-assets/reference/cloud_blender.sh
-   version`.
+0. **Health check first.**
+   - `python3 <plugin>/scripts/bridge-check.py` checks the bridge from the cloud computer
+     in about 1 s. It runs no PC command, so no approval is needed. It already retries
+     transient errors, and prints `{"bridge": "up"|"down", ..., "fix": ...}`.
+   - Then call `get_studio_state` with `build.studioId`.
+   - If the task needs Blender, also run
+     `bash <plugin>/skills/blender-assets/reference/cloud_blender.sh version`.
    - **Transient errors** (`fetch failed`, timeouts, 502/503/504, "session not found"):
      retry with backoff, 2 s, 5 s, 15 s, 30 s, before calling it a failure. Apply the
      same retry to any Studio call mid-task.
@@ -169,9 +173,14 @@ message, and move on. Do not wait for the user unless the Lead asks you to.
 Only the Lead, and the Bot running `/setup-bridge` in the user's chat, run commands on the
 user's PC. That's local execution: the user approves each command. The bridge
 (`connect-studio`) runs there as a background service and exposes Studio and a small file
-drop. Its session details are in `/workspace/grok-studio/.bridge.json`: `studio_url`,
-`files_url`, `api_key`, `pc_os`, `pc_drop_dir`, `pc_http_base`, `studio_id`, `place_id`,
-`place_name`, `creator_user_id`.
+drop. Its session details are in `/workspace/grok-studio/.bridge.json`, written by
+`connect-studio`:
+- bridge fields: `api_key`, `studio_url`, `files_url`, `pc_drop_dir`, `pc_http_base`,
+  `tunnel`, `tunnel_stable`, `pc_os`
+- added by `/setup-bridge`: `studio_id`, `place_id`, `place_name`, `creator_user_id`
+
+A gateway restart drops open MCP sessions. If a Studio call suddenly fails with "session
+not found" or a 404, that is a transient error: retry it.
 
 To get a file from the cloud computer onto the user's PC (a texture for `upload_image`,
 an image for `store_image`, an FBX for the Importer), any Bot runs:

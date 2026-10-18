@@ -1,247 +1,481 @@
 #!/usr/bin/env bash
-# start-bridge.sh - expose your LOCAL Roblox Studio MCP and Blender MCP servers to a
-# REMOTE agent (e.g. Grok Bot on a cloud Linux box) for one build session. macOS.
+# start-bridge.sh - the grok-studio bridge for macOS: exposes Roblox Studio on this Mac (plus
+# a small file drop, and optionally Blender) to the cloud bot team over one HTTPS URL.
 #
-#   remote agent --HTTPS--> ngrok --> 127.0.0.1:$PORT (supergateway, API key required)
-#                                        |-- /roblox-studio/mcp --stdio--> StudioMCP
-#                                        '-- /blender/mcp       --stdio--> mcp-for-blender
+#   cloud bots --HTTPS--> tunnel --> 127.0.0.1:$PORT (supergateway, API key required)
+#                                      |-- /roblox-studio/mcp --stdio--> StudioMCP (one per session)
+#                                      |-- /files/mcp         --stdio--> files-server.mjs (file drop)
+#                                      '-- /blender/mcp       --stdio--> mcp-for-blender (opt-in: --blender)
+#   Roblox Studio (this Mac) --> 127.0.0.1:$((PORT+1))/<token>/...  (read-only view of the drop folder)
 #
-# Usage:
-#   ./bridge/start-bridge.sh [--tunnel] [--ngrok-url https://x.ngrok.app] [--port 8765]
-#                            [--no-studio] [--no-blender] [--unsafe-blender] [--yes]
+# Usage: ./start-bridge.sh <command> [options]
+#   run                 supervisor in the foreground (default); Ctrl+C stops
+#   install-service     install a launchd LaunchAgent (starts at login, restarted if it crashes), start it
+#   uninstall-service   stop and remove the LaunchAgent (--purge also deletes key/config/logs)
+#   status              cheap JSON health check (--deep also asks the public URL)
+#   start | stop | restart
+#   session             print the session: STATUS=, KEY=, STUDIO_URL=, FILES_URL=, ... one per line
+# Options: --port N  --tunnel-provider ngrok|cloudflare|none  --ngrok-domain NAME.ngrok-free.dev
+#          --blender  --no-studio  --no-files  --drop-dir DIR  --task-name LABEL  --rotate-key
+#          --deep  --purge  --unsafe-blender
 #
-# SECURITY: anyone with the URL + key can run arbitrary Luau in your open Studio places
-# and arbitrary Python in Blender on this machine. Only run during a build session.
-# Ctrl+C tears everything down. A fresh key is generated every run.
+# Kept next to this script: bridge.key (the API key, created once, chmod 600; --rotate-key
+# replaces it), config.json (port, tunnel, static ngrok domain; not secret), session.json
+# (URLs + key, chmod 600), node_modules/ (supergateway pinned by package-lock.json), logs/ run/ bin/.
 #
-# Why supergateway (https://github.com/supercorp-ai/supergateway) rather than mcp-proxy:
-# mcp-proxy (sparfenyuk, v0.13) has no API-key option in server mode; supergateway has
-# --apiKey and a multi-server --config, so one authenticated port serves both tools.
+# Tunnels: ngrok (default; with a static domain the URL never changes; the authtoken is applied
+# once from $NGROK_AUTHTOKEN if ngrok isn't configured), cloudflare (fallback, no account; the URL
+# changes on every tunnel start), none (localhost only).
 #
-# Status: lightly tested on Linux with stand-in stdio servers; NOT tested on macOS with
-# real Studio/Blender yet. Please report issues.
+# SECURITY: anyone with the URL + key can run Luau in your open Studio places and drop files on
+# this Mac (and run Python in Blender, if exposed). Stop it when you don't need it.
 
-set -euo pipefail
+set -uo pipefail
 
-PORT=8765
-TUNNEL=0
-NGROK_URL=""
-NO_STUDIO=0
-NO_BLENDER=0
-UNSAFE_BLENDER=0
-ASSUME_YES=0
-JSON_OUTPUT=0
-SUPERGATEWAY_PKG="supergateway@4"   # pinned major version
+CMD="run"
+case "${1:-}" in
+  run|install-service|uninstall-service|status|start|stop|restart|session) CMD="$1"; shift ;;
+  -h|--help|help) sed -n '2,32p' "$0"; exit 0 ;;
+esac
 
-info() { printf '\033[36m[bridge]\033[0m %s\n' "$*"; }
-warn() { printf '\033[33m[bridge]\033[0m %s\n' "$*"; }
-die()  { printf '\033[31m[bridge] ERROR:\033[0m %s\n' "$*" >&2; exit 1; }
-have() { command -v "$1" >/dev/null 2>&1; }
-
+OPT_PORT=""; OPT_TUNNEL=""; OPT_DOMAIN=""; OPT_BLENDER=""; OPT_STUDIO=""; OPT_FILES=""; OPT_DROP=""
+OPT_LABEL=""; ROTATE=0; DEEP=0; PURGE=0; FROM_TASK=0; UNSAFE_BLENDER=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --port) PORT="$2"; shift 2 ;;
-    --tunnel) TUNNEL=1; shift ;;
-    --ngrok-url) NGROK_URL="$2"; TUNNEL=1; shift 2 ;;
-    --no-studio) NO_STUDIO=1; shift ;;
-    --no-blender) NO_BLENDER=1; shift ;;
+    --port) OPT_PORT="$2"; shift 2 ;;
+    --tunnel-provider) OPT_TUNNEL="$2"; shift 2 ;;
+    --ngrok-domain|--ngrok-url) OPT_DOMAIN="$2"; shift 2 ;;
+    --blender) OPT_BLENDER=true; shift ;;
+    --no-studio) OPT_STUDIO=false; shift ;;
+    --no-files) OPT_FILES=false; shift ;;
+    --drop-dir) OPT_DROP="$2"; shift 2 ;;
+    --task-name) OPT_LABEL="$2"; shift 2 ;;
+    --rotate-key) ROTATE=1; shift ;;
+    --deep) DEEP=1; shift ;;
+    --purge) PURGE=1; shift ;;
+    --from-task) FROM_TASK=1; shift ;;
     --unsafe-blender) UNSAFE_BLENDER=1; shift ;;
-    --yes|-y) ASSUME_YES=1; shift ;;
-    --json-output) JSON_OUTPUT=1; shift ;;
-    -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
-    *) die "Unknown option: $1 (see --help)" ;;
+    --tunnel|--no-blender|--yes|-y|--json-output) shift ;;   # accepted from older callers; no effect
+    *) echo "STATUS=error"; echo "ERROR=unknown option $1 (see --help)"; exit 2 ;;
   esac
 done
 
-# --------------------------------------------------------------------------------------
-# 0. Security confirmation
-# --------------------------------------------------------------------------------------
-cat <<'BANNER'
+BRIDGE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG="$BRIDGE_DIR/config.json"; KEYFILE="$BRIDGE_DIR/bridge.key"; SESSION="$BRIDGE_DIR/session.json"
+RUN_DIR="$BRIDGE_DIR/run"; LOG_DIR="$BRIDGE_DIR/logs"; BIN_DIR="$BRIDGE_DIR/bin"
+STOP_FILE="$RUN_DIR/stop"; PID_FILE="$RUN_DIR/supervisor.pid"
+GATEWAY_JS="$BRIDGE_DIR/node_modules/supergateway/dist/index.js"; FILES_SERVER="$BRIDGE_DIR/files-server.mjs"
+mkdir -p "$RUN_DIR" "$LOG_DIR"
 
-==================================================================
- grok-studio bridge - REMOTE CODE EXECUTION ON THIS MACHINE
-==================================================================
- Anyone holding the URL + API key printed below can run code in your
- open Roblox Studio places and in Blender on this computer.
- Run only during a build session. Press Ctrl+C to tear everything down.
+CLOUDFLARED_VERSION="2026.9.3"
+CF_SHA_darwin_arm64="587c2cfb1c230fe36c7fa7727da78be459dae028cabe8c001291999350f07095"
+CF_SHA_darwin_amd64="d1155d0837487f261183b15c1eab6c4ebcad9dc49b94675f1524c3564cea3977"
+CF_SHA_linux_amd64="77e26d8d900e0b8469f416239d14b5f296525fdf79fee6f511ef55609e3fbac2"
+CF_SHA_linux_arm64="aaeb2d7d0da3614634c7e03ab13487a1522c2e79165ed2929cfe23d5e95b326d"
 
-BANNER
-if [[ $ASSUME_YES -ne 1 ]]; then
-  read -r -p "Type 'yes' to continue: " answer
-  [[ "$answer" == "yes" ]] || { info "Aborted."; exit 0; }
-fi
-[[ $NO_STUDIO -eq 1 && $NO_BLENDER -eq 1 ]] && die "Nothing to expose (--no-studio and --no-blender)."
+have() { command -v "$1" >/dev/null 2>&1; }
+log() { local l; l="[$(date '+%Y-%m-%d %H:%M:%S')] $*"; echo "$l" >> "$LOG_DIR/supervisor.log"; [[ $FROM_TASK -eq 1 ]] || echo "[bridge] $*" >&2; }
+fail() { log "ERROR: $*"; echo "STATUS=error"; echo "ERROR=$*"; exit 1; }
+rand_token() { if have openssl; then openssl rand -base64 "$1" | tr '+/' '-_' | tr -d '=\r\n'; else LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c $(( $1 * 4 / 3 )); fi; }
+sha256_of() { if have shasum; then shasum -a 256 "$1" | cut -d' ' -f1; else sha256sum "$1" | cut -d' ' -f1; fi; }
+http_code() { curl -s -o /dev/null -w '%{http_code}' --max-time "${2:-3}" -H 'ngrok-skip-browser-warning: 1' "$1" 2>/dev/null || true; }
+tcp_up() { (exec 9<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null; }
+alive() { [[ -n "${1:-}" ]] && kill -0 "$1" 2>/dev/null; }
 
-# --------------------------------------------------------------------------------------
-# 1. Prerequisites
-# --------------------------------------------------------------------------------------
-info "Checking prerequisites..."
-have npx || die "Node.js (npx) not found. Install Node.js LTS (https://nodejs.org or: brew install node)."
+NODE_BIN="$(command -v node || true)"
+[[ -n "$NODE_BIN" ]] || { echo "STATUS=error"; echo "ERROR=Node.js not found. Install it (brew install node or https://nodejs.org)."; exit 1; }
 
-STUDIO_MCP=""
-if [[ $NO_STUDIO -ne 1 ]]; then
-  STUDIO_MCP="${ROBLOX_STUDIO_MCP_PATH:-/Applications/RobloxStudio.app/Contents/MacOS/StudioMCP}"
-  [[ -x "$STUDIO_MCP" ]] || die "Roblox Studio MCP not found/executable at '$STUDIO_MCP'. Update Studio, then enable Assistant > ... > Manage MCP Servers > 'Enable Studio as MCP server'. (Override with ROBLOX_STUDIO_MCP_PATH.)"
-fi
+# One node call reads config + session into shell variables (node is a prerequisite anyway).
+load_state() {
+  eval "$("$NODE_BIN" -e '
+    const fs = require("fs");
+    const read = (f) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return {}; } };
+    const c = read(process.argv[1]), s = read(process.argv[2]);
+    const q = (v) => "'"'"'" + String(v ?? "").replace(/'"'"'/g, "'"'"'\\'"'"''"'"'") + "'"'"'";
+    const out = { C_PORT: c.port ?? 8765, C_TUNNEL: c.tunnel ?? "", C_DOMAIN: c.ngrok_domain ?? "",
+      C_STUDIO: c.studio ?? true, C_FILES: c.files ?? true, C_BLENDER: c.blender ?? false,
+      C_DROP: c.drop_dir ?? "", C_TOKEN: c.files_token ?? "", C_LABEL: c.task_name ?? "com.grokstudio.bridge",
+      C_NGROK: c.ngrok_path ?? "",
+      S_STATE: s.state ?? "", S_PUBLIC: s.public_url ?? "", S_TUNNEL: s.tunnel ?? "", S_SUP: s.supervisor_pid ?? "",
+      S_GW: s.gateway_pid ?? "", S_FILES: s.files_pid ?? "", S_TUN: s.tunnel_pid ?? "", S_UPDATED: s.updated_at ?? "",
+      S_STABLE: s.tunnel_stable ?? false, S_ERR: s.tunnel_error ?? "" };
+    for (const [k, v] of Object.entries(out)) console.log(k + "=" + q(v));
+  ' "$CONFIG" "$SESSION")"
+}
+load_state
+PORT="${OPT_PORT:-$C_PORT}"; TUNNEL="${OPT_TUNNEL:-$C_TUNNEL}"; DOMAIN="${OPT_DOMAIN:-$C_DOMAIN}"
+DOMAIN="${DOMAIN#https://}"; DOMAIN="${DOMAIN#http://}"; DOMAIN="${DOMAIN%/}"
+STUDIO="${OPT_STUDIO:-$C_STUDIO}"; FILES="${OPT_FILES:-$C_FILES}"; BLENDER="${OPT_BLENDER:-$C_BLENDER}"
+DROP_DIR="${OPT_DROP:-$C_DROP}"; DROP_DIR="${DROP_DIR:-$HOME/grok-studio/drop}"
+TOKEN="${C_TOKEN:-$(rand_token 16)}"; LABEL="${OPT_LABEL:-$C_LABEL}"
+NGROK_BIN="${C_NGROK:-$(command -v ngrok || true)}"; [[ -x "$NGROK_BIN" ]] || NGROK_BIN="$(command -v ngrok || true)"
+[[ "$TUNNEL" == auto ]] && TUNNEL=""
+FILES_PORT=$((PORT + 1)); METRICS_PORT=$((PORT + 2))
+PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+case "$(uname -s)" in Darwin) PC_OS=macos ;; Linux) PC_OS=linux ;; *) PC_OS="$(uname -s | tr '[:upper:]' '[:lower:]')" ;; esac
+# Git Bash/MSYS (testing only): native programs need Windows paths and PIDs.
+WIN=0; have cygpath && WIN=1
+winpath() { if [[ $WIN -eq 1 && -n "$1" ]]; then cygpath -w "$1"; else printf '%s' "$1"; fi; }
+SELF_PID=$$; [[ -r /proc/$$/winpid ]] && SELF_PID="$(cat /proc/$$/winpid)"
 
-if [[ $NO_BLENDER -ne 1 ]]; then
-  have uvx || die "uv/uvx not found. Install: curl -LsSf https://astral.sh/uv/install.sh | sh  (or: brew install uv), then run: uvx mcp-for-blender setup"
-  warn 'Make sure Blender is open with the "MCP for Blender" add-on enabled (N panel > MCP for Blender > Start MCP Server).'
-fi
+ngrok_configured() {
+  [[ -n "$NGROK_BIN" ]] || return 1
+  local cfg; cfg="$("$NGROK_BIN" config check 2>&1 | sed -n 's/.*Valid configuration file at \(.*\)$/\1/p' | head -n1)"
+  [[ -n "$cfg" && -f "$cfg" ]] && grep -Eq '^[[:space:]]*authtoken:[[:space:]]*[^[:space:]]+' "$cfg"
+}
+resolve_tunnel() {
+  [[ -n "$TUNNEL" ]] && return
+  if [[ -n "$NGROK_BIN" ]] && { [[ -n "$DOMAIN" ]] || [[ -n "${NGROK_AUTHTOKEN:-}" ]] || ngrok_configured; }; then TUNNEL=ngrok; else TUNNEL=cloudflare; fi
+}
 
-if [[ $TUNNEL -eq 1 ]]; then
-  have ngrok || die "ngrok not found. Install (brew install ngrok) and run once: ngrok config add-authtoken <token>"
-fi
-have curl || die "curl not found."
+save_config() {
+  GS_PORT="$PORT" GS_TUNNEL="$TUNNEL" GS_DOMAIN="$DOMAIN" GS_STUDIO="$STUDIO" GS_FILES="$FILES" GS_BLENDER="$BLENDER" \
+  GS_DROP="$DROP_DIR" GS_TOKEN="$TOKEN" GS_LABEL="$LABEL" GS_NODE="$NODE_BIN" GS_NGROK="$NGROK_BIN" \
+  "$NODE_BIN" -e '
+    const e = process.env, b = (v) => v === "true";
+    const c = { port: Number(e.GS_PORT), tunnel: e.GS_TUNNEL, ngrok_domain: e.GS_DOMAIN, studio: b(e.GS_STUDIO),
+      files: b(e.GS_FILES), blender: b(e.GS_BLENDER), drop_dir: e.GS_DROP, files_token: e.GS_TOKEN,
+      task_name: e.GS_LABEL, node_path: e.GS_NODE, ngrok_path: e.GS_NGROK };
+    require("fs").writeFileSync(process.argv[1], JSON.stringify(c, null, 2) + "\n");
+  ' "$CONFIG"
+}
 
-if (exec 3<>"/dev/tcp/127.0.0.1/$PORT") 2>/dev/null; then
-  die "Port $PORT is already in use. Use --port <other>."
-fi
-
-# --------------------------------------------------------------------------------------
-# 2. API key (256 bits, URL-safe)
-# --------------------------------------------------------------------------------------
-if have openssl; then
-  KEY="$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=\n')"
-else
-  KEY="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 48)"
-fi
-
-# --------------------------------------------------------------------------------------
-# 3. Private runtime dir + supergateway config (contains no secrets)
-# --------------------------------------------------------------------------------------
-RUNTIME_DIR="$(mktemp -d "${TMPDIR:-/tmp}/grok-studio-bridge.XXXXXX")"
-chmod 700 "$RUNTIME_DIR"
-CONFIG="$RUNTIME_DIR/servers.json"
-
-json_escape() { local s="$1"; s="${s//\\/\\\\}"; s="${s//\"/\\\"}"; printf '%s' "$s"; }
-
-{
-  echo '{'
-  echo '  "host": "127.0.0.1",'
-  echo "  \"port\": $PORT,"
-  echo '  "outputTransport": "streamableHttp",'
-  echo '  "stateful": true,'
-  echo '  "sessionTimeout": 3600000,'
-  echo '  "healthEndpoint": "/healthz",'
-  echo '  "mcpServers": {'
-  sep=""
-  if [[ $NO_STUDIO -ne 1 ]]; then
-    printf '    "roblox-studio": { "command": "%s", "args": [] }' "$(json_escape "$STUDIO_MCP")"
-    sep=","
+get_key() {
+  if [[ $ROTATE -eq 1 || ! -s "$KEYFILE" ]]; then
+    ( umask 077; rand_token 32 > "$KEYFILE.tmp"; echo >> "$KEYFILE.tmp" ); chmod 600 "$KEYFILE.tmp"; mv -f "$KEYFILE.tmp" "$KEYFILE"
+    if [[ $ROTATE -eq 1 ]]; then log "API key rotated."; else log "API key created."; fi
+    ROTATE=0
   fi
-  if [[ $NO_BLENDER -ne 1 ]]; then
-    printf '%s\n    "blender": { "command": "uvx", "args": ["mcp-for-blender"] }' "$sep"
+  head -n1 "$KEYFILE" | tr -d '\r\n'
+}
+
+install_runtime() {
+  [[ -f "$GATEWAY_JS" ]] && return
+  log "Installing supergateway (pinned, one time)..."
+  local verb=install; [[ -f "$BRIDGE_DIR/package-lock.json" ]] && verb=ci
+  ( cd "$BRIDGE_DIR" && npm "$verb" --omit=dev --no-audit --no-fund --loglevel=error ) >> "$LOG_DIR/supervisor.log" 2>&1
+  [[ -f "$GATEWAY_JS" ]] || fail "npm $verb did not install supergateway (see logs/supervisor.log)."
+}
+
+get_cloudflared() {
+  if have cloudflared; then command -v cloudflared; return; fi
+  local os arch asset sha exe tmp
+  case "$(uname -s)" in Darwin) os=darwin ;; Linux) os=linux ;; *) fail "No pinned cloudflared for $(uname -s); install cloudflared." ;; esac
+  case "$(uname -m)" in arm64|aarch64) arch=arm64 ;; x86_64|amd64) arch=amd64 ;; *) fail "No pinned cloudflared for $(uname -m)." ;; esac
+  local var="CF_SHA_${os}_${arch}"; sha="${!var}"; exe="$BIN_DIR/cloudflared-$CLOUDFLARED_VERSION"
+  if [[ -x "$exe" ]]; then echo "$exe"; return; fi
+  mkdir -p "$BIN_DIR"
+  if [[ $os == darwin ]]; then asset="cloudflared-$os-$arch.tgz"; else asset="cloudflared-$os-$arch"; fi
+  log "Downloading cloudflared $CLOUDFLARED_VERSION ($asset, one time)..."
+  tmp="$(mktemp "${TMPDIR:-/tmp}/cloudflared.XXXXXX")"
+  curl -fsSL "https://github.com/cloudflare/cloudflared/releases/download/$CLOUDFLARED_VERSION/$asset" -o "$tmp" || { rm -f "$tmp"; fail "cloudflared download failed."; }
+  [[ "$(sha256_of "$tmp")" == "$sha" ]] || { rm -f "$tmp"; fail "cloudflared failed its SHA-256 check; not running it."; }
+  if [[ $os == darwin ]]; then local x; x="$(mktemp -d)"; tar -xzf "$tmp" -C "$x" && mv "$x/cloudflared" "$exe"; rm -rf "$x" "$tmp"; else mv "$tmp" "$exe"; fi
+  chmod 755 "$exe"; echo "$exe"
+}
+
+public_base() { if [[ "$TUNNEL" == ngrok && -n "$DOMAIN" ]]; then echo "https://$DOMAIN"; fi; }
+
+# Writes session.json (chmod 600). Args: state public_url tunnel_error
+write_session() {
+  local key; key="$(head -n1 "$KEYFILE" | tr -d '\r\n')"
+  GS_KEY="$key" GS_STATE="$1" GS_PUBLIC="${2:-http://127.0.0.1:$PORT}" GS_ERR="${3:-}" GS_TUNNEL="$TUNNEL" GS_DOMAIN="$DOMAIN" \
+  GS_STUDIO="$STUDIO" GS_FILES="$FILES" GS_BLENDER="$BLENDER" GS_PORT="$PORT" GS_FPORT="$FILES_PORT" GS_DROP="$(winpath "$DROP_DIR")" \
+  GS_TOKEN="$TOKEN" GS_OS="$PC_OS" GS_SUP="$SELF_PID" GS_GW="${GW_PID:-}" GS_FP="${FILES_PID:-}" GS_TP="${TUN_PID:-}" \
+  GS_DIR="$BRIDGE_DIR" GS_STOP="$STOP_FILE" GS_LABEL="$LABEL" GS_STARTED="${STARTED_AT:-}" \
+  "$NODE_BIN" -e '
+    const e = process.env, n = (v) => (v ? Number(v) : null), b = (v) => v === "true";
+    const base = e.GS_PUBLIC, o = { state: e.GS_STATE, api_key: e.GS_KEY, public_url: base };
+    if (b(e.GS_STUDIO)) o.studio_url = base + "/roblox-studio/mcp";
+    if (b(e.GS_FILES)) { o.files_url = base + "/files/mcp"; o.pc_drop_dir = e.GS_DROP; o.pc_http_base = `http://127.0.0.1:${e.GS_FPORT}/${e.GS_TOKEN}`; }
+    if (b(e.GS_BLENDER)) o.blender_url = base + "/blender/mcp";
+    Object.assign(o, { tunnel: e.GS_TUNNEL, tunnel_stable: e.GS_TUNNEL === "none" || (e.GS_TUNNEL === "ngrok" && !!e.GS_DOMAIN),
+      tunnel_error: e.GS_ERR || null, port: n(e.GS_PORT), files_port: n(e.GS_FPORT), pc_os: e.GS_OS,
+      supervisor_pid: n(e.GS_SUP), gateway_pid: n(e.GS_GW), files_pid: n(e.GS_FP), tunnel_pid: n(e.GS_TP),
+      bridge_dir: e.GS_DIR, stop_file: e.GS_STOP, task_name: e.GS_LABEL, started_at: e.GS_STARTED || null,
+      updated_at: new Date().toISOString().replace(/\.\d+Z$/, "Z") });
+    const fs = require("fs"), f = process.argv[1];
+    fs.writeFileSync(f + ".tmp", JSON.stringify(o, null, 2) + "\n", { mode: 0o600 }); fs.chmodSync(f + ".tmp", 0o600); fs.renameSync(f + ".tmp", f);
+  ' "$SESSION"
+}
+
+print_session() {
+  "$NODE_BIN" -e '
+    let s; try { s = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")); } catch { console.log("STATUS=none"); console.log("ERROR=no session yet: run start or install-service"); process.exit(3); }
+    const st = process.argv[2] || s.state, out = [["STATUS", st], ["KEY", s.api_key], ["STUDIO_URL", s.studio_url], ["FILES_URL", s.files_url],
+      ["BLENDER_URL", s.blender_url], ["PC_DROP_DIR", s.pc_drop_dir], ["PC_HTTP_BASE", s.pc_http_base], ["TUNNEL", s.tunnel],
+      ["TUNNEL_STABLE", s.tunnel_stable ? "yes" : "no"], ["TUNNEL_ERROR", s.tunnel_error], ["PC_OS", s.pc_os], ["PORT", s.port],
+      ["SESSION_FILE", process.argv[1]]];
+    for (const [k, v] of out) if (v !== undefined && v !== null && v !== "") console.log(k + "=" + v);
+  ' "$SESSION" "${1:-}"
+}
+
+sup_local() { cat "$PID_FILE" 2>/dev/null; }
+supervisor_alive() { local p; p="$(sup_local)"; alive "$p" && [[ $WIN -eq 1 || "$(ps -p "$p" -o command= 2>/dev/null)" == *start-bridge.sh* ]]; }
+
+status_json() {
+  local sup=false gw=false files=true tun=false tunnel="${S_TUNNEL:-$TUNNEL}"
+  supervisor_alive && sup=true
+  if [[ $sup == true ]]; then
+    tcp_up "$PORT" && gw=true
+    [[ "$FILES" == true ]] && { tcp_up "$FILES_PORT" && files=true || files=false; }
+    if [[ "$tunnel" == none ]]; then tun=true; elif alive "$S_TUN"; then tun=true; fi
+  else files=false; [[ "$tunnel" == none ]] && tun=true; fi
+  local state="$S_STATE"; [[ $sup == true ]] || state=stopped
+  local deep=""
+  if [[ $DEEP -eq 1 ]]; then
+    local inst=false; [[ -f "$PLIST" ]] && inst=true
+    deep=",\"service_installed\":$inst,\"public_healthz\":$(http_code "${S_PUBLIC:-http://127.0.0.1:$PORT}/healthz" 5)"
   fi
-  echo
-  echo '  }'
-  echo '}'
-} > "$CONFIG"
+  printf '{\n  "running": %s,\n  "gateway_up": %s,\n  "files_up": %s,\n  "tunnel_up": %s,\n  "url": "%s",\n  "tunnel": "%s",\n  "tunnel_stable": %s,\n  "tunnel_error": "%s",\n  "supervisor_pid": "%s",\n  "port": %s,\n  "state": "%s",\n  "key_present": %s%s\n}\n' \
+    "$sup" "$gw" "$files" "$tun" "$S_PUBLIC" "$tunnel" "$S_STABLE" "$S_ERR" "$([[ $sup == true ]] && echo "$S_SUP")" "$PORT" "$state" \
+    "$([[ -s "$KEYFILE" ]] && echo true || echo false)" "$deep"
+  [[ $sup == true ]] || return 3
+  [[ $gw == true && $files == true && $tun == true ]] || return 1
+  return 0
+}
 
-GATEWAY_PID=""
-NGROK_PID=""
-
-cleanup() {
-  trap - EXIT INT TERM
-  info "Shutting down bridge..."
-  for pid in "$NGROK_PID" "$GATEWAY_PID"; do
-    if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-      # Kill children first (npx -> node -> MCP servers), then the process itself.
-      pkill -TERM -P "$pid" 2>/dev/null || true
-      kill -TERM "$pid" 2>/dev/null || true
+# ---------------------------------------------------------------------------------------
+# run: the supervisor
+# ---------------------------------------------------------------------------------------
+do_run() {
+  resolve_tunnel
+  if supervisor_alive && [[ "$(sup_local)" != "$$" ]]; then
+    log "Another bridge supervisor already runs (pid $(sup_local))."; exit 0
+  fi
+  echo $$ > "$PID_FILE"; rm -f "$STOP_FILE"
+  for p in "$S_GW" "$S_FILES" "$S_TUN"; do   # leftovers of a supervisor killed without cleanup
+    if alive "$p" && [[ "$(ps -p "$p" -o command= 2>/dev/null)" == *"$BRIDGE_DIR"* || "$(ps -p "$p" -o command= 2>/dev/null)" == *"127.0.0.1:$PORT"* ]]; then
+      log "Stopping a leftover process from the last run (pid $p)."; kill "$p" 2>/dev/null
     fi
   done
-  sleep 1
-  for pid in "$NGROK_PID" "$GATEWAY_PID"; do
-    [[ -n "$pid" ]] && kill -KILL "$pid" 2>/dev/null || true
+  [[ "$STUDIO" == true || "$FILES" == true || "$BLENDER" == true ]] || fail "Nothing to expose."
+  install_runtime
+  local key; key="$(get_key)"
+  local studio_mcp=""
+  if [[ "$STUDIO" == true ]]; then
+    studio_mcp="${ROBLOX_STUDIO_MCP_PATH:-/Applications/RobloxStudio.app/Contents/MacOS/StudioMCP}"
+    [[ -x "$studio_mcp" ]] || fail "Roblox Studio MCP not found at $studio_mcp. In Studio: Assistant > ... > Manage MCP Servers > Enable Studio as MCP server."
+  fi
+  [[ "$BLENDER" != true ]] || have uvx || fail "Blender is enabled but uv/uvx is missing (https://docs.astral.sh/uv/)."
+  [[ "$FILES" != true ]] || mkdir -p "$DROP_DIR"
+  if [[ "$TUNNEL" == ngrok ]]; then
+    [[ -n "$NGROK_BIN" ]] || fail "ngrok not found (brew install ngrok), or use --tunnel-provider cloudflare."
+    [[ -n "${NGROK_AUTHTOKEN:-}" ]] || ngrok_configured || fail "ngrok has no authtoken: set NGROK_AUTHTOKEN and run install-service, or: ngrok config add-authtoken <token>."
+  fi
+  for p in "$PORT" $([[ "$FILES" == true ]] && echo "$FILES_PORT") $([[ "$TUNNEL" == cloudflare ]] && echo "$METRICS_PORT"); do
+    tcp_up "$p" && fail "Port $p is already in use (another bridge?). Run 'status', or pass --port <other>."
   done
-  rm -rf "$RUNTIME_DIR"
-  info "Stopped. The API key from this session is now useless."
+
+  local gw_config="$RUN_DIR/servers.json" esc_node esc_files esc_drop
+  GS_STUDIO="$STUDIO" GS_FILES="$FILES" GS_BLENDER="$BLENDER" GS_SMCP="$(winpath "$studio_mcp")" GS_NODE="$(winpath "$NODE_BIN")" \
+  GS_FS="$(winpath "$FILES_SERVER")" GS_DROP="$(winpath "$DROP_DIR")" GS_BASE="http://127.0.0.1:$FILES_PORT/$TOKEN" GS_PORT="$PORT" \
+  "$NODE_BIN" -e '
+    const e = process.env, s = {};
+    if (e.GS_STUDIO === "true") s["roblox-studio"] = { command: e.GS_SMCP, args: [] };
+    if (e.GS_FILES === "true") s.files = { command: e.GS_NODE, args: [e.GS_FS], env: { GROK_STUDIO_DROP_DIR: e.GS_DROP, GROK_STUDIO_HTTP_BASE: e.GS_BASE } };
+    if (e.GS_BLENDER === "true") s.blender = { command: "uvx", args: ["mcp-for-blender"] };
+    require("fs").writeFileSync(process.argv[1], JSON.stringify({ host: "127.0.0.1", port: Number(e.GS_PORT), outputTransport: "streamableHttp",
+      stateful: true, sessionTimeout: 3600000, healthEndpoint: "/healthz", mcpServers: s }, null, 2));
+  ' "$gw_config"
+  [[ $UNSAFE_BLENDER -eq 1 ]] || export BLENDER_MCP_SAFE_MODE=1
+  export GROK_STUDIO_DROP_DIR="$(winpath "$DROP_DIR")" GROK_STUDIO_HTTP_BASE="http://127.0.0.1:$FILES_PORT/$TOKEN" GROK_STUDIO_HTTP_TOKEN="$TOKEN"
+
+  GW_PID=""; FILES_PID=""; TUN_PID=""; PUBLIC="$(public_base)"; TERR=""
+  STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  start_child() {
+    case "$1" in
+      gateway) "$NODE_BIN" "$(winpath "$GATEWAY_JS")" --config "$(winpath "$gw_config")" --apiKeyFile "$(winpath "$KEYFILE")" \
+                 --exitWithProcess "$SELF_PID" --logLevel info >"$LOG_DIR/gateway.log" 2>"$LOG_DIR/gateway.err.log" </dev/null &
+               GW_PID=$! ;;
+      files)   "$NODE_BIN" "$(winpath "$FILES_SERVER")" --http "$FILES_PORT" --parent-pid "$SELF_PID" \
+                 >"$LOG_DIR/files.log" 2>"$LOG_DIR/files.err.log" </dev/null &
+               FILES_PID=$! ;;
+      tunnel)  if [[ "$TUNNEL" == ngrok ]]; then
+                 local a=(http "127.0.0.1:$PORT" --log stdout --log-format json); [[ -n "$DOMAIN" ]] && a+=(--url "https://$DOMAIN")
+                 "$NGROK_BIN" "${a[@]}" >"$LOG_DIR/tunnel.log" 2>"$LOG_DIR/tunnel.err.log" </dev/null &
+               else
+                 local cf; cf="$(get_cloudflared)"
+                 "$cf" tunnel --no-autoupdate --metrics "127.0.0.1:$METRICS_PORT" --url "http://127.0.0.1:$PORT" >"$LOG_DIR/tunnel.log" 2>"$LOG_DIR/tunnel.err.log" </dev/null &
+               fi
+               TUN_PID=$! ;;
+    esac
+  }
+  find_tunnel_url() {
+    if [[ "$TUNNEL" == cloudflare ]]; then grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' "$LOG_DIR/tunnel.err.log" 2>/dev/null | head -n1
+    else grep 'started tunnel' "$LOG_DIR/tunnel.log" 2>/dev/null | grep -o '"url":"https://[^"]*"' | head -n1 | cut -d'"' -f4; fi
+  }
+  tunnel_up() {
+    if [[ "$TUNNEL" == cloudflare ]]; then [[ "$(http_code "http://127.0.0.1:$METRICS_PORT/ready" 2)" == 200 ]]   # never resolve a fresh quick-tunnel name from here
+    else [[ -n "$PUBLIC" && "$(http_code "$PUBLIC/healthz" 5)" == 200 ]]; fi
+  }
+  wait_tunnel() {
+    local end=$(( $(date +%s) + $1 )) u
+    while [[ $(date +%s) -lt $end ]]; do
+      alive "$TUN_PID" || return 1
+      if [[ "$TUNNEL" == cloudflare || -z "$DOMAIN" ]]; then u="$(find_tunnel_url)"; [[ -n "$u" && "$u" != "$PUBLIC" ]] && { PUBLIC="$u"; log "Tunnel URL: $u"; }; fi
+      [[ -n "$PUBLIC" ]] && tunnel_up && return 0
+      sleep 0.5
+    done
+    return 1
+  }
+  tunnel_error() { grep -Eho 'ERR_NGROK_[0-9]+[^"]*|failed to[^"]*' "$LOG_DIR/tunnel.log" "$LOG_DIR/tunnel.err.log" 2>/dev/null | tail -n1 | cut -c1-160 | tr '"' "'"; }
+  state_now() { if [[ "$TUNNEL" == none || ( -n "$PUBLIC" && -z "$TERR" ) ]]; then echo ready; else echo degraded; fi; }
+  kill_children() { for p in "$TUN_PID" "$FILES_PID" "$GW_PID"; do [[ -n "$p" ]] && { pkill -TERM -P "$p" 2>/dev/null; kill -TERM "$p" 2>/dev/null; }; done; }
+  cleanup() {
+    trap - EXIT INT TERM
+    log "Shutting down..."
+    kill_children; sleep 0.5
+    [[ -f "$SESSION" ]] && write_session stopped "$PUBLIC" ""
+    rm -f "$STOP_FILE" "$PID_FILE"
+    log "Stopped."
+  }
+  trap cleanup EXIT; trap 'exit 0' INT TERM
+
+  local t0; t0=$(date +%s)
+  log "Starting supergateway on 127.0.0.1:$PORT..."
+  start_child gateway
+  local i up=0; for i in $(seq 1 100); do sleep 0.1; alive "$GW_PID" || break; tcp_up "$PORT" && { up=1; break; }; done
+  [[ $up -eq 1 ]] || fail "supergateway did not start: $(tail -n 5 "$LOG_DIR/gateway.err.log" 2>/dev/null | tr '\n' ' ')"
+  [[ "$FILES" == true ]] && start_child files
+  if [[ "$TUNNEL" != none ]]; then
+    log "Starting the $TUNNEL tunnel..."
+    start_child tunnel
+    wait_tunnel 30 || { TERR="$(tunnel_error)"; TERR="${TERR:-tunnel not answering}"; log "The tunnel is not answering yet: $TERR"; }
+  fi
+  write_session "$(state_now)" "$PUBLIC" "$TERR"
+  log "Bridge $(state_now) in $(( $(date +%s) - t0 )) s at ${PUBLIC:-http://127.0.0.1:$PORT}"
+  [[ $FROM_TASK -eq 1 ]] || { print_session; log "Ctrl+C (or the 'stop' command) stops it."; }
+
+  local tick=0 gw_miss=0 tun_miss=0 changed v
+  fails_gateway=0; fails_files=0; fails_tunnel=0; next_gateway=0; next_files=0; next_tunnel=0
+  started_gateway=$(date +%s); started_files=$started_gateway; started_tunnel=$started_gateway
+  while true; do
+    sleep 1; tick=$((tick + 1)); changed=0
+    [[ -e "$STOP_FILE" ]] && { log "Stop requested."; break; }
+    for name in gateway files tunnel; do
+      local pid=""; case $name in gateway) pid="$GW_PID" ;; files) pid="$FILES_PID" ;; tunnel) pid="$TUN_PID" ;; esac
+      [[ -z "$pid" ]] && continue; alive "$pid" && continue
+      local now; now=$(date +%s)
+      v="next_$name"; [[ $now -lt ${!v} ]] && continue
+      v="started_$name"; [[ $(( now - ${!v} )) -gt 120 ]] && printf -v "fails_$name" '%s' 0
+      v="fails_$name"; printf -v "fails_$name" '%s' $(( ${!v} + 1 ))
+      local delays=(1 2 5 10 30); local idx=$(( ${!v} - 1 )); [[ $idx -gt 4 ]] && idx=4
+      printf -v "next_$name" '%s' $(( now + ${delays[$idx]} )); printf -v "started_$name" '%s' "$now"
+      log "$name exited; restarting (attempt ${!v})."
+      if [[ $name == tunnel && ( "$TUNNEL" == cloudflare || -z "$DOMAIN" ) ]]; then PUBLIC=""; fi
+      start_child "$name"
+      if [[ $name == tunnel ]]; then if wait_tunnel 30; then TERR=""; else TERR="$(tunnel_error)"; TERR="${TERR:-tunnel not answering}"; fi; fi
+      changed=1
+    done
+    if (( tick % 2 == 0 )); then if tcp_up "$PORT"; then gw_miss=0; else gw_miss=$((gw_miss + 1)); fi; fi
+    [[ $gw_miss -ge 3 ]] && { log "Gateway not answering; restarting it."; kill "$GW_PID" 2>/dev/null; gw_miss=0; }
+    if [[ "$TUNNEL" != none ]] && (( tick % 30 == 0 )) && alive "$TUN_PID"; then
+      if tunnel_up; then [[ $tun_miss -gt 0 || -n "$TERR" ]] && { TERR=""; changed=1; }; tun_miss=0
+      else tun_miss=$((tun_miss + 1)); [[ $tun_miss -ge 3 ]] && { log "Tunnel not answering; restarting it."; kill "$TUN_PID" 2>/dev/null; tun_miss=0; }; fi
+    fi
+    [[ $changed -eq 1 ]] && write_session "$(state_now)" "$PUBLIC" "$TERR"
+  done
 }
-trap cleanup EXIT
-trap 'exit 130' INT TERM
 
-# Secrets/options go via environment, not argv (keeps them out of `ps`).
-export SUPERGATEWAY_API_KEY="$KEY"
-if [[ $UNSAFE_BLENDER -ne 1 ]]; then export BLENDER_MCP_SAFE_MODE=1; else warn "Blender safe mode is OFF."; fi
-
-# --------------------------------------------------------------------------------------
-# 4. Start supergateway
-# --------------------------------------------------------------------------------------
-info "Starting supergateway on http://127.0.0.1:$PORT ..."
-npx -y "$SUPERGATEWAY_PKG" --config "$CONFIG" --exitWithProcess "$$" --logLevel info \
-  >"$RUNTIME_DIR/gateway.log" 2>&1 &
-GATEWAY_PID=$!
-
-healthy=0
-for _ in $(seq 1 90); do
-  sleep 1
-  kill -0 "$GATEWAY_PID" 2>/dev/null || break
-  if curl -fsS --max-time 2 "http://127.0.0.1:$PORT/healthz" >/dev/null 2>&1; then healthy=1; break; fi
-done
-if [[ $healthy -ne 1 ]]; then
-  warn "Gateway did not become healthy. Last log lines:"
-  tail -n 20 "$RUNTIME_DIR/gateway.log" >&2 || true
-  exit 1
-fi
-info "Gateway is up (requests without the API key get HTTP 401)."
-
-# --------------------------------------------------------------------------------------
-# 5. Optional ngrok tunnel
-# --------------------------------------------------------------------------------------
-BASE_URL="http://127.0.0.1:$PORT"
-if [[ $TUNNEL -eq 1 ]]; then
-  info "Starting ngrok tunnel..."
-  ng_args=(http "127.0.0.1:$PORT" --log stdout)
-  [[ -n "$NGROK_URL" ]] && ng_args+=(--url "$NGROK_URL")
-  ngrok "${ng_args[@]}" >"$RUNTIME_DIR/ngrok.log" 2>&1 &
-  NGROK_PID=$!
-  public=""
-  for _ in $(seq 1 30); do
-    sleep 1
-    kill -0 "$NGROK_PID" 2>/dev/null || break
-    public="$(curl -fsS --max-time 2 http://127.0.0.1:4040/api/tunnels 2>/dev/null \
-      | grep -o '"public_url":"https://[^"]*"' | head -n1 | cut -d'"' -f4 || true)"
-    [[ -n "$public" ]] && break
+# ---------------------------------------------------------------------------------------
+# Service commands
+# ---------------------------------------------------------------------------------------
+wait_ready() {  # $1 seconds, $2 = epoch seconds the start began
+  local end=$(( $(date +%s) + $1 ))
+  while [[ $(date +%s) -lt $end ]]; do
+    load_state
+    if [[ ( "$S_STATE" == ready || "$S_STATE" == degraded ) && -n "$S_UPDATED" ]] && supervisor_alive; then
+      local upd; upd="$("$NODE_BIN" -e 'console.log(Math.floor(Date.parse(process.argv[1]) / 1000))' "$S_UPDATED")"
+      [[ $upd -ge $(( $2 - 1 )) ]] && return 0
+    fi
+    sleep 0.3
   done
-  if [[ -z "$public" ]]; then
-    warn "Could not read the ngrok URL (is your authtoken configured?). Log:"
-    tail -n 20 "$RUNTIME_DIR/ngrok.log" >&2 || true
+  return 1
+}
+
+do_stop() {
+  load_state
+  local sp; sp="$(sup_local)"
+  if supervisor_alive; then
+    touch "$STOP_FILE"
+    local i; for i in $(seq 1 40); do alive "$sp" || break; sleep 0.25; done
+    if alive "$sp"; then
+      log "Supervisor $sp did not stop in 10 s; killing it."
+      kill "$sp" 2>/dev/null; sleep 1; kill -9 "$sp" "$S_GW" "$S_FILES" "$S_TUN" 2>/dev/null
+    fi
+  fi
+  rm -f "$STOP_FILE"
+}
+
+do_start() {
+  rm -f "$STOP_FILE"
+  local since; since=$(date +%s)
+  if [[ "$PC_OS" == macos && -f "$PLIST" ]]; then
+    launchctl kickstart "gui/$(id -u)/$LABEL" >/dev/null 2>&1 || launchctl bootstrap "gui/$(id -u)" "$PLIST" >/dev/null 2>&1
+  else
+    nohup /bin/bash "$BRIDGE_DIR/start-bridge.sh" run --from-task >/dev/null 2>&1 </dev/null &
+  fi
+  if ! wait_ready 45 "$since"; then
+    echo "STATUS=error"; echo "ERROR=the bridge did not come up in 45 s. Last log lines: $(tail -n 4 "$LOG_DIR/supervisor.log" 2>/dev/null | tr '\n' '|')"
     exit 1
   fi
-  BASE_URL="${public%/}"
-fi
+  print_session
+}
 
-# --------------------------------------------------------------------------------------
-# 6. Print connection details
-# --------------------------------------------------------------------------------------
-if [[ $JSON_OUTPUT -eq 1 ]]; then
-  # Machine-readable single-line JSON for automated setup (e.g. GrokBot ExternalShell).
-  json='{'
-  [[ $NO_STUDIO -ne 1 ]]  && json+="\"studio_url\":\"$BASE_URL/roblox-studio/mcp\","
-  [[ $NO_BLENDER -ne 1 ]] && json+="\"blender_url\":\"$BASE_URL/blender/mcp\","
-  json+="\"api_key\":\"$KEY\",\"port\":$PORT}"
-  echo "$json"
-else
-  echo
-  printf '\033[32m================== ADD THESE AS CUSTOM CONNECTORS ==================\033[0m\n'
-  [[ $NO_STUDIO -ne 1 ]]  && echo "  Roblox Studio MCP : $BASE_URL/roblox-studio/mcp"
-  [[ $NO_BLENDER -ne 1 ]] && echo "  Blender MCP       : $BASE_URL/blender/mcp"
-  echo "  Transport         : Streamable HTTP"
-  echo "  Auth header       : Authorization: Bearer $KEY"
-  echo "                      (or X-API-Key: $KEY)"
-  printf '\033[32m====================================================================\033[0m\n'
-  [[ $TUNNEL -ne 1 ]] && warn "No tunnel: these URLs only work from this machine. Re-run with --tunnel for a cloud agent."
-  echo
-  warn 'Keep Studio (with "Enable Studio as MCP server" on) and Blender open.'
-  warn "Press Ctrl+C to stop the bridge. Remove the connectors from your bot afterwards."
-fi
+do_install_service() {
+  [[ "$PC_OS" == macos ]] || fail "install-service uses launchd (macOS). On Windows use start-bridge.ps1; elsewhere run the bridge with 'run'."
+  resolve_tunnel
+  if [[ "$TUNNEL" == ngrok && -n "$NGROK_BIN" && -n "${NGROK_AUTHTOKEN:-}" ]] && ! ngrok_configured; then
+    "$NGROK_BIN" config add-authtoken "$NGROK_AUTHTOKEN" >/dev/null 2>&1 && log "ngrok authtoken saved to the ngrok config."   # never echoed
+  fi
+  save_config; install_runtime; get_key >/dev/null; do_stop
+  local path_dirs; path_dirs="$(dirname "$NODE_BIN")"; [[ -n "$NGROK_BIN" ]] && path_dirs="$path_dirs:$(dirname "$NGROK_BIN")"
+  mkdir -p "$HOME/Library/LaunchAgents"
+  cat > "$PLIST" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>$LABEL</string>
+  <key>ProgramArguments</key>
+  <array><string>/bin/bash</string><string>$BRIDGE_DIR/start-bridge.sh</string><string>run</string><string>--from-task</string></array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
+  <key>ThrottleInterval</key><integer>30</integer>
+  <key>EnvironmentVariables</key>
+  <dict><key>PATH</key><string>$path_dirs:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
+  <key>StandardOutPath</key><string>$LOG_DIR/launchd.log</string>
+  <key>StandardErrorPath</key><string>$LOG_DIR/launchd.log</string>
+</dict>
+</plist>
+PLIST
+  launchctl bootout "gui/$(id -u)/$LABEL" >/dev/null 2>&1 || true
+  local since; since=$(date +%s)
+  launchctl bootstrap "gui/$(id -u)" "$PLIST" || fail "launchctl bootstrap failed for $PLIST"
+  log "LaunchAgent $LABEL installed (starts at login; restarted if it crashes)."
+  wait_ready 45 "$since" || fail "the bridge did not come up in 45 s (see logs/supervisor.log)."
+  print_session
+}
 
-# --------------------------------------------------------------------------------------
-# 7. Stay alive until Ctrl+C or a child dies
-# --------------------------------------------------------------------------------------
-while true; do
-  sleep 2
-  kill -0 "$GATEWAY_PID" 2>/dev/null || { warn "supergateway exited."; break; }
-  if [[ -n "$NGROK_PID" ]] && ! kill -0 "$NGROK_PID" 2>/dev/null; then warn "ngrok exited."; break; fi
-done
+do_uninstall_service() {
+  do_stop
+  if [[ "$PC_OS" == macos ]]; then
+    launchctl bootout "gui/$(id -u)/$LABEL" >/dev/null 2>&1 || true
+    [[ -f "$PLIST" ]] && { rm -f "$PLIST"; log "LaunchAgent $LABEL removed."; }
+  fi
+  rm -f "$SESSION"
+  [[ $PURGE -eq 1 ]] && rm -rf "$KEYFILE" "$CONFIG" "$LOG_DIR" "$RUN_DIR" "$BIN_DIR" "$BRIDGE_DIR/node_modules"
+  echo "STATUS=uninstalled"
+}
+
+case "$CMD" in
+  run)               do_run ;;
+  install-service)   do_install_service ;;
+  uninstall-service) do_uninstall_service ;;
+  start)             resolve_tunnel; save_config; [[ $ROTATE -eq 1 ]] && get_key >/dev/null; do_start ;;
+  stop)              do_stop; echo "STATUS=stopped" ;;
+  restart)           resolve_tunnel; save_config; do_stop; [[ $ROTATE -eq 1 ]] && get_key >/dev/null; do_start ;;
+  status)            status_json; exit $? ;;
+  session)           st=""; supervisor_alive || st=stopped; print_session "$st" ;;
+esac

@@ -196,9 +196,16 @@ docs don't promise substitution inside `command`. Zero-config wins.
 - **MCP servers here execute code.** Studio MCP runs Luau in your open places; Blender MCP
   runs Python in Blender. Only connect agents you trust, and work in a scratch place or
   keep a `.rbxl` backup.
-- **Bridge:** anyone with the bridge URL + key can run code in Studio and Blender on your
-  PC. A fresh 256-bit key per run, loopback-only binding, 401 without the key, Blender safe
-  mode on, Ctrl+C tears everything down. Run it only during a build session.
+- **Bridge:** it runs as a background service with a static URL and one stable key. While
+  your PC is on, anyone holding the URL + key can run Luau in your open Studio places and
+  write files into `~/grok-studio/drop`. Mitigations:
+  - a 256-bit key readable only by your user account
+  - the gateway listens only on this PC (loopback) behind the tunnel
+  - requests without the key get HTTP 401
+  - Blender on the PC is off by default (opt-in, safe mode)
+  - `restart -RotateKey` replaces the key: do it if it ever leaks
+  - `stop` or `uninstall-service` turns the bridge off
+  Work in a scratch place, or rely on Team Create's version history.
 - **Free models:** the skills inspect inserted Creator Store assets for suspicious scripts
   (`require(` by ID, `loadstring`, `getfenv`) - still review them.
 - **API keys:** Open Cloud keys are only used from outside Roblox and never written into the
