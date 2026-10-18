@@ -20,8 +20,9 @@ Files next to this skill (`reference/`):
 |---|---|
 | `cloud_blender.sh` | install / probe / run headless Blender on the cloud computer |
 | `asset_harness.py` | `open_asset`, `checkpoint`, `rollback`, `review_sheet`, `export_asset`, `job_args`, ... |
-| `roblox_export.py` | `setup_scene_for_roblox`, `audit`, `apply_transforms`, `flat_material`, `export_fbx`, `split_by_material`, `split_all_by_material` |
-| `studio/manifest_importer.lua` | Luau helper for applying manifests and post-import validation in Studio |
+| `roblox_export.py` | `setup_scene_for_roblox`, `audit`, `apply_transforms`, `flat_material`, `export_fbx`, `split_by_material`, `split_all_by_material`, `material_hex` |
+| `studio/manifest_importer.lua` | Studio side of the split: `apply` (colours + welds) and `validate` (post-import check) from `exports/<id>_manifest.json` |
+| `smoke_test_split.py`, `test_split_logic.py` | tests: `cloud_blender.sh run smoke_test_split.py` (Blender), `python3 test_split_logic.py` (no Blender; runs the Luau tests if `luau` is installed) |
 
 Upload helper: `<plugin>/scripts/opencloud_upload.py`. File-to-PC helper:
 `<plugin>/scripts/send-to-pc.py` (`team-protocol` section 7). `<plugin>` = the folder that
@@ -42,12 +43,44 @@ holds `skills/`.
 | Open Cloud upload | Model: `.fbx .gltf .glb .rbxm .rbxmx`, uploads as a **package**; max 20 MB | [Assets usage guide](https://create.roblox.com/docs/cloud/guides/usage-assets) |
 
 Recommended (not Roblox rules): props under ~1k tris, one mesh reused for repeated objects
-(instances are cheap, unique meshes are not), **flat materials** (solid colors, no
-textures) for low-poly. **Multi-material objects are automatically split before export**:
-each material becomes a separate mesh piece named `<Object>_<Material>`, with origins kept
-at the parent limb's joint for animation. A manifest JSON records each piece's parent and
-color. Never fake missing colors with overlay Parts in Studio; baking colors to a texture
-is an optional alternative for painted models, not the default.
+(instances are cheap, unique meshes are not), **flat materials** (solid colours, no
+textures) for low-poly.
+
+### One mesh per material (why the exporter splits)
+
+A Roblox MeshPart has one `Color`. An FBX mesh with several materials imports as one
+MeshPart with one colour, so a lion head with fur, nose and eyes arrives all fur-coloured
+(and bots then stacked ~20 box Parts on top to fake the eyes, which never lined up). So
+`export_fbx` / `export_asset` split every multi-material mesh before export:
+
+- One piece per material, named `<Object>_<Material>` (`Head` with `Lion_Fur` and
+  `Lion_Eye` -> `Head_Lion_Fur`, `Head_Lion_Eye`; non-alphanumerics become `_`). A mesh
+  with one material keeps its name.
+- Every piece keeps the object's transform, parent, Armature modifier, vertex groups, UVs
+  and shading, so **its origin stays at the limb's joint** and it animates like the
+  original. Only its own faces are kept (no loose vertices), so its bounds are its own.
+- The piece of the **first used material slot** is the limb's **main** piece (override:
+  `obj["gs_main_material"] = "<material>"`). The Animator puts the limb's Motor6D on it;
+  the other pieces are welded to it in Studio. Children of the limb are re-parented to it.
+- `exports/<id>_manifest.json` records every piece, in sRGB hex (what `Color3.fromHex`
+  takes; Blender's Base Color is linear and is converted):
+  ```json
+  {"version": 1, "colorSpace": "sRGB", "fbx": "lion.fbx",
+   "meshes": {"Head_Lion_Fur": {"limb": "Head", "main": true,  "material": "Lion_Fur", "color": "#F6C57F", "parent": null},
+              "Head_Lion_Eye": {"limb": "Head", "main": false, "material": "Lion_Eye", "color": "#3B2A40", "parent": null}},
+   "limbs":  {"Head": {"main": "Head_Lion_Fur", "pieces": ["Head_Lion_Fur", "Head_Lion_Eye"], "joint": [0, 5.4, -3.4]}}}
+  ```
+- The split changes the open scene (pieces replace the original object), not the saved
+  `.blend` unless you save or checkpoint afterwards. Exporting again is safe: pieces
+  remember their limb (`gs_limb`, `gs_main` custom properties).
+- `joint` = the limb's pivot in Roblox axes/studs relative to the Blender world origin
+  (`x, z, -y`); the Animator uses it for Motor6D C0/C1.
+- Pieces cut from one connected surface are open where two materials met; the audit notes
+  `[open at material seams]` and still says OK when the source was watertight.
+
+Never fake missing colours with overlay Parts in Studio. Baking colours to a texture is an
+optional alternative for painted models, not the default (`audit` flags textured materials:
+their manifest colour would not be what Roblox shows).
 
 ## Which Blender
 
@@ -140,10 +173,6 @@ For each asset in your task:
       again.
    4. Stop when the critique has nothing important left, or after round 4. Report what
       is still imperfect instead of looping.
-   5. **Compare Edit-mode against render:** Take a `screen_capture` (Blender MCP: `look`)
-      in Edit mode showing the mesh with material colors, and compare it against the review
-      sheet render. If colors don't match or detail is lost, fix and re-render before
-      marking the model placed.
    Workbench colours are the closest to Roblox's flat look. Cycles (the fallback when the
    computer has no GPU) renders lighter and softer, so judge the palette by hex values, not
    by eye.
@@ -152,20 +181,17 @@ For each asset in your task:
    needed: `python3 -c "import sys; sys.path.insert(0,'<reference>'); import asset_harness as h; print(h.rollback(h.asset_paths('<id>'), <n>))"`).
    Checkpoints are never edited or deleted while the task is open. The next checkpoint
    after a rollback gets the next free number, so the history stays linear.
-5. **Audit** - `audit(names=asset_object_names(a))`: every line must end in `OK`. The
-   audit now enforces:
-   - Single material per mesh (multi-material objects must be split before export)
-   - Flat materials only (no textures or complex shader nodes)
-   - Triangle counts within budget
-   - No unapplied transforms, n-gons, or non-manifold edges
-   Fix issues by triangulating or quad-ing n-gons, applying transforms with
-   `apply_transforms`, or closing holes with Solidify. Multi-material objects are
-   automatically split during export (see step 6).
-6. **Export** - `export_asset(a)` -> `exports/<id>.fbx` plus `exports/<id>_manifest.json`.
-   The exporter automatically splits multi-material objects into one mesh per material,
-   named `<Object>_<Material>` (e.g. `Head_Fur`, `Head_Eye`), preserving origins at the
-   parent limb's joint for animation. The manifest maps each piece to its parent limb and
-   sRGB hex color. One FBX per asset. Set `assets.items[].status = "exported"`.
+5. **Audit** - `audit({"<name>": budget}, names=asset_object_names(a))`: every line must
+   end in `OK`. Fix n-gons by triangulating or quad-ing (a Triangulate modifier is fine for
+   low-poly), unapplied scale with `apply_transforms`, holes by closing or Solidify,
+   `not flat` by using `flat_material`. A multi-material mesh is noted as
+   `[N materials, split at export]`; that is fine.
+6. **Export** - `export_asset(a)` -> `exports/<id>.fbx` + `exports/<id>_manifest.json`
+   (FBX Unit Scale, Y-up, no leaf bones, embedded textures). It splits multi-material
+   meshes (above), runs the pre-export audit on the pieces (result `audit`; it refuses to
+   export if any mesh still has more than one material) and returns the piece names in
+   `objects`. One FBX per asset. Set `assets.items[].status = "exported"` and tell the
+   Builder/Animator the manifest path.
 
 Tested headless with Blender 5.2.2: a 3-object prop from empty scene to two checkpoints,
 two review sheets and an FBX in ~6 s, both on Windows and in a GPU-less Ubuntu 24.04
@@ -208,11 +234,17 @@ the user for the Import 3D click directly.
 - Templates go to `ReplicatedStorage.Assets.Models` (client-visible) or
   `ServerStorage.Templates` (server-only). Map pieces go under `Workspace` (see
   `roblox-building` for map layout). Rename the imported model to the asset `id`.
-- **Apply the manifest** (if one exists): Use the Luau helper
-  `skills/blender-assets/reference/studio/manifest_importer.lua` to set each MeshPart's
-  Color/Material and weld split pieces to their parent limbs. The helper also validates
-  that all manifest meshes exist, have correct colors, are welded properly, and no
-  non-hitbox overlay Parts were added.
+- **Apply the manifest** (every Blender export has one, `exports/<id>_manifest.json` on
+  the cloud computer): in one `execute_luau` (Edit), wrap
+  `reference/studio/manifest_importer.lua` as `local M = (function() <file> end)()`, then
+  `M.decode([==[<manifest JSON>]==])`, `print(M.report(M.apply(model, manifest)))` (sets
+  each piece's `Color`, welds non-main pieces to their limb's main piece; idempotent) and
+  `print(M.report(M.validate(model, manifest)))`. **`validate` must print `PASS`**: every
+  manifest mesh present once, colour within 1/255, no texture hiding it, pieces welded,
+  no non-hitbox overlay Parts. Fix what it lists; never add Parts to fake detail.
+- **Compare against the render:** take an Edit-mode `screen_capture` of the placed model
+  and compare it with the Blender review sheet. Missing colours or detail -> fix (usually
+  a missing or mis-applied manifest) before marking the model placed.
 - Set `Anchored`, `CanCollide`, `CollisionFidelity` from the spec (Box/Hull for simple
   props, PreciseConvexDecomposition only when needed), `CastShadow` off for tiny props,
   `RenderFidelity = Automatic`.

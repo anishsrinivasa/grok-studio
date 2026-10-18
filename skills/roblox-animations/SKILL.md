@@ -55,6 +55,10 @@ Before any Studio write, check the `studio-play` lock (`team-protocol` section 4
 
 Build a `KeyframeSequence` of `Keyframe`s containing nested `Pose`s that mirror the rig's
 Motor6D hierarchy (`HumanoidRootPart > LowerTorso > UpperTorso > RightUpperArm ...`).
+Blender models exported split by material (`exports/<id>_manifest.json`): rig each limb's
+**main** piece (`limbs.<limb>.main`, e.g. `Head_Lion_Fur`) with the Motor6D, pivot at
+`limbs.<limb>.joint` (model space, studs; shared by all pieces of the limb). The other pieces are
+welded to it by the manifest helper, so they follow; never put Motor6Ds on them.
 Run via `execute_luau` (`datamodel_type: "Edit"`):
 
 ```lua
