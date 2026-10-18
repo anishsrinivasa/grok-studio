@@ -161,6 +161,9 @@ InstMT.__newindex = function(self, k, v)
 		if v then table.insert(rawget(v, "_c"), self) end
 		return
 	end
+	if k == "TextWrapped" and v == false then
+		props.TextScaled = false -- real Roblox behaviour, observed in Studio
+	end
 	if props[k] == nil and k ~= "Name" and not (k == "Wraps" or k == "HorizontalFlex" or k == "VerticalFlex"
 		or k == "BorderStrokePosition" or k == "ScreenInsets") and not props._open then
 		error(`{k} is not a valid member of {self.ClassName}`)

@@ -166,8 +166,9 @@ local function create(el: any, ctx: Ctx): GuiObject
 				enumItem(Enum.FontStyle, el.font.style, Enum.FontStyle.Normal))
 		end
 		t.TextSize = el.textSize or 14
-		t.TextScaled = el.textScaled == true
+		-- Order matters: setting TextWrapped = false turns TextScaled off in Roblox.
 		t.TextWrapped = el.textWrapped ~= false
+		t.TextScaled = el.textScaled == true
 		if el.textColor then
 			t.TextColor3 = Color3.fromHex(el.textColor)
 		end

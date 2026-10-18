@@ -261,7 +261,9 @@ function convertShape(shape, parent, ctx, used, index, inLayout = false) {
         const size = parseFloat(shape.fontSize ?? '14');
         el.textSize = Number.isFinite(size) ? Math.round(size) : 14;
         el.textScaled = true; // fit the scale-sized box on any screen, capped at textSize
-        el.textWrapped = shape.growType !== 'auto-width';
+        // Roblox ties these together: TextWrapped = false switches TextScaled off (seen in Studio).
+        // A scaled auto-width box is sized to one line at the design size, so it stays one line.
+        el.textWrapped = true;
         el.textXAlignment = shape.align === 'center' ? 'Center' : shape.align === 'right' ? 'Right' : 'Left';
         el.textYAlignment = shape.verticalAlign === 'center' ? 'Center' : shape.verticalAlign === 'bottom' ? 'Bottom' : 'Top';
         if (shape.align === 'justify')
