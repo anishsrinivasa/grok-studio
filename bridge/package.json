@@ -1,0 +1,9 @@
+{
+  "name": "grok-studio-bridge",
+  "private": true,
+  "description": "Pinned runtime for the grok-studio bridge (installed once with npm ci; run with node, not npx).",
+  "license": "MIT",
+  "dependencies": {
+    "supergateway": "4.2.0"
+  }
+}

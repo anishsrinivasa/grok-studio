@@ -1,0 +1,9 @@
+# Runtime state written by start-bridge.ps1 / start-bridge.sh.
+# Never commit these: bridge.key and session.json hold the bridge's API key.
+bridge.key
+session.json
+config.json
+node_modules/
+logs/
+run/
+bin/

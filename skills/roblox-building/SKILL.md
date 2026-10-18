@@ -99,6 +99,21 @@ props, PreciseConvexDecomposition only when needed). Turn `CastShadow` off on ti
 and add the tags. Put templates in `ReplicatedStorage.Assets.Models` and instances in
 `Workspace.Map`.
 
+## Quality gates (a failed gate blocks `placed`)
+
+- **No overlay Parts.** Never fake detail by stacking thin Parts on, or inside, a MeshPart
+  or another Part. It z-fights, flickers on phones and doubles the part count. Never leave
+  two coincident copies of one part. Put detail in the mesh, or make it a proper separate
+  piece that clears the surface. Imported models must pass `post_import_check.luau`
+  (`blender-assets`), which checks this along with names, sizes and colours.
+- **Scale and footing:** nothing floats or sinks unintentionally, and the spawn and every
+  gameplay spot are reachable at default jump settings.
+- **Budgets:** under 20,000 triangles per mesh and within the spec's per-item budget.
+  Report the part count.
+- **Looks match the source:** for Blender models, compare the Blender review render with
+  a Studio `screen_capture` from the matching camera (`blender-assets`, render vs
+  capture).
+
 ## Verify
 
 - `search_game_tree` under `Workspace.Map` (shallow, filtered) to confirm names.

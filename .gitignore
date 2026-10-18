@@ -24,3 +24,8 @@ exports/
 renders/
 *.blend1
 *.rbxl.lock
+
+# Bridge runtime folders when the repo clone is the bridge home (%USERPROFILE%\grok-studio)
+/drop/
+/run/
+/bin/
