@@ -76,7 +76,8 @@ param(
   [switch]$NoStudio,
   [switch]$NoBlender,
   [switch]$UnsafeBlender,
-  [switch]$Yes
+  [switch]$Yes,
+  [switch]$JsonOutput
 )
 
 $ErrorActionPreference = 'Stop'
@@ -264,26 +265,36 @@ try {
   # -------------------------------------------------------------------------------------
   # 6. Print connection details
   # -------------------------------------------------------------------------------------
-  Write-Host ''
-  Write-Host '================== ADD THESE AS CUSTOM CONNECTORS ==================' -ForegroundColor Green
-  if (-not $NoStudio)  { Write-Host "  Roblox Studio MCP : $BaseUrl/roblox-studio/mcp" }
-  if (-not $NoBlender) { Write-Host "  Blender MCP       : $BaseUrl/blender/mcp" }
-  Write-Host "  Transport         : Streamable HTTP"
-  Write-Host "  Auth header       : Authorization: Bearer $Key"
-  Write-Host "                      (or X-API-Key: $Key)"
-  Write-Host '====================================================================' -ForegroundColor Green
-  if (-not $Tunnel) {
-    Write-Warn 'No tunnel: these URLs only work from this PC. Re-run with -Tunnel for a cloud agent.'
+  if ($JsonOutput) {
+    # Machine-readable single-line JSON for automated setup (e.g. GrokBot ExternalShell).
+    $jsonObj = [ordered]@{}
+    if (-not $NoStudio)  { $jsonObj['studio_url']  = "$BaseUrl/roblox-studio/mcp" }
+    if (-not $NoBlender) { $jsonObj['blender_url'] = "$BaseUrl/blender/mcp" }
+    $jsonObj['api_key'] = $Key
+    $jsonObj['port']    = $Port
+    $jsonObj | ConvertTo-Json -Compress | Write-Output
+  } else {
+    Write-Host ''
+    Write-Host '================== ADD THESE AS CUSTOM CONNECTORS ==================' -ForegroundColor Green
+    if (-not $NoStudio)  { Write-Host "  Roblox Studio MCP : $BaseUrl/roblox-studio/mcp" }
+    if (-not $NoBlender) { Write-Host "  Blender MCP       : $BaseUrl/blender/mcp" }
+    Write-Host "  Transport         : Streamable HTTP"
+    Write-Host "  Auth header       : Authorization: Bearer $Key"
+    Write-Host "                      (or X-API-Key: $Key)"
+    Write-Host '====================================================================' -ForegroundColor Green
+    if (-not $Tunnel) {
+      Write-Warn 'No tunnel: these URLs only work from this PC. Re-run with -Tunnel for a cloud agent.'
+    }
+    Write-Host ''
+    Write-Host 'Example client config (for clients that accept mcpServers JSON):'
+    $example = [ordered]@{ mcpServers = [ordered]@{} }
+    if (-not $NoStudio)  { $example.mcpServers['roblox-studio'] = [ordered]@{ url = "$BaseUrl/roblox-studio/mcp"; headers = @{ Authorization = "Bearer $Key" } } }
+    if (-not $NoBlender) { $example.mcpServers['blender'] = [ordered]@{ url = "$BaseUrl/blender/mcp"; headers = @{ Authorization = "Bearer $Key" } } }
+    $example | ConvertTo-Json -Depth 6 | Write-Host
+    Write-Host ''
+    Write-Warn 'Keep Studio (with "Enable Studio as MCP server" on) and Blender open.'
+    Write-Warn 'Press Ctrl+C to stop the bridge. Remove the connectors from your bot afterwards.'
   }
-  Write-Host ''
-  Write-Host 'Example client config (for clients that accept mcpServers JSON):'
-  $example = [ordered]@{ mcpServers = [ordered]@{} }
-  if (-not $NoStudio)  { $example.mcpServers['roblox-studio'] = [ordered]@{ url = "$BaseUrl/roblox-studio/mcp"; headers = @{ Authorization = "Bearer $Key" } } }
-  if (-not $NoBlender) { $example.mcpServers['blender'] = [ordered]@{ url = "$BaseUrl/blender/mcp"; headers = @{ Authorization = "Bearer $Key" } } }
-  $example | ConvertTo-Json -Depth 6 | Write-Host
-  Write-Host ''
-  Write-Warn 'Keep Studio (with "Enable Studio as MCP server" on) and Blender open.'
-  Write-Warn 'Press Ctrl+C to stop the bridge. Remove the connectors from your bot afterwards.'
 
   # -------------------------------------------------------------------------------------
   # 7. Stay alive until Ctrl+C or a child dies

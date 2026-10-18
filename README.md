@@ -120,12 +120,34 @@ found, use full paths in your client's MCP settings (see the
 
 Grok Bot runs on a cloud Linux box, so it **cannot** launch stdio servers on your PC. The
 plugin's `mcp.json` entries for Studio/Blender won't start there (the Studio launcher exits
-with a message pointing here). Instead:
+with a message pointing here).
+
+#### Guided setup (recommended)
+
+1. Install the plugin in Grok Bot from the Cursor Marketplace.
+2. Make sure Roblox Studio is open with a place loaded and MCP enabled, and that
+   Node.js and ngrok are installed on your PC.
+3. In Grok Bot, type:
+   ```
+   /setup-bridge
+   ```
+4. The bot uses ExternalShell to run the bridge on your local PC, start an ngrok
+   tunnel, and register the Studio (and optionally Blender) connectors automatically.
+   You will see approval prompts for local commands — accept them.
+5. When the bot says "ready", start building. When done, press Ctrl+C in the bridge
+   terminal on your PC.
+
+The `/setup-bridge` skill handles prerequisites, error messages, and retry. A fresh
+API key is generated each session — no static secrets to manage.
+
+#### Manual setup (fallback)
+
+If ExternalShell is not available or you prefer to do it yourself:
 
 1. Install the plugin in Grok Bot from the Cursor Marketplace (skills + Figma connector).
 2. On your PC (Studio + Blender open), run the bridge:
    ```powershell
-   # Windows (PowerShell) - UNTESTED on Windows, please report issues
+   # Windows (PowerShell)
    powershell -ExecutionPolicy Bypass -File .\bridge\start-bridge.ps1 -Tunnel
    ```
    ```bash

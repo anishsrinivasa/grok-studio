@@ -30,9 +30,12 @@ before Stage 7, and re-runs after any later change to code.
 1. **Detect connectors by trying them, not by assuming.** Tool names below are from the
    official docs (Oct 2026); your client may prefix them (e.g. `roblox-studio_...`).
    - Studio: call `list_roblox_studios`. If it fails or returns nothing, Studio is not
-     connected. Tell the user: open Roblox Studio with a place, then **Assistant > ... >
-     Manage MCP Servers > Enable Studio as MCP server**; remote agents also need the bridge
-     (see README "Remote agents"). Studio is **mandatory** - stop here without it.
+     connected. If you are a **remote agent** (e.g. Grok Bot), run the `/setup-bridge`
+     skill first — it will start the bridge on the user's PC, open a tunnel, and register
+     the Studio and Blender connectors automatically, then return here. If you are a
+     **local agent** (Cursor, Claude Code on the same PC), tell the user: open Roblox
+     Studio with a place, then **Assistant > ... > Manage MCP Servers > Enable Studio as
+     MCP server**. Studio is **mandatory** — stop here without it.
    - Pick the target Studio instance: if more than one is listed, ask which (or match the
      place name). Store its id as `build.studioId`; **every** Studio tool call takes
      `studio_id`.

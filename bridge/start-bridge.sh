@@ -30,6 +30,7 @@ NO_STUDIO=0
 NO_BLENDER=0
 UNSAFE_BLENDER=0
 ASSUME_YES=0
+JSON_OUTPUT=0
 SUPERGATEWAY_PKG="supergateway@4"   # pinned major version
 
 info() { printf '\033[36m[bridge]\033[0m %s\n' "$*"; }
@@ -46,6 +47,7 @@ while [[ $# -gt 0 ]]; do
     --no-blender) NO_BLENDER=1; shift ;;
     --unsafe-blender) UNSAFE_BLENDER=1; shift ;;
     --yes|-y) ASSUME_YES=1; shift ;;
+    --json-output) JSON_OUTPUT=1; shift ;;
     -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
     *) die "Unknown option: $1 (see --help)" ;;
   esac
@@ -213,18 +215,27 @@ fi
 # --------------------------------------------------------------------------------------
 # 6. Print connection details
 # --------------------------------------------------------------------------------------
-echo
-printf '\033[32m================== ADD THESE AS CUSTOM CONNECTORS ==================\033[0m\n'
-[[ $NO_STUDIO -ne 1 ]]  && echo "  Roblox Studio MCP : $BASE_URL/roblox-studio/mcp"
-[[ $NO_BLENDER -ne 1 ]] && echo "  Blender MCP       : $BASE_URL/blender/mcp"
-echo "  Transport         : Streamable HTTP"
-echo "  Auth header       : Authorization: Bearer $KEY"
-echo "                      (or X-API-Key: $KEY)"
-printf '\033[32m====================================================================\033[0m\n'
-[[ $TUNNEL -ne 1 ]] && warn "No tunnel: these URLs only work from this machine. Re-run with --tunnel for a cloud agent."
-echo
-warn 'Keep Studio (with "Enable Studio as MCP server" on) and Blender open.'
-warn "Press Ctrl+C to stop the bridge. Remove the connectors from your bot afterwards."
+if [[ $JSON_OUTPUT -eq 1 ]]; then
+  # Machine-readable single-line JSON for automated setup (e.g. GrokBot ExternalShell).
+  json='{'
+  [[ $NO_STUDIO -ne 1 ]]  && json+="\"studio_url\":\"$BASE_URL/roblox-studio/mcp\","
+  [[ $NO_BLENDER -ne 1 ]] && json+="\"blender_url\":\"$BASE_URL/blender/mcp\","
+  json+="\"api_key\":\"$KEY\",\"port\":$PORT}"
+  echo "$json"
+else
+  echo
+  printf '\033[32m================== ADD THESE AS CUSTOM CONNECTORS ==================\033[0m\n'
+  [[ $NO_STUDIO -ne 1 ]]  && echo "  Roblox Studio MCP : $BASE_URL/roblox-studio/mcp"
+  [[ $NO_BLENDER -ne 1 ]] && echo "  Blender MCP       : $BASE_URL/blender/mcp"
+  echo "  Transport         : Streamable HTTP"
+  echo "  Auth header       : Authorization: Bearer $KEY"
+  echo "                      (or X-API-Key: $KEY)"
+  printf '\033[32m====================================================================\033[0m\n'
+  [[ $TUNNEL -ne 1 ]] && warn "No tunnel: these URLs only work from this machine. Re-run with --tunnel for a cloud agent."
+  echo
+  warn 'Keep Studio (with "Enable Studio as MCP server" on) and Blender open.'
+  warn "Press Ctrl+C to stop the bridge. Remove the connectors from your bot afterwards."
+fi
 
 # --------------------------------------------------------------------------------------
 # 7. Stay alive until Ctrl+C or a child dies
