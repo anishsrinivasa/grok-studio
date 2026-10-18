@@ -52,6 +52,15 @@ try:
 except ImportError:  # plain Python: checkpoint listing and rollback only
     bpy = None
 
+if bpy is not None:
+    def _ensure_dir(directory):
+        """Cloud mode has os: make folders directly, so no .gs_keep.png is left behind.
+        (gs_core's own ensure_dir saves a 1x1 image because Blender MCP safe mode bans os.)"""
+        os.makedirs(directory, exist_ok=True)
+        return directory
+
+    gs_core.ensure_dir = _ensure_dir
+
 GS_ROOT = os.environ.get("GS_ROOT", "/workspace/grok-studio")
 
 REVIEW_LAYOUT = [
