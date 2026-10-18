@@ -1,241 +1,117 @@
 #!/usr/bin/env python3
 """
-test_split_logic.py - Unit tests for split-by-material logic (no Blender required).
+test_split_logic.py - split-by-material checks that need no Blender (plain Python 3.9+).
 
-Tests the structure and logic of the split pipeline without requiring bpy.
+    python3 test_split_logic.py          (exit code 0 = PASS)
+
+* colour maths: sRGB hex -> linear (flat_material) -> sRGB hex (manifest) is exact for all
+  256 channel values, and rounds rather than truncates
+* names: <Object>_<Material> parts are Roblox-safe
+* one manifest filename everywhere: roblox_export, asset_harness, both skills, the Luau helper
+* the Luau helper reads exactly the keys the Python manifest writes
+* the Luau helper works: studio/test_manifest_importer.luau runs against a mock Roblox API
+  when a `luau` CLI is on PATH (or in $LUAU); skipped otherwise
+The Blender side (real split, FBX export, re-import) is smoke_test_split.py.
 """
-import json
 import os
+import re
+import shutil
+import subprocess
 import sys
 import tempfile
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+HERE = os.path.dirname(os.path.abspath(__file__))
+PLUGIN = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
+sys.path.insert(0, HERE)
 
-def test_imports():
-    """Verify that the modules can be imported and have expected functions."""
-    print("=== Testing Imports ===\n")
-    
-    # Check that roblox_export.py has the new functions
-    with open(os.path.join(SCRIPT_DIR, "roblox_export.py")) as f:
-        code = f.read()
-    
-    expected_functions = [
-        "def split_by_material(",
-        "def split_all_by_material(",
-        "def export_fbx(",
-        "def audit(",
-    ]
-    
-    for func in expected_functions:
-        if func in code:
-            print(f"  ✓ Found {func.strip()}")
-        else:
-            print(f"  ✗ FAIL: Missing {func.strip()}")
-            return False
-    
-    # Check audit has new parameters
-    if "check_single_material" in code and "check_flat_materials" in code:
-        print("  ✓ audit() has new validation parameters")
-    else:
-        print("  ✗ FAIL: audit() missing new parameters")
-        return False
-    
-    # Check export_fbx has split_materials parameter
-    if "split_materials=True" in code:
-        print("  ✓ export_fbx() has split_materials parameter")
-    else:
-        print("  ✗ FAIL: export_fbx() missing split_materials parameter")
-        return False
-    
-    print()
-    return True
+import roblox_export as rx  # noqa: E402  (imports without bpy: helpers only)
+import asset_harness as ah  # noqa: E402
+
+FAILS = []
 
 
-def test_asset_harness():
-    """Verify asset_harness exports the new functions."""
-    print("=== Testing asset_harness.py ===\n")
-    
-    with open(os.path.join(SCRIPT_DIR, "asset_harness.py")) as f:
-        code = f.read()
-    
-    # Check imports
-    if "split_by_material" in code and "split_all_by_material" in code:
-        print("  ✓ asset_harness imports split functions")
-    else:
-        print("  ✗ FAIL: asset_harness missing split function imports")
-        return False
-    
-    # Check export_asset has split_materials parameter
-    if "split_materials=True" in code:
-        print("  ✓ export_asset() has split_materials parameter")
-    else:
-        print("  ✗ FAIL: export_asset() missing split_materials parameter")
-        return False
-    
-    print()
-    return True
+def check(cond, msg):
+    print(("  ok   " if cond else "  FAIL ") + msg)
+    if not cond:
+        FAILS.append(msg)
 
 
-def test_manifest_importer():
-    """Verify the Luau manifest importer exists and has the right structure."""
-    print("=== Testing manifest_importer.lua ===\n")
-    
-    lua_path = os.path.join(SCRIPT_DIR, "studio", "manifest_importer.lua")
-    if not os.path.exists(lua_path):
-        print(f"  ✗ FAIL: {lua_path} not found")
-        return False
-    
-    with open(lua_path) as f:
-        code = f.read()
-    
-    expected_elements = [
-        "local function applyManifest(",
-        "local function validateImport(",
-        "local function hexToColor3(",
-        "return {",
-        "applyManifest = applyManifest",
-        "validateImport = validateImport",
-    ]
-    
-    for elem in expected_elements:
-        if elem in code:
-            print(f"  ✓ Found {elem.strip()}")
-        else:
-            print(f"  ✗ FAIL: Missing {elem.strip()}")
-            return False
-    
-    print()
-    return True
+def read(*parts):
+    with open(os.path.join(*parts), encoding="utf-8") as f:
+        return f.read()
 
 
-def test_smoke_test_exists():
-    """Verify the smoke test script exists."""
-    print("=== Testing smoke_test_split.py ===\n")
-    
-    test_path = os.path.join(SCRIPT_DIR, "smoke_test_split.py")
-    if not os.path.exists(test_path):
-        print(f"  ✗ FAIL: {test_path} not found")
-        return False
-    
-    with open(test_path) as f:
-        code = f.read()
-    
-    if "def test_split_pipeline():" in code:
-        print("  ✓ smoke_test_split.py has test_split_pipeline()")
-    else:
-        print("  ✗ FAIL: smoke_test_split.py missing test function")
-        return False
-    
-    # Check that it imports the right functions
-    expected_imports = [
-        "from roblox_export import",
-        "split_by_material",
-        "split_all_by_material",
-        "export_fbx",
-        "audit",
-    ]
-    
-    for imp in expected_imports:
-        if imp in code:
-            print(f"  ✓ Imports {imp}")
-        else:
-            print(f"  ✗ FAIL: Missing import {imp}")
-            return False
-    
-    print()
-    return True
+def test_colour():
+    print("colour space (Blender linear <-> Roblox sRGB):")
+    bad = [v for v in range(256)
+           if rx.linear_to_srgb_hex(rx.srgb_hex_to_linear(f"#{v:02X}{v:02X}{v:02X}")) != f"#{v:02X}{v:02X}{v:02X}"]
+    check(not bad, f"hex -> linear -> hex exact for all 256 levels (bad: {bad[:5]})")
+    check(rx.linear_to_srgb_hex((1.0, 1.0, 1.0)) == "#FFFFFF", "white stays #FFFFFF (no truncation to FE)")
+    check(rx.linear_to_srgb_hex((0.5, 0.5, 0.5)) == "#BCBCBC", "linear 0.5 -> sRGB #BCBCBC (not #7F7F7F)")
+    check(rx.linear_to_srgb_hex((1.5, -0.2, 0.0)) == "#FF0000", "out-of-range values are clamped")
+    check(rx.linear_to_srgb_hex(rx.srgb_hex_to_linear("#f6c57f")) == "#F6C57F", "lower-case input -> #F6C57F")
 
 
-def test_audit_checks():
-    """Verify the audit function has the right validation checks."""
-    print("=== Testing audit() validation logic ===\n")
-    
-    with open(os.path.join(SCRIPT_DIR, "roblox_export.py")) as f:
-        code = f.read()
-    
-    # Extract the audit function
-    start = code.find("def audit(")
-    end = code.find("\ndef ", start + 1)
-    if start == -1 or end == -1:
-        print("  ✗ FAIL: Could not extract audit function")
-        return False
-    
-    audit_code = code[start:end]
-    
-    checks = [
-        ("MULTIPLE MATERIALS", "Check for multiple materials per mesh"),
-        ("has texture/nodes", "Check for non-flat materials"),
-        ("OVER ROBLOX LIMIT", "Check for triangle limit"),
-    ]
-    
-    for pattern, description in checks:
-        if pattern in audit_code:
-            print(f"  ✓ {description}")
-        else:
-            print(f"  ✗ FAIL: Missing {description}")
-            return False
-    
-    print()
-    return True
+def test_names():
+    print("names:")
+    check(rx.safe_name("Lion Fur.001") == "Lion_Fur_001", "spaces/dots -> underscores")
+    check(rx.safe_name("") == "Material" and rx.safe_name("...") == "Material", "empty -> Material")
+    check(rx.safe_name("Eye_Hi") == "Eye_Hi", "safe names unchanged")
 
 
-def test_manifest_structure():
-    """Test that the expected manifest structure is documented."""
-    print("=== Testing manifest structure ===\n")
-    
-    with open(os.path.join(SCRIPT_DIR, "roblox_export.py")) as f:
-        code = f.read()
-    
-    # Check that split_all_by_material documents the manifest structure
-    if '"meshes":' in code and '"parentLimb":' in code and '"color":' in code:
-        print("  ✓ Manifest structure defined with meshes, parentLimb, color")
-    else:
-        print("  ✗ FAIL: Manifest structure not properly defined")
-        return False
-    
-    # Check that the Luau script documents the manifest structure
-    with open(os.path.join(SCRIPT_DIR, "studio", "manifest_importer.lua")) as f:
-        lua_code = f.read()
-    
-    if "manifestData structure:" in lua_code:
-        print("  ✓ Luau script documents manifest structure")
-    else:
-        print("  ✗ FAIL: Luau script missing manifest documentation")
-        return False
-    
-    print()
-    return True
+def test_manifest_filename():
+    print("manifest filename consistency:")
+    check(rx.manifest_path_for(os.path.join("exports", "lion.fbx")) == os.path.join("exports", "lion_manifest.json"),
+          "roblox_export.manifest_path_for: exports/<id>_manifest.json")
+    root = tempfile.mkdtemp()
+    try:
+        os.makedirs(os.path.join(root, "games", "g"))
+        p = ah.asset_paths("lion", slug="g", root=root)
+        check(p["manifest"] == rx.manifest_path_for(p["fbx"]), "asset_harness.asset_paths()['manifest'] matches")
+    finally:
+        shutil.rmtree(root)
+    check("exports/<id>_manifest.json" in read(HERE, "..", "SKILL.md"), "blender-assets SKILL.md names it")
+    check("exports/<id>_manifest.json" in read(PLUGIN, "skills", "roblox-building", "SKILL.md"),
+          "roblox-building SKILL.md names it")
+    check("exports/<id>_manifest.json" in read(HERE, "studio", "manifest_importer.lua"), "Luau helper names it")
+
+
+def test_luau_keys():
+    print("manifest keys Python writes == keys Luau reads:")
+    py = read(HERE, "roblox_export.py")
+    lua = read(HERE, "studio", "manifest_importer.lua")
+    for key in ("limb", "main", "color", "meshes", "limbs"):
+        check(f'"{key}"' in py and re.search(rf"\.{key}\b", lua) is not None, f"key '{key}'")
+    check(lua.rstrip().endswith("return M"), "Luau helper ends in `return M` (wrap or require it)")
+
+
+def test_luau_runtime():
+    print("Luau helper against a mock Roblox API:")
+    luau = os.environ.get("LUAU") or shutil.which("luau")
+    if not luau:
+        print("  skip (no `luau` CLI; get luau-ubuntu.zip from github.com/luau-lang/luau/releases)")
+        return
+    test = read(HERE, "studio", "test_manifest_importer.luau")
+    module = read(HERE, "studio", "manifest_importer.lua")
+    with tempfile.NamedTemporaryFile("w", suffix=".luau", delete=False) as f:
+        f.write(test.replace("--@@IMPORTER@@", "(function()\n" + module + "\nend)()"))
+        path = f.name
+    try:
+        r = subprocess.run([luau, path], capture_output=True, text=True, timeout=60)
+    finally:
+        os.unlink(path)
+    print("    " + (r.stdout + r.stderr).strip().replace("\n", "\n    "))
+    check(r.returncode == 0, "test_manifest_importer.luau PASS")
+
+
+def test_no_clutter():
+    print("repo hygiene:")
+    for name in ("IMPLEMENTATION_SUMMARY.md", os.path.join("skills", "blender-assets", "SPLIT_BY_MATERIAL_README.md")):
+        check(not os.path.exists(os.path.join(PLUGIN, name)), f"no {name}")
 
 
 if __name__ == "__main__":
-    print("Testing split-by-material implementation (no Blender required)\n")
-    
-    tests = [
-        test_imports,
-        test_asset_harness,
-        test_manifest_importer,
-        test_smoke_test_exists,
-        test_audit_checks,
-        test_manifest_structure,
-    ]
-    
-    results = []
-    for test in tests:
-        try:
-            result = test()
-            results.append(result)
-        except Exception as e:
-            print(f"✗ EXCEPTION in {test.__name__}: {e}\n")
-            results.append(False)
-    
-    print("=" * 60)
-    passed = sum(results)
-    total = len(results)
-    print(f"\nResults: {passed}/{total} tests passed")
-    
-    if all(results):
-        print("✓ All structure tests PASSED")
-        sys.exit(0)
-    else:
-        print("✗ Some tests FAILED")
-        sys.exit(1)
+    for t in (test_colour, test_names, test_manifest_filename, test_luau_keys, test_luau_runtime, test_no_clutter):
+        t()
+    print("=== PASS ===" if not FAILS else f"=== FAIL ({len(FAILS)}) ===")
+    sys.exit(1 if FAILS else 0)
