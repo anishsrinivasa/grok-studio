@@ -21,6 +21,10 @@ local MODEL_PATH = "Workspace.Model"
 local OPTIONS = {
 	clearTextures = true, -- flat-colour assets: drop TextureID / SurfaceAppearance so Color shows
 	builtBy = "Builder GrokBot",
+	-- Manifests with "limbs" (split_by_material(by_object=True)): non-main pieces are always
+	-- welded to their limb's main piece. motors = true also adds a Motor6D per limb (parent
+	-- limb's main -> this limb's main, at the joint) and unanchors everything but the root.
+	motors = false,
 }
 
 local HttpService = game:GetService("HttpService")
@@ -205,7 +209,87 @@ local function applyManifest(): { [string]: any }
 			table.insert(all, p)
 		end
 		local lo, hi = bounds(all, frame)
-		m.WorldPivot = frame * CFrame.new((lo.X + hi.X) / 2, lo.Y, (lo.Z + hi.Z) / 2)
+		local pivot = frame * CFrame.new((lo.X + hi.X) / 2, lo.Y, (lo.Z + hi.Z) / 2)
+		-- With a PrimaryPart, Model:GetPivot()/PivotTo use PrimaryPart.CFrame * PivotOffset and
+		-- ignore WorldPivot. The importer leaves a 90° X rotation in every MeshPart's
+		-- PivotOffset, so without this the model's pivot is tilted and sits at the part's centre.
+		local pp = primary :: MeshPart
+		pp.PivotOffset = pp.CFrame:ToObjectSpace(pivot)
+		m.WorldPivot = pivot
+	end
+
+	-- Limbs: weld every non-main piece to its limb's main piece; record the joint.
+	local function joined(a: BasePart, b: BasePart): boolean
+		for _, part in { a, b } do
+			for _, j in part:GetChildren() do
+				if j:IsA("WeldConstraint") or j:IsA("JointInstance") then
+					local w = j :: any
+					if (w.Part0 == a and w.Part1 == b) or (w.Part0 == b and w.Part1 == a) then
+						return true
+					end
+				end
+			end
+		end
+		return false
+	end
+	local welds, motors = 0, 0
+	if manifest.limbs then
+		local pivotCf = m:GetPivot()
+		local root: string? = nil
+		for limb, info in manifest.limbs do
+			local main = byName[info.main]
+			if main == nil then
+				table.insert(warnings, `limb {limb}: main piece {info.main} not found`)
+				continue
+			end
+			if primary and main == primary then
+				root = limb
+			end
+			main:SetAttribute("GsLimb", limb)
+			main:SetAttribute("GsLimbMain", true)
+			main:SetAttribute("GsJoint", Vector3.new(info.joint[1], info.joint[2], info.joint[3]))
+			if info.parent then
+				main:SetAttribute("GsLimbParent", info.parent)
+			end
+			for _, pieceName in info.pieces do
+				local piece = byName[pieceName]
+				if piece and piece ~= main then
+					piece:SetAttribute("GsLimb", limb)
+					if not joined(piece, main) then
+						local w = Instance.new("WeldConstraint")
+						w.Name = "GsLimbWeld"
+						w.Part0 = main
+						w.Part1 = piece
+						w.Parent = piece
+						welds += 1
+					end
+				end
+			end
+		end
+		if OPTIONS.motors then
+			root = root or next(manifest.limbs)
+			for limb, info in manifest.limbs do
+				local main = byName[info.main]
+				local parentLimb = info.parent or (if limb ~= root then root else nil)
+				local parentInfo = parentLimb and manifest.limbs[parentLimb]
+				local part0 = parentInfo and byName[parentInfo.main]
+				if main and part0 and not joined(main, part0) then
+					local jointCf = pivotCf * CFrame.new(info.joint[1], info.joint[2], info.joint[3])
+					local motor = Instance.new("Motor6D")
+					motor.Name = `GsJoint_{limb}`
+					motor.Part0 = part0
+					motor.Part1 = main
+					motor.C0 = part0.CFrame:ToObjectSpace(jointCf)
+					motor.C1 = main.CFrame:ToObjectSpace(jointCf)
+					motor.Parent = main
+					motors += 1
+				end
+			end
+			local rootMain = root and byName[manifest.limbs[root].main]
+			for _, p in byName do
+				p.Anchored = (p == rootMain) and manifest.anchored
+			end
+		end
 	end
 	m:SetAttribute("BuiltBy", OPTIONS.builtBy)
 	m:SetAttribute("GsAssetId", manifest.id)
@@ -219,6 +303,8 @@ local function applyManifest(): { [string]: any }
 		missing = missing,
 		extra = extra,
 		warnings = warnings,
+		welds = welds,
+		motors = motors,
 	}
 end
 

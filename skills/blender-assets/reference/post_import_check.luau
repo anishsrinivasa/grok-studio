@@ -9,8 +9,9 @@ MODEL_PATH filled in (same values as for apply_manifest.luau). Returns JSON:
 A failed check blocks status "placed": fix the cause (re-export, re-apply), then run it again.
 
 Checks: model, partCount, partNames, onlyMeshParts, sizes, positions, colors, materials,
-textures, physics, noOverlays (no plain Parts layered on / coincident with the MeshParts,
-no duplicate coincident parts), nothingOutside (no loose copies of the asset's parts, and the
+textures, physics, limbs (only when the manifest has them), pivot, pivotUpright, noOverlays
+(no plain Parts layered on / coincident with the MeshParts, no duplicate coincident parts),
+nothingOutside (no loose copies of the asset's parts, and the
 model's bounds match the manifest), noScripts, pivot.
 ]]
 
@@ -161,7 +162,9 @@ local function check(): { [string]: any }
 	-- Per-part comparisons
 	local size = vec(manifest.size)
 	local maxDim = math.max(size.X, size.Y, size.Z)
-	local pivot = model.WorldPivot
+	-- GetPivot, not WorldPivot: with a PrimaryPart, PivotTo and game code use
+	-- PrimaryPart.CFrame * PivotOffset and WorldPivot is ignored.
+	local pivot = model:GetPivot()
 	local sizeBad, posBad, colorBad, matBad, texBad, physBad = {}, {}, {}, {}, {}, {}
 	for _, spec in manifest.parts do
 		local p = meshParts[spec.name]
@@ -204,8 +207,10 @@ local function check(): { [string]: any }
 			table.insert(texBad, `{spec.name}: a texture/SurfaceAppearance hides Color`)
 		end
 		local fid = p.CollisionFidelity.Name
+		-- A limb driven by a Motor6D (apply_manifest OPTIONS.motors) is unanchored on purpose.
+		local motorDriven = p:FindFirstChildWhichIsA("Motor6D") ~= nil
 		if
-			p.Anchored ~= manifest.anchored
+			(p.Anchored ~= manifest.anchored and not motorDriven)
 			or p.CanCollide ~= manifest.canCollide
 			or fid ~= manifest.collisionFidelity
 		then
@@ -214,6 +219,35 @@ local function check(): { [string]: any }
 				`{spec.name}: Anchored={p.Anchored} CanCollide={p.CanCollide} CollisionFidelity={fid}`
 			)
 		end
+	end
+	-- Limbs (manifest from split_by_material(by_object=True)): non-main pieces joined to the main.
+	if manifest.limbs then
+		local unjoined = {}
+		for limb, info in manifest.limbs do
+			local main = meshParts[info.main]
+			for _, pieceName in info.pieces do
+				local piece = meshParts[pieceName]
+				if main and piece and piece ~= main then
+					local ok = false
+					for _, part in { piece, main } do
+						for _, j in part:GetChildren() do
+							if j:IsA("WeldConstraint") or j:IsA("JointInstance") then
+								local w = j :: any
+								if (w.Part0 == main and w.Part1 == piece) or (w.Part0 == piece and w.Part1 == main) then
+									ok = true
+								end
+							end
+						end
+					end
+					if not ok then
+						table.insert(unjoined, `{pieceName} not joined to {info.main} ({limb})`)
+					end
+				elseif not main then
+					table.insert(unjoined, `limb {limb}: main piece {info.main} missing`)
+				end
+			end
+		end
+		add("limbs", #unjoined == 0, unjoined)
 	end
 	add("sizes", #sizeBad == 0, sizeBad)
 	add("positions", #posBad == 0, posBad)
@@ -232,6 +266,11 @@ local function check(): { [string]: any }
 			(base.Position - pivot.Position).Magnitude <= TOL.posAbs + TOL.posRel * maxDim,
 			`pivot {fmt(pivot.Position)}, bottom centre {fmt(base.Position)}`
 		)
+		-- The pivot must be upright in the parts' frame: the importer's PivotOffset carries a 90°
+		-- X rotation, so a PrimaryPart without a fixed PivotOffset tilts PivotTo by 90°.
+		local ref = model.PrimaryPart or meshList[1]
+		local upright = ref == nil or pivot.UpVector:Dot(ref.CFrame.UpVector) > 0.999
+		add("pivotUpright", upright, ref and `pivot up {fmt(pivot.UpVector)}, {ref.Name} up {fmt(ref.CFrame.UpVector)}` or "")
 		local got = hi - lo
 		local boundsOk = close(got.X, size.X, 0.1, TOL.sizeRel)
 			and close(got.Y, size.Y, 0.1, TOL.sizeRel)
