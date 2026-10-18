@@ -33,7 +33,7 @@ subagents (Claude Code / Cursor / Grok Build), where "message" means "your final
     blender/<id>/           its checkpoints (NN_<label>.blend) and job_*.py scripts
     exports/<id>.fbx        exported meshes / animations
     renders/                previews and marketing renders
-    reports/                playtest reports, handoff notes too long for a message
+    reports/                playtest reports, <id>_import.json gate results, long handoff notes
     marketing/              icon-512.png, thumb-<n>.png
 ```
 

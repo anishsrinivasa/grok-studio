@@ -6,7 +6,12 @@ Layout (see skills/team-protocol):
     <GS_ROOT>/games/<slug>/blender/<id>/NN_<label>.blend  checkpoints, never edited
     <GS_ROOT>/games/<slug>/renders/<id>_review_NN.png   review sheets
     <GS_ROOT>/games/<slug>/exports/<id>.fbx             export
+    <GS_ROOT>/games/<slug>/exports/<id>.manifest.json   parts, colours, sizes for Studio
 GS_ROOT defaults to /workspace/grok-studio; the slug defaults to the `current-game` file.
+
+This is the cloud/headless layer (it uses os, numpy, files). The Blender code that must also
+run in the user's Blender through the MCP lives in gs_core.py and compare_images.py; the
+functions here wrap them with paths and file writes.
 
 A job script (run with `cloud_blender.sh run job.py -- --id lava_rock`):
 
@@ -16,7 +21,8 @@ A job script (run with `cloud_blender.sh run job.py -- --id lava_rock`):
     checkpoint(a, "blockout")
     print(review_sheet(a))                      # look at the PNG it names
     print(audit(names=asset_object_names(a)))
-    print(export_asset(a))
+    split_by_material(a)                        # one part per material + exports/<id>.manifest.json
+    print(export_asset(a))                      # FBX + refreshed manifest
 
 Every job runs in a fresh Blender process: open_asset() at the start, and whatever the job
 changes is lost unless it calls save_asset() or checkpoint(). The objects that make up the
@@ -36,9 +42,12 @@ import time
 try:
     import bpy
     from mathutils import Vector
-    from roblox_export import (  # noqa: F401  (re-exported for job scripts)
-        ROBLOX_TRI_LIMIT, apply_transforms, audit, export_fbx, flat_material,
-        setup_scene_for_roblox, triangle_count,
+
+    import compare_images as _cmp
+    import gs_core
+    from gs_core import (  # noqa: F401  (re-exported for job scripts)
+        ROBLOX_TRI_LIMIT, apply_transforms, audit, audit_ok, export_fbx, flat_material,
+        roblox_vec, setup_scene_for_roblox, triangle_count,
     )
 except ImportError:  # plain Python: checkpoint listing and rollback only
     bpy = None
@@ -98,6 +107,7 @@ def asset_paths(asset_id, slug=None, root=None):
         "renders": os.path.join(game, "renders"),
         "exports": os.path.join(game, "exports"),
         "fbx": os.path.join(game, "exports", f"{asset_id}.fbx"),
+        "manifest": os.path.join(game, "exports", f"{asset_id}.manifest.json"),
         "collection": f"Asset_{asset_id}",
     }
     for key in ("checkpoints", "renders", "exports"):
@@ -163,24 +173,13 @@ def open_asset(asset_id, slug=None, root=None, fresh=False):
 def asset_collection(paths):
     """The Asset_<id> collection (created and linked to the scene if missing)."""
     _require_bpy()
-    name = paths["collection"]
-    coll = bpy.data.collections.get(name)
-    if coll is None:
-        coll = bpy.data.collections.new(name)
-    if coll.name not in bpy.context.scene.collection.children:
-        bpy.context.scene.collection.children.link(coll)
-    return coll
+    return gs_core.asset_collection(paths["id"])
 
 
 def link_to_asset(paths, obj):
     """Move an object into the asset collection (out of every other collection)."""
-    coll = asset_collection(paths)
-    for c in list(obj.users_collection):
-        if c is not coll:
-            c.objects.unlink(obj)
-    if obj.name not in coll.objects:
-        coll.objects.link(obj)
-    return obj
+    _require_bpy()
+    return gs_core.link_to_asset(paths["id"], obj)
 
 
 def asset_object_names(paths):
@@ -207,15 +206,88 @@ def checkpoint(paths, label):
     return path
 
 
+def _physics_defaults(paths):
+    """Anchored/CanCollide/CollisionFidelity from the existing manifest, so a refresh keeps them."""
+    try:
+        with open(paths["manifest"], encoding="utf-8") as f:
+            old = json.load(f)
+        collision = old.get("collisionFidelity", "Box") if old.get("canCollide", True) else "none"
+        return {"anchored": old.get("anchored", True), "can_collide": old.get("canCollide", True),
+                "collision": collision}
+    except (FileNotFoundError, ValueError):
+        return {}
+
+
+def write_manifest(paths, anchored=None, can_collide=None, collision=None):
+    """Write exports/<id>.manifest.json from the asset's current mesh objects; returns it.
+
+    Physics values not given are kept from the previous manifest (defaults: anchored,
+    collidable, Box). collision: Default, Hull, Box, PreciseConvexDecomposition or "none".
+    """
+    _require_bpy()
+    phys = _physics_defaults(paths)
+    for key, value in (("anchored", anchored), ("can_collide", can_collide), ("collision", collision)):
+        if value is not None:
+            phys[key] = value
+    manifest = gs_core.asset_manifest(paths["id"], **phys)
+    with open(paths["manifest"], "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=2)
+    return manifest
+
+
+def split_by_material(paths, obj_or_names=None, merge_same_material=True, **physics):
+    """Split the asset's meshes into one object per material (<id>_<Material>), then write
+    the manifest. See gs_core.split_by_material. Checkpoint before calling it."""
+    _require_bpy()
+    result = gs_core.split_by_material(paths["id"], obj_or_names, merge_same_material)
+    manifest = write_manifest(paths, **physics)
+    result["manifest"] = paths["manifest"]
+    result["parts"] = [{k: p[k] for k in ("name", "hex", "robloxMaterial", "size", "triangles")}
+                       for p in manifest["parts"]]
+    return result
+
+
 def export_asset(paths, names=None, with_animation=False):
-    """Export the asset collection (or `names`) to exports/<id>.fbx. Returns path and size."""
+    """Export the asset collection (or `names`) to exports/<id>.fbx, refresh the manifest.
+
+    Refuses a mesh with more than one material (run split_by_material first): Roblox gives a
+    MeshPart one colour, so a multi-material mesh would import in the wrong colours.
+    """
     _require_bpy()
     names = names or [n for n in asset_object_names(paths)
                       if bpy.data.objects[n].type in {"MESH", "ARMATURE", "EMPTY"}]
     if not names:
         raise SystemExit(f"nothing to export: collection {paths['collection']} is empty")
+    if not with_animation:
+        multi = [n for n in names if bpy.data.objects[n].type == "MESH"
+                 and len({p.material_index for p in bpy.data.objects[n].data.polygons}) > 1]
+        if multi:
+            raise SystemExit(f"run split_by_material first: {multi} have more than one material")
     export_fbx(paths["fbx"], names, with_animation=with_animation)
-    return {"fbx": paths["fbx"], "bytes": os.path.getsize(paths["fbx"]), "objects": names}
+    out = {"fbx": paths["fbx"], "bytes": os.path.getsize(paths["fbx"]), "objects": names}
+    if not with_animation:
+        meshes = [n for n in names if bpy.data.objects[n].type == "MESH"]
+        if meshes:
+            m = write_manifest(paths)
+            out.update(manifest=paths["manifest"], size_studs=m["size"], triangles=m["triangles"])
+    return out
+
+
+def render_compare(paths, view="front", size=256, fov=70.0, engine=None):
+    """Render renders/<id>_compare_<view>.png for the Studio comparison (see compare_images)."""
+    _require_bpy()
+    with open(paths["manifest"], encoding="utf-8") as f:
+        manifest = json.load(f)
+    out = os.path.join(paths["renders"], f"{paths['id']}_compare_{view}.png")
+    return _cmp.render_compare(manifest, view, out, size=size, fov=fov,
+                               engine=engine or os.environ.get("GS_RENDER_ENGINE"))
+
+
+def compare_capture(paths, capture_png, view="front", **thresholds):
+    """Score the Studio capture against renders/<id>_compare_<view>.png."""
+    _require_bpy()
+    render = os.path.join(paths["renders"], f"{paths['id']}_compare_{view}.png")
+    return _cmp.compare_images(render, capture_png, **thresholds)
 
 
 # --------------------------------------------------------------------------- review sheet

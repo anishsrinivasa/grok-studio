@@ -108,7 +108,9 @@ cmd_install() {
     if (( waited >= 900 )); then die "another install has held $lock for 15 min; remove it if it is stale"; fi
     info "another install is running; waiting..."; sleep 10; waited=$((waited + 10))
   done
-  trap 'rm -rf "$lock" "$TOOLS/.dl-$v" "$TOOLS/.unpack-$v"' EXIT
+  # Globals: the EXIT trap runs after this function's locals are gone (set -u).
+  GS_CLEANUP=("$lock" "$TOOLS/.dl-$v" "$TOOLS/.unpack-$v")
+  trap 'rm -rf "${GS_CLEANUP[@]}"' EXIT
 
   if [[ -x "$dest/blender" ]] && "$dest/blender" --version >/dev/null 2>&1; then
     info "Blender $v was installed by another Bot meanwhile"; echo "$dest/blender"; return

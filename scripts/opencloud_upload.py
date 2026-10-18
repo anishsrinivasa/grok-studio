@@ -1,26 +1,43 @@
 #!/usr/bin/env python3
-"""Upload one file to Roblox as an asset through the Open Cloud Assets API, wait for it, print the id.
+"""Roblox Open Cloud helper for grok-studio: check the API key, upload assets, poll uploads.
 
-    python3 opencloud_upload.py <file> --name "Lava Rock" [--type Model] [--description "..."]
-                                [--timeout 600] [--dry-run]
+    python3 opencloud_upload.py introspect [--dry-run]
+        Checks ROBLOX_OPEN_CLOUD_API_KEY: enabled, expiry, scopes, and the owner's user id
+        (authorizedUserId) - setup saves that as ROBLOX_CREATOR_USER_ID.
+    python3 opencloud_upload.py upload <file> --name "Lava Rock" [--type Model]
+                                [--description "..."] [--wait | --no-wait] [--timeout 600] [--dry-run]
+        Uploads one file; with --wait (default) polls until processed and prints the assetId.
+    python3 opencloud_upload.py status <operationId> [--wait] [--timeout 600]
+        Polls an upload started with --no-wait.
+    (`opencloud_upload.py <file> --name ...` without a subcommand still means upload.)
 
-Prints one JSON line: {"assetId": "123", "assetType": "Model", "displayName": ..., "operationId": ...}
-Then insert it in Studio with the Studio MCP `insert_asset` tool (Models arrive as packages).
+Every command prints one JSON line. Then insert a Model with the Studio MCP `insert_asset`
+tool (Models arrive as packages).
 
-Environment (store the key as a Grok Bot secret, never in a file under /workspace):
-    ROBLOX_OPEN_CLOUD_API_KEY   API key with the Assets API (read + write) permission
-    ROBLOX_CREATOR_USER_ID      or ROBLOX_CREATOR_GROUP_ID: who owns the new asset
-                                (the game's owner, so the game may use it)
+Environment (Grok Bot: secrets exposed as environment variables on the cloud computer;
+never put the key in a file under /workspace, a message, or a log):
+    ROBLOX_OPEN_CLOUD_API_KEY   API key with the Assets API: Read + Write
+    ROBLOX_CREATOR_USER_ID      or ROBLOX_CREATOR_GROUP_ID: who owns new assets (the game's
+                                owner, or the game can't use them)
 
-The key is sent only in the x-api-key header and is never printed (also not in errors).
---dry-run prints the request it would send, without the key and without network access.
+The key is sent only in the x-api-key header (or the introspect body, as Roblox documents)
+and is never printed, also not in error messages. --dry-run shows the request with the key
+redacted and sends nothing.
 
-Docs: https://create.roblox.com/docs/cloud/guides/usage-assets
-  Model: .fbx .gltf .glb .rbxm .rbxmx (uploads as a package) - Animation: .rbxm .rbxmx only -
-  Decal/Image: .png .jpeg .bmp .tga - Audio: .mp3 .ogg .wav .flac. Max 20 MB per upload.
+Docs (fetched Oct 2026):
+  Assets:     https://create.roblox.com/docs/cloud/guides/usage-assets
+              POST https://apis.roblox.com/assets/v1/assets (multipart: request + fileContent),
+              GET  https://apis.roblox.com/assets/v1/operations/{operationId}
+              Model: .fbx .gltf .glb .rbxm .rbxmx (as a package) - Animation: .rbxm .rbxmx only -
+              Decal/Image: .png .jpeg .bmp .tga - Audio: .mp3 .ogg .wav .flac. Max 20 MB.
+  Introspect: https://create.roblox.com/docs/cloud/auth/api-keys#introspect-api-keys
+              POST https://apis.roblox.com/api-keys/v1/introspect  {"apiKey": "<key>"}
+              -> name, authorizedUserId, scopes[{name, operations, userIds, groupIds, ...}],
+                 enabled, expired, expirationTimeUtc
 Python standard library only.
 """
 import argparse
+import datetime
 import json
 import os
 import sys
@@ -29,7 +46,8 @@ import urllib.error
 import urllib.request
 import uuid
 
-API = "https://apis.roblox.com/assets/v1"
+ASSETS_API = "https://apis.roblox.com/assets/v1"
+INTROSPECT_URL = "https://apis.roblox.com/api-keys/v1/introspect"
 MAX_BYTES = 20 * 1024 * 1024
 
 CONTENT_TYPES = {
@@ -57,6 +75,14 @@ ALLOWED = {
 }
 
 
+def env_key():
+    return os.environ.get("ROBLOX_OPEN_CLOUD_API_KEY", "").strip()
+
+
+def redacted(key):
+    return f"<{len(key)} chars, redacted>" if key else "<missing: set ROBLOX_OPEN_CLOUD_API_KEY>"
+
+
 def fail(msg, code=1, key=None):
     if key:
         msg = msg.replace(key, "<redacted>")
@@ -76,12 +102,13 @@ def multipart(fields, file_field, filename, content_type, data):
     return bytes(out), f"multipart/form-data; boundary={boundary}"
 
 
-def call(method, url, key, body=None, content_type=None, retries=4):
-    """HTTP call with retry on 429/5xx. Returns parsed JSON."""
+def call(method, url, key, body=None, content_type=None, header_key=True, retries=4):
+    """HTTP call with retry on 429/5xx and network errors. Returns parsed JSON."""
     delay = 2.0
     for attempt in range(retries + 1):
         req = urllib.request.Request(url, data=body, method=method)
-        req.add_header("x-api-key", key)
+        if header_key:
+            req.add_header("x-api-key", key)
         if content_type:
             req.add_header("Content-Type", content_type)
         try:
@@ -94,8 +121,10 @@ def call(method, url, key, body=None, content_type=None, retries=4):
                 delay *= 2
                 continue
             hint = {
-                401: " (key invalid or expired)",
-                403: " (key lacks the Assets API write permission, or the creator id does not match the key's owner)",
+                400: " (bad request: check the file type and the request fields)",
+                401: " (key invalid, disabled or expired: run `introspect`)",
+                403: " (key lacks permission, its IP allowlist excludes this computer, or the creator id"
+                     " doesn't match the key's owner: run `introspect`)",
             }.get(e.code, "")
             fail(f"{method} {url} -> HTTP {e.code}{hint}: {text}", 3, key)
         except urllib.error.URLError as e:
@@ -107,16 +136,102 @@ def call(method, url, key, body=None, content_type=None, retries=4):
     fail("unreachable", 3, key)
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("file")
-    ap.add_argument("--name", required=True, help="display name (<= 50 chars)")
-    ap.add_argument("--type", default="Model", choices=sorted(ALLOWED))
-    ap.add_argument("--description", default="Made with grok-studio")
-    ap.add_argument("--timeout", type=int, default=600, help="seconds to wait for processing")
-    ap.add_argument("--dry-run", action="store_true")
-    a = ap.parse_args()
+# --------------------------------------------------------------------------- introspect
 
+def _asset_access(scopes):
+    access = {"read": False, "write": False, "userIds": [], "groupIds": []}
+    for s in scopes or []:
+        if not str(s.get("name", "")).lower().startswith("asset"):
+            continue
+        ops = {str(o).lower() for o in s.get("operations", [])}
+        access["read"] = access["read"] or "read" in ops
+        access["write"] = access["write"] or "write" in ops
+        access["userIds"] += [str(u) for u in s.get("userIds", []) or []]
+        access["groupIds"] += [str(g) for g in s.get("groupIds", []) or []]
+    return access
+
+
+def cmd_introspect(a):
+    key = env_key()
+    if a.dry_run:
+        print(json.dumps({"dryRun": True, "method": "POST", "url": INTROSPECT_URL,
+                          "headers": {"Content-Type": "application/json"},
+                          "body": {"apiKey": redacted(key)}, "ready": bool(key)}, indent=2))
+        return
+    if not key:
+        fail("ROBLOX_OPEN_CLOUD_API_KEY is not set", 2)
+    info = call("POST", INTROSPECT_URL, key, json.dumps({"apiKey": key}).encode(),
+                "application/json", header_key=False)
+    assets = _asset_access(info.get("scopes"))
+    problems = []
+    if info.get("enabled") is False:
+        problems.append("key is disabled (Creator Dashboard > Credentials: Enable Key)")
+    if info.get("expired"):
+        problems.append("key is expired (set a new expiration date or remove it)")
+    days = None
+    exp = info.get("expirationTimeUtc")
+    if exp:
+        try:
+            when = datetime.datetime.fromisoformat(exp.replace("Z", "+00:00"))
+            days = round((when - datetime.datetime.now(datetime.timezone.utc)).total_seconds() / 86400, 1)
+            if 0 <= days < 7:
+                problems.append(f"key expires in {days} days")
+        except ValueError:
+            pass
+    if not assets["write"]:
+        problems.append("no Assets API write permission (needed to upload)")
+    if not assets["read"]:
+        problems.append("no Assets API read permission (needed to poll uploads)")
+    owner = info.get("authorizedUserId")
+    print(json.dumps({
+        "name": info.get("name"),
+        "authorizedUserId": owner,
+        "enabled": info.get("enabled"),
+        "expired": info.get("expired"),
+        "expirationTimeUtc": exp,
+        "expiresInDays": days,
+        "assets": assets,
+        "scopes": [{"name": s.get("name"), "operations": s.get("operations")} for s in info.get("scopes", [])],
+        "usable": not problems,
+        "problems": problems,
+        "save": {"ROBLOX_CREATOR_USER_ID": str(owner)} if owner is not None else {},
+        "note": "Keys unused or unchanged for 60 days auto-expire. For a group-owned game set "
+                "ROBLOX_CREATOR_GROUP_ID instead (the key needs that group in its asset scope).",
+    }))
+    if problems:
+        sys.exit(5)
+
+
+# --------------------------------------------------------------------------- upload / status
+
+def poll(op_id, key, timeout):
+    deadline = time.time() + timeout
+    delay = 2.0
+    while True:
+        op = call("GET", f"{ASSETS_API}/operations/{op_id}", key)
+        if op.get("done"):
+            return op
+        if time.time() > deadline:
+            print(json.dumps({"operationId": op_id, "done": False,
+                              "hint": f"still processing after {timeout}s; run: status {op_id} --wait"}))
+            sys.exit(4)
+        time.sleep(delay)
+        delay = min(delay * 1.5, 15)
+
+
+def finish(op, op_id, fallback_type, fallback_name, key):
+    if "error" in op:
+        fail(f"upload failed: {json.dumps(op['error'])[:500]}", 3, key)
+    resp = op.get("response", {})
+    asset_id = resp.get("assetId") or resp.get("path", "").split("/")[-1]
+    print(json.dumps({
+        "assetId": str(asset_id), "assetType": resp.get("assetType", fallback_type),
+        "displayName": resp.get("displayName", fallback_name), "operationId": op_id,
+        "moderation": (resp.get("moderationResult") or {}).get("moderationState"),
+    }))
+
+
+def cmd_upload(a):
     ext = os.path.splitext(a.file)[1].lower()
     if ext not in ALLOWED[a.type]:
         fail(f"{a.type} assets accept {sorted(ALLOWED[a.type])}, not {ext or 'no extension'}", 2)
@@ -128,69 +243,89 @@ def main():
 
     user_id = os.environ.get("ROBLOX_CREATOR_USER_ID", "").strip()
     group_id = os.environ.get("ROBLOX_CREATOR_GROUP_ID", "").strip()
-    if group_id:
-        creator = {"groupId": group_id}
-    elif user_id:
-        creator = {"userId": user_id}
-    else:
-        creator = None
+    creator = {"groupId": group_id} if group_id else ({"userId": user_id} if user_id else None)
     request = {
         "assetType": a.type,
         "displayName": a.name[:50],
         "description": a.description[:1000],
         "creationContext": {"creator": creator or {"userId": "<ROBLOX_CREATOR_USER_ID>"}},
     }
-    key = os.environ.get("ROBLOX_OPEN_CLOUD_API_KEY", "").strip()
-
+    key = env_key()
     if a.dry_run:
         print(json.dumps({
-            "dryRun": True,
-            "method": "POST",
-            "url": f"{API}/assets",
-            "headers": {"x-api-key": f"<{len(key)} chars, redacted>" if key else "<missing: set ROBLOX_OPEN_CLOUD_API_KEY>"},
-            "multipart": {
-                "request": request,
-                "fileContent": {"filename": os.path.basename(a.file), "contentType": CONTENT_TYPES[ext], "bytes": size},
-            },
-            "then": f"GET {API}/operations/<operationId> until done",
+            "dryRun": True, "method": "POST", "url": f"{ASSETS_API}/assets",
+            "headers": {"x-api-key": redacted(key)},
+            "multipart": {"request": request,
+                          "fileContent": {"filename": os.path.basename(a.file),
+                                          "contentType": CONTENT_TYPES[ext], "bytes": size}},
+            "then": f"GET {ASSETS_API}/operations/<operationId> until done" if a.wait else "print operationId",
             "ready": bool(key and creator),
         }, indent=2))
         return
-
     if not key:
         fail("ROBLOX_OPEN_CLOUD_API_KEY is not set (ask the Lead / the user for an Open Cloud key)", 2)
     if not creator:
-        fail("set ROBLOX_CREATOR_USER_ID or ROBLOX_CREATOR_GROUP_ID (the game's owner)", 2)
+        fail("set ROBLOX_CREATOR_USER_ID or ROBLOX_CREATOR_GROUP_ID (the game's owner; `introspect` prints it)", 2)
 
     with open(a.file, "rb") as f:
         data = f.read()
     body, ctype = multipart({"request": json.dumps(request)}, "fileContent",
                             os.path.basename(a.file), CONTENT_TYPES[ext], data)
-    op = call("POST", f"{API}/assets", key, body, ctype)
+    op = call("POST", f"{ASSETS_API}/assets", key, body, ctype)
     path = op.get("path", "")
     op_id = path.split("/")[-1] if path else op.get("operationId")
     if not op_id:
         fail(f"unexpected response (no operation path): {json.dumps(op)[:500]}", 3, key)
+    if not a.wait and not op.get("done"):
+        print(json.dumps({"operationId": op_id, "done": False, "next": f"status {op_id} --wait"}))
+        return
+    if not op.get("done"):
+        op = poll(op_id, key, a.timeout)
+    finish(op, op_id, a.type, a.name, key)
 
-    deadline = time.time() + a.timeout
-    delay = 2.0
-    while not op.get("done"):
-        if time.time() > deadline:
-            fail(f"operation {op_id} still processing after {a.timeout}s; poll {API}/operations/{op_id} later", 4, key)
-        time.sleep(delay)
-        delay = min(delay * 1.5, 15)
-        op = call("GET", f"{API}/operations/{op_id}", key)
 
-    if "error" in op:
-        fail(f"upload failed: {json.dumps(op['error'])[:500]}", 3, key)
-    resp = op.get("response", {})
-    asset_id = resp.get("assetId") or resp.get("path", "").split("/")[-1]
-    moderation = (resp.get("moderationResult") or {}).get("moderationState")
-    print(json.dumps({
-        "assetId": str(asset_id), "assetType": resp.get("assetType", a.type),
-        "displayName": resp.get("displayName", a.name), "operationId": op_id,
-        "moderation": moderation,
-    }))
+def cmd_status(a):
+    key = env_key()
+    if not key:
+        fail("ROBLOX_OPEN_CLOUD_API_KEY is not set", 2)
+    op = poll(a.operation_id, key, a.timeout) if a.wait else call("GET", f"{ASSETS_API}/operations/{a.operation_id}", key)
+    if not op.get("done"):
+        print(json.dumps({"operationId": a.operation_id, "done": False}))
+        return
+    finish(op, a.operation_id, None, None, key)
+
+
+def main(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] not in {"introspect", "upload", "status", "-h", "--help"}:
+        argv.insert(0, "upload")  # older form: opencloud_upload.py <file> --name ...
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    p = sub.add_parser("introspect", help="check the API key (scopes, expiry, owner user id)")
+    p.add_argument("--dry-run", action="store_true")
+    p.set_defaults(fn=cmd_introspect)
+
+    p = sub.add_parser("upload", help="upload one file as an asset")
+    p.add_argument("file")
+    p.add_argument("--name", required=True, help="display name (<= 50 chars)")
+    p.add_argument("--type", default="Model", choices=sorted(ALLOWED))
+    p.add_argument("--description", default="Made with grok-studio")
+    w = p.add_mutually_exclusive_group()
+    w.add_argument("--wait", dest="wait", action="store_true", default=True, help="poll until processed (default)")
+    w.add_argument("--no-wait", dest="wait", action="store_false", help="print the operationId and return")
+    p.add_argument("--timeout", type=int, default=600, help="seconds to wait for processing")
+    p.add_argument("--dry-run", action="store_true")
+    p.set_defaults(fn=cmd_upload)
+
+    p = sub.add_parser("status", help="poll an upload started with --no-wait")
+    p.add_argument("operation_id")
+    p.add_argument("--wait", action="store_true")
+    p.add_argument("--timeout", type=int, default=600)
+    p.set_defaults(fn=cmd_status)
+
+    a = ap.parse_args(argv)
+    a.fn(a)
 
 
 if __name__ == "__main__":
