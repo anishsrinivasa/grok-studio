@@ -47,7 +47,7 @@ if [ ! -f "$GS/plugin/skills/setup-bridge/lead-bot.md" ]; then
   else
     for REF in tags/v0.2.0 heads/multi-bot-team heads/main; do
       rm -rf "$GS/plugin.tmp" && mkdir -p "$GS/plugin.tmp"
-      curl -fsSL "https://github.com/brain-xiang/grok-studio/archive/refs/$REF.tar.gz" |
+      curl -fsSL "https://github.com/anishsrinivasa/grok-studio/archive/refs/$REF.tar.gz" |
         tar -xz -C "$GS/plugin.tmp" --strip-components=1 2>/dev/null &&
         [ -f "$GS/plugin.tmp/skills/setup-bridge/lead-bot.md" ] && break
     done

@@ -4,7 +4,7 @@
 # plugin into /workspace/grok-studio/plugin, links its skills into the folders agent
 # runtimes scan, and prints what to import if the skills still don't show up.
 #
-#   curl -fsSL https://raw.githubusercontent.com/brain-xiang/grok-studio/multi-bot-team/scripts/bootstrap.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/anishsrinivasa/grok-studio/multi-bot-team/scripts/bootstrap.sh | bash
 #
 # Options (environment): GROK_STUDIO_REF=<branch or tag> (default multi-bot-team)
 set -euo pipefail
@@ -12,7 +12,7 @@ set -euo pipefail
 REF="${GROK_STUDIO_REF:-multi-bot-team}"
 GS=/workspace/grok-studio
 [ -d /workspace ] || GS="$HOME/grok-studio"   # not on Grok Bot: install under $HOME
-REPO=https://github.com/brain-xiang/grok-studio
+REPO=https://github.com/anishsrinivasa/grok-studio
 
 mkdir -p "$GS/games" "$GS/.tools"
 tmp="$(mktemp -d)"

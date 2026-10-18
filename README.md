@@ -28,7 +28,7 @@ Also works in **Claude Code / Grok Build / Cursor**: the same roles ship as suba
 
 **You do only this:**
 1. **Install the plugin.** Until it's listed on the marketplace, paste this to any Grok Bot:
-   > Run `curl -fsSL https://raw.githubusercontent.com/brain-xiang/grok-studio/multi-bot-team/scripts/bootstrap.sh | bash`
+   > Run `curl -fsSL https://raw.githubusercontent.com/anishsrinivasa/grok-studio/multi-bot-team/scripts/bootstrap.sh | bash`
    > and do what it prints.
 
    It downloads the plugin into `/workspace/grok-studio/plugin` and links the skills. If

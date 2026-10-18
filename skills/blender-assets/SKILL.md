@@ -281,6 +281,25 @@ Only when the user chose it (the Lead says so). Tools (mcp-for-blender):
 - The FBX ends up on the user's PC, so the user's File > Import 3D is the natural import
   (the Open Cloud key lives on the cloud computer). Steps 6-10 are the same.
 
+## Rules proven on live imports (don't regress)
+
+- **Axes:** Roblox `(x, y, z)` = Blender `(-x, z, y)`, everywhere: `gs_core.roblox_vec` /
+  `blender_vec`, and the camera views in `compare_images`. Blender front (-Y) is Roblox -Z.
+- **Pivots:** set them through `PrimaryPart.PivotOffset`, not `WorldPivot` alone, and read
+  them back with `model:GetPivot()`. Keep the `pivotUpright` check.
+- **Anything animated:** `split_by_material(by_object=True)`. Pieces are named
+  `<Object>_<Material>`, and the manifest lists the limbs. `apply_manifest` welds each limb
+  to its main piece (`OPTIONS.motors` adds Motor6Ds instead), and the check verifies the
+  welds.
+- **Comparison:** palette-based (`compare_images(palette=...)`), with `render_compare`
+  painting materials from the manifest hex. Never go back to plain hue histograms: they
+  passed a hidden Neon top and failed a correct capture.
+- **Duplicates:** a duplicate means the same `MeshId` **and** coincident bounds. Two
+  pieces of one object can share a bounding box.
+- **Captures:** don't rely on a path saved by `screen_capture`. Use `capture_pixels.luau`
+  + `decode_capture.py`, with `capture_booth.luau`'s `BOOTH_PARENT` set to a test folder.
+- **Tests:** run them one at a time. Parallel runs gave stale results.
+
 ## Tests (Oct 2026)
 
 Blender 5.2.2, headless:

@@ -152,17 +152,17 @@ install command.
    MCP server**.
 3. **Bridge files** go into `<home>`, never into an editor's plugin folder.
    - `<ref>` = the tag `v<version>` (version from `<plugin>/.cursor-plugin/plugin.json`)
-     if it exists (`git ls-remote --tags https://github.com/brain-xiang/grok-studio.git
+     if it exists (`git ls-remote --tags https://github.com/anishsrinivasa/grok-studio.git
      v<version>` prints a line), else the branch `multi-bot-team`, else `main`. If
      `/setup-bridge` was told to use a branch, use that one.
    - If git exists (`git --version`) and `<home>` doesn't:
-     `git clone --depth 1 --branch <ref> https://github.com/brain-xiang/grok-studio.git "<home>"`.
+     `git clone --depth 1 --branch <ref> https://github.com/anishsrinivasa/grok-studio.git "<home>"`.
    - If `<home>` is already a clone (`git -C "<home>" status --porcelain`): with no local
      changes, run `git -C "<home>" fetch --depth 1 origin <ref>` and then
      `git -C "<home>" checkout --detach FETCH_HEAD`. With local changes, leave it alone
      and tell the user.
    - No git, Windows: download
-     `https://codeload.github.com/brain-xiang/grok-studio/zip/refs/tags/<ref>` (a branch:
+     `https://codeload.github.com/anishsrinivasa/grok-studio/zip/refs/tags/<ref>` (a branch:
      `refs/heads/<ref>`) with `curl.exe -fsSL -o "%TEMP%\gs.zip" <url>`. Run
      `Expand-Archive -Force "%TEMP%\gs.zip" "%TEMP%\gs"`, then copy the extracted folder's
      contents into `<home>`.
@@ -249,7 +249,7 @@ MCP for Blender add-on running on this PC and wants it used: add `-Blender` (mac
 ## Manual fallback (no local execution)
 
 The user opens PowerShell (Windows) or Terminal (macOS) and runs:
-1. Get the files: `git clone https://github.com/brain-xiang/grok-studio.git "%USERPROFILE%\grok-studio"`
+1. Get the files: `git clone https://github.com/anishsrinivasa/grok-studio.git "%USERPROFILE%\grok-studio"`
    (or download the zip from GitHub and unpack it there).
 2. Windows: `powershell -ExecutionPolicy Bypass -File "%USERPROFILE%\grok-studio\bridge\start-bridge.ps1" install-service -NgrokDomain <domain>`.
    macOS: `bash ~/grok-studio/bridge/start-bridge.sh install-service --ngrok-domain <domain>`.
