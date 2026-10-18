@@ -1,5 +1,3 @@
-import type { PenpotBoard, RobloxUISpec } from './types.js';
-/**
- * Converts a Penpot board export to Roblox UI specification
- */
-export declare function convertPenpotToRoblox(board: PenpotBoard): RobloxUISpec;
+import type { PenpotBoardExport, RobloxUISpec } from './types.js';
+/** Converts a Penpot board export (penpot/extract_board.js output) to a Roblox UI spec. */
+export declare function convertPenpotToRoblox(board: PenpotBoardExport): RobloxUISpec;
