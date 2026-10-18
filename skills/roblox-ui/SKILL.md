@@ -17,9 +17,9 @@ Designer checks visuals in Edit mode (StarterGui renders in the Edit viewport, s
 
 ## Choose a path
 
-1. **Penpot path** (`penpot-ui` skill) - free, open-source design tool with MCP integration.
-   Use when the Penpot MCP is connected and the user wants a visual design tool. Excels at
-   responsive layouts, shared components, and design tokens. Fully free with no seat limits.
+1. **Penpot path** (`penpot-ui` skill) - optional. Only when the user wants to design in
+   Penpot (open source; free plan or self-hosted) and its MCP is connected. Same result as
+   Studio-direct: a scale-based ScreenGui, plus a verifier that checks it against the design.
 2. **Figma path** - only if preflight found the Figma MCP authenticated (`whoami` works)
    **and** the user's seat can write to the canvas. As of Oct 2026 Figma documents canvas
    writes (`use_figma`) for Professional, Education, Organization and Enterprise plans; it

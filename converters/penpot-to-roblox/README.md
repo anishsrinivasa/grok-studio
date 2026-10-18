@@ -1,178 +1,44 @@
-# Penpot to Roblox UI Converter
+# penpot-to-roblox
 
-Converts Penpot design board exports into Roblox ScreenGuis via a neutral UI specification format.
+Penpot board → Roblox ScreenGui. The workflow for agents is in `skills/penpot-ui/SKILL.md`;
+this file is for working on the converter itself.
 
-## Architecture
-
-1. **Extract**: Get board data from Penpot using the MCP plugin API
-2. **Convert**: Transform Penpot shapes to Roblox UI spec (TypeScript/Node)
-3. **Build**: Create ScreenGui in Roblox Studio from spec (Luau)
-4. **Verify**: Check that built UI matches spec
-
-## Components
-
-### TypeScript Converter (`src/`)
-
-- `converter.ts` - Main conversion logic
-- `types.ts` - TypeScript types for Penpot and Roblox data
-- `cli.ts` - Command-line interface
-- `index.ts` - Public API exports
-
-### Luau Modules
-
-- `PenpotUIBuilder.luau` - Builds ScreenGui from UI spec JSON
-- `PenpotUIVerifier.luau` - Verifies built UI matches spec
-
-### Extraction
-
-- `extract_board.py` - Example MCP code snippets for board extraction
-
-## Usage
-
-### 1. Extract Board from Penpot
-
-Use the Penpot MCP plugin to execute JavaScript and extract board data:
-
-```javascript
-// In Penpot MCP code execution
-const board = penpot.currentBoard;
-const data = extractBoardData(board); // See extract_board.py
-return data;
+```
+penpot/extract_board.js    Penpot MCP execute_code body: board -> JSON (plugin API field names)
+penpot/export_images.js    execute_code body: image fills / vector shapes -> base64 PNG
+penpot/save_images.py      writes those images, optional Open Cloud upload -> images.json
+src/ -> dist/              TypeScript converter: board JSON -> RobloxUISpec (spec version 2)
+PenpotUIBuilder.luau       spec -> ScreenGui (run in Studio via execute_luau)
+PenpotUIVerifier.luau      ScreenGui vs spec -> PASS/FAIL report
+fixtures/                  HUD, menu and shop boards in extract_board.js format
 ```
 
-Save the result as `board.json`.
+`dist/` is committed on purpose: the converter has no runtime dependencies, so agents run
+`node dist/cli.js board.json spec.json` with plain Node and setup needs no install or build.
+A test fails if `dist/` is not the build of `src/`.
 
-### 2. Convert to Roblox Spec
+## Layout model
+
+Everything is scale-based (`UDim2` scale, offsets 0) relative to the parent, so a 1920x1080
+design fills any screen. Anchors come from Penpot constraints (right/bottom/center) or, for
+the default left/top, from where the element sits (outer thirds hug that edge). Images keep
+their aspect ratio (`UIAspectRatioConstraint`). Text is `TextScaled`, capped at the design
+size with `UITextSizeConstraint`. Strokes stay in pixels. Flex boards become `UIListLayout`
+(gap/padding as scale of the container), uniform grids `UIGridLayout`; LayoutOrder follows
+laid-out position. Unsupported features produce warnings in the spec.
+
+## Development
 
 ```bash
-cd converters/penpot-to-roblox
-npm install
-npm run build
-node dist/cli.js board.json spec.json
+npm install                # dev tools only (typescript, @penpot/plugin-types)
+npm run build              # src -> dist (commit dist)
+npm test                   # converter tests + Luau end-to-end run (needs `luau` on PATH)
+npm run check:snippets     # type-check penpot/*.js against @penpot/plugin-types
 ```
 
-### 3. Build in Roblox Studio
-
-Load the Luau builder in Studio via `execute_luau` (datamodel_type "Edit"):
-
-```lua
-local HttpService = game:GetService("HttpService")
-local PenpotUIBuilder = loadstring(scriptContent)() -- Load PenpotUIBuilder.luau
-
--- Read spec JSON
-local specJson = readfile("spec.json") -- or pass directly
-
--- Optional: image cache with uploaded asset IDs
-local imageCache = {
-  ["abc123hash"] = "rbxassetid://1234567890"
-}
-
--- Build the ScreenGui
-local screen = PenpotUIBuilder.buildFromSpec(specJson, imageCache)
-```
-
-### 4. Verify
-
-```lua
-local PenpotUIVerifier = loadstring(verifierContent)() -- Load PenpotUIVerifier.luau
-
-local passed = PenpotUIVerifier.runVerification("GameHUD", specJson)
-```
-
-## Mapping
-
-### Elements
-
-| Penpot | Roblox | Notes |
-|--------|--------|-------|
-| Board/Frame | Frame | CanvasGroup if opacity < 1 or rotation |
-| Rect | Frame | ImageLabel if has image fill |
-| Text | TextLabel | TextButton if name contains "button" |
-| Component (button) | TextButton/ImageButton | Based on name and content |
-
-### Layout
-
-| Penpot | Roblox | Notes |
-|--------|--------|-------|
-| Flex layout (row) | UIListLayout (Horizontal) | |
-| Flex layout (column) | UIListLayout (Vertical) | |
-| Grid layout | UIGridLayout | Cell size calculated from columns/rows |
-| Padding | UIPadding | Converted to scale |
-| Gap | UIListLayout.Padding or Grid.CellPadding | |
-
-### Styling
-
-| Penpot | Roblox | Notes |
-|--------|--------|-------|
-| Fill (solid) | BackgroundColor3 + Transparency | |
-| Fill (gradient) | UIGradient | Linear only; radial approximated |
-| Fill (image) | Image property | Upload via Open Cloud first |
-| Stroke | UIStroke | First stroke only; border mode |
-| Corner radius | UICorner | Uniform only; max of individual corners |
-| Opacity | BackgroundTransparency or GroupTransparency | |
-
-### Text
-
-| Penpot | Roblox | Notes |
-|--------|--------|-------|
-| Font family | Font.fromName() | Mapped to Roblox fonts, see FONT_MAPPING |
-| Font weight | FontWeight enum | Mapped to closest Roblox weight |
-| Font size | TextSize | Direct mapping |
-| Text align | TextXAlignment | left/center/right |
-| Color | TextColor3 | From first fill |
-
-### Constraints
-
-| Penpot | Roblox | Notes |
-|--------|--------|-------|
-| Proportion lock | UIAspectRatioConstraint | Maintains aspect ratio |
-| Position/size | UDim2.fromScale() | Scale-based for mobile |
-| Constraints (horiz/vert) | AnchorPoint + Position | Best-effort mapping |
-
-## Images
-
-Images must be uploaded to Roblox before use:
-
-```bash
-python3 scripts/opencloud_upload.py image.png --name "Coin Icon" --type Image
-# Returns: {"assetId": "123456789", ...}
-```
-
-Pass uploaded IDs in the `imageCache` parameter to `buildFromSpec`, keyed by content hash.
-
-## Testing
-
-### TypeScript Tests
-
-```bash
-npm test
-```
-
-Runs unit tests on fixtures in `fixtures/`.
-
-### Luau Verification
-
-Run `PenpotUIVerifier.runVerification()` in Studio after building.
-
-## Fixtures
-
-- `fixtures/hud.json` - Coin counter HUD
-- `fixtures/menu.json` - Main menu with title and buttons
-- `fixtures/shop.json` - Grid-based shop layout
-
-## Limitations & Warnings
-
-- **Multiple strokes**: Only first stroke used
-- **Radial gradients**: Approximated as linear
-- **Individual corner radii**: Uses maximum radius
-- **Advanced text**: No rich text, text paths, or variable fonts
-- **Shadows**: Not supported (UIStroke has no shadow)
-- **Blend modes**: Not supported
-- **Masks**: Not supported (use CanvasGroup clipping if needed)
-- **Vector graphics**: Rasterize to images first
-
-All unsupported features generate warnings in the spec output.
-
-## License
-
-Part of grok-studio. MIT.
+`tests/luau.test.js` runs the builder and verifier for every fixture inside
+`tests/roblox_mock.luau`, a small fake of the Roblox API (UDim2, enums, instances, absolute
+layout with anchors and aspect constraints): build → verify PASS at 1920x1080, 844x390 and
+1024x768, and a deliberately broken build must FAIL. Get `luau` from
+https://github.com/luau-lang/luau/releases. Static checks used in review:
+`luau-lsp analyze --definitions=globalTypes.d.luau PenpotUI*.luau` (strict, Roblox types).

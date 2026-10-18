@@ -125,18 +125,11 @@ then work in Studio only.
 
 ## Step 5 - Optional connectors
 
-- **Penpot** (optional, ask once): Penpot is a free, open-source design tool with MCP
-  integration (https://penpot.app). If the user wants to design UI visually instead of
-  building directly in Studio, check if Penpot MCP is available. Penpot can run:
-  - Hosted at design.penpot.app (they open a file there and connect the MCP plugin)
-  - Self-hosted via `npx @penpot/mcp` (local or remote server)
-  Ask the user once if they want to connect Penpot. If yes, they need:
-  1. A Penpot account (free at design.penpot.app or self-hosted)
-  2. The MCP plugin loaded in their browser (development URL: http://localhost:4400/manifest.json
-     when running locally; or the hosted MCP endpoint)
-  3. An access token (stored as a secret: `PENPOT_ACCESS_TOKEN`)
-  Test with a read-only MCP call (e.g., list files or current file). If it works, Penpot is
-  available; if not or skipped, Designer uses Studio-direct by default. Never block on Penpot.
+- **Penpot** (optional, only if the user asks to design in Penpot): never ask the token in
+  chat. Follow "Connecting" in the `penpot-ui` skill: the remote MCP server URL contains the
+  user's MCP key, so collect it through the secret prompt only. Test with the read-only
+  `high_level_overview` call. If it fails or is skipped, Designer builds in Studio directly.
+  Never block on Penpot.
 - **Figma** (skip with `--no-figma`): call the Figma connector's `whoami`. If it asks to
   sign in, the user clicks **Authorize** once. Free Figma plans can only read, about 20
   calls a month, so Designer builds UI directly in Studio either way. Never block on

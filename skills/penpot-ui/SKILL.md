@@ -1,267 +1,102 @@
 ---
 name: penpot-ui
-description: Design Roblox UI in Penpot (free, open-source design tool) and convert to native ScreenGuis. Alternative to Figma and the Studio-direct path. Handles the design -> extract -> convert -> build -> verify loop, with automatic fallback to building directly in Studio when Penpot isn't connected. Use for any Roblox UI design task when Penpot is available.
+description: Optional Penpot design path for Roblox UI. Design a screen as a Penpot board, extract it over the Penpot MCP, convert it to a scale-based ScreenGui spec, build it in Studio and verify it. Use only when the user wants to design in Penpot and the Penpot MCP is connected; otherwise use the Studio-direct path in roblox-ui.
 ---
 
-# Penpot UI Design for Roblox
+# Penpot UI (optional)
 
-Design Roblox UI in **Penpot** (free, open-source, https://penpot.app) and convert it to native
-ScreenGuis. Penpot runs in the browser with an MCP plugin that exposes the Penpot Plugin API.
+Penpot (https://penpot.app) is an open-source design tool. Its free plan and self-hosting
+cost nothing. This path is **strictly optional**: it is just another way to produce the
+same ScreenGuis the Studio-direct path in `roblox-ui` builds.
 
-## When to use Penpot vs Studio-direct
+**Never block on Penpot.** If the Penpot MCP is not connected, a call fails, or the user
+didn't ask for Penpot, use Studio-direct (`roblox-ui`) and carry on. One retry at most.
 
-- **Penpot path**: When the Penpot MCP is connected and the user wants a visual design tool, or
-  when iterating on complex layouts (grids, flex, nested frames). Penpot excels at responsive
-  layouts, shared components, and design tokens.
-- **Studio-direct path** (from `roblox-ui` skill): When Penpot isn't connected, for simple HUDs
-  (coin counters, health bars), or when speed matters more than visual polish. Always keep this
-  as the fallback.
+`<plugin>` = `/workspace/grok-studio/plugin`. `CONV` = `<plugin>/converters/penpot-to-roblox`.
+The converter needs only Node 18+ (`dist/` is committed, so no `npm install` or build step).
 
-If Penpot is available, **prefer it for new screens**. If not, fall back to Studio-direct
-immediately without blocking.
+## Connecting (once, only if the user wants Penpot)
 
-## Setup (one-time, optional)
+The Penpot MCP has two parts: an MCP server the agent talks to, and the MCP plugin inside
+the user's open Penpot tab. MCP always acts on the page in focus in that tab.
 
-The user connects Penpot through the setup-bridge skill. If they didn't, you can try once:
+- **Remote MCP** (recommended, nothing to install): the user goes to Your account →
+  Integrations → MCP Server in Penpot, enables it, creates the MCP key, and copies the
+  server URL (`https://<penpot host>/mcp/stream?userToken=<MCP key>`).
+  **The URL contains the key.** Collect it only through Grok Bot's secret prompt, never in
+  chat, files or logs, and register it as an HTTP MCP server named `penpot`. Then the user
+  opens the design file and clicks File → MCP Server → Connect.
+- **Local MCP** (only when the agent and the browser run on the same machine):
+  `npx -y @penpot/mcp@stable`, load `http://localhost:4400/manifest.json` as a plugin in
+  Penpot, click Connect, MCP endpoint `http://localhost:4401/mcp`. No key needed.
 
-1. Check if the Penpot MCP is available (MCP server list or try a read-only call).
-2. If yes, ask them (once) to open a Penpot file in their browser and connect the MCP plugin to
-   the local MCP server (see Penpot MCP docs: https://help.penpot.app/mcp/ and
-   https://github.com/penpot/penpot/blob/main/mcp/README.md). The access token goes through the
-   **secret prompt**, never plain chat.
-3. If they skip it or it fails, use Studio-direct for the rest of the session.
+Check with a read-only call (`high_level_overview`). If it fails, say so once and fall back.
+Help: https://help.penpot.app/mcp/
 
-**DO NOT block on Penpot setup.** If it's not ready in one attempt, fall back.
+## Design rules (when you draw the board yourself via `execute_code`)
 
-## The Penpot -> Roblox Loop
+- One **board per screen**, 1920x1080, top level on the page. Board name = ScreenGui name
+  (`Hud`, `Shop`). Layer names = instance names, the contract with Coding
+  (`Hud/CoinCounter/Amount`): keep them stable and unique among siblings.
+- The board's own fill is only a backdrop and is not built. Add a full-size rectangle named
+  `Background` if the screen needs one.
+- Set **constraints** on top-level elements (right/bottom/center) so they hug the right edge
+  or corner on phones. Without them, the converter infers anchors from placement.
+- Flex (row/column) → UIListLayout, uniform grids → UIGridLayout. Absolutely positioned
+  children turn the layout off (fixed positions are kept).
+- Containers whose name contains `Button`/`Btn` become TextButton (or ImageButton for images
+  and vectors); their text child stays a TextLabel.
+- Fonts: Roblox has its own catalogue. Mapped: Source Sans Pro (Penpot's default), Fredoka,
+  Luckiest Guy, Gotham, Montserrat, Roboto, Roboto Mono, Arial, Bangers, Oswald, Nunito and
+  more (`FONT_FAMILIES` in `src/converter.ts`). Anything else becomes Builder Sans, warned.
+- Not supported (warned): shadows, blur, blend modes, letter spacing, justified text, mixed
+  text styles inside one text, radial gradients (drawn linear).
 
-### 1. Design in Penpot
+## The loop
 
-Use the Penpot MCP's code execution tools to create design elements. Design one **board per screen**
-at **1920x1080** (desktop reference). Use:
-
-- **Frames/Rects** for containers, buttons, panels. Name them like Roblox instances
-  (`HUD/CoinCounter/Amount`) - those names become the Studio hierarchy.
-- **Text** for labels and button text. Set font, size, weight, alignment, color (from fills).
-- **Images** for icons and sprites (you'll upload them to Roblox later via Open Cloud).
-- **Flex layout** (row/column) for dynamic lists, menus. Set alignment, gap, padding.
-- **Grid layout** for shops, inventories. Set columns, rows, gap.
-- **Components** for reusable elements (buttons, cards). Name components ending in "Button" to
-  auto-convert to TextButton/ImageButton.
-- **Fills**: solid colors, gradients (linear -> UIGradient; radial approximated), images.
-- **Strokes**: map to UIStroke (first stroke only, border mode).
-- **Corner radius**: UICorner (uniform radius; if per-corner, takes max).
-- **Constraints/proportion lock**: scale-based UDim2 + UIAspectRatioConstraint.
-
-**Mobile-first**: design for scale, not pixels. Roblox needs it to work on phone/tablet/desktop.
-
-### 2. Extract board data
-
-Run the extraction snippet from `converters/penpot-to-roblox/extract_board.py` in the Penpot MCP's
-code execution tool. Example (adapt to actual Penpot API, see README.md in the repo for the
-real snippet):
-
-```javascript
-const board = penpot.currentBoard;
-if (!board) return { error: "No board selected" };
-
-function extractShape(shape) {
-  // ... see extract_board.py for full snippet
-  return { id, name, type, x, y, width, height, fills, strokes, children, ... };
-}
-
-const data = { id: board.id, name: board.name, width: board.width, height: board.height,
-               children: board.children.map(extractShape) };
-return data;
-```
-
-Save the JSON result as `games/<slug>/penpot/<board-name>.json`.
-
-### 3. Convert to Roblox spec
-
-Run the TypeScript converter (Node.js, installed in the environment):
-
-```bash
-cd /workspace/converters/penpot-to-roblox
-[ ! -d node_modules ] && npm install
-npm run build
-node dist/cli.js "../../games/<slug>/penpot/<board-name>.json" "../../games/<slug>/penpot/<board-name>.spec.json"
-```
-
-The converter produces a Roblox UI spec JSON (`RobloxUISpec` type) plus warnings for unsupported
-features. Review the warnings; if critical (e.g., radial gradient on a key element), note it in
-your `DONE` message or fix it in Penpot.
-
-### 4. Upload images (if any)
-
-If the board has image fills, upload them to Roblox Open Cloud before building:
-
-```bash
-# For each image (extract from Penpot image data URIs or external URLs first):
-python3 /workspace/scripts/opencloud_upload.py <image.png> --name "Icon Name" --type Image
-# Returns: {"assetId": "123456789", "assetType": "Image", ...}
-```
-
-Build an image cache JSON mapping content hashes (from the spec's `image.contentHash`) to
-`rbxassetid://<id>`:
-
-```json
-{
-  "abc123hash": "rbxassetid://123456789",
-  "def456hash": "rbxassetid://987654321"
-}
-```
-
-Save it as `games/<slug>/penpot/<board-name>.images.json`.
-
-### 5. Build in Studio
-
-Load the Luau builder (`converters/penpot-to-roblox/PenpotUIBuilder.luau`) in Studio via
-`execute_luau` (datamodel_type "Edit"):
-
-```lua
--- Read the PenpotUIBuilder module (paste its content or load from file)
-local PenpotUIBuilder = (function()
-  -- ... paste PenpotUIBuilder.luau here, or loadstring from file
-end)()
-
--- Read spec JSON
-local HttpService = game:GetService("HttpService")
-local specJson = [[paste spec JSON here, or read from file]]
-
--- Read image cache (optional, empty if no images)
-local imageCacheJson = [[{"hash": "rbxassetid://id", ...}]] -- or '{}'
-local imageCache = HttpService:JSONDecode(imageCacheJson)
-
--- Build the ScreenGui
-local screen = PenpotUIBuilder.buildFromSpec(specJson, imageCache)
--- Returns the ScreenGui, now in StarterGui
-```
-
-If images aren't uploaded yet, the builder will warn about missing asset IDs. That's fine for
-the first pass; upload images, update the cache, and rebuild.
-
-### 6. Verify in Studio
-
-1. **Visual check**: `screen_capture` the screen in Edit mode (StarterGui renders there). For
-   phone and tablet sizes, use the Studio MCP's device simulator skill (if available).
-2. **Export Penpot PNG**: In Penpot, export the board as PNG (via MCP or manual export). Compare
-   side-by-side with the Studio capture. Colors, positions, sizes, text should match within
-   tolerance.
-3. **Luau verification** (optional, for CI or critical screens): Load
-   `converters/penpot-to-roblox/PenpotUIVerifier.luau` and run:
-
-   ```lua
-   local PenpotUIVerifier = (function() -- paste PenpotUIVerifier.luau end)()
-   local passed = PenpotUIVerifier.runVerification("<ScreenName>", specJson)
-   -- Prints PASS/FAIL and lists failures
+1. **Extract.** Read `CONV/penpot/extract_board.js`, set `BOARD` to the board name (or leave
+   it empty to use the board around the selection), and pass the whole file as the `code` of
+   the Penpot MCP `execute_code` tool. Save the returned JSON as
+   `games/<slug>/penpot/<Board>.json`. Read-only.
+2. **Convert.**
+   ```bash
+   node CONV/dist/cli.js games/<slug>/penpot/<Board>.json games/<slug>/penpot/<Board>.spec.json
    ```
+   Warnings go to stderr. Read them: fix the design or note them in your DONE message.
+3. **Images** (skip if the spec's `images` is empty). Put the spec's `images` array into
+   `IMAGES` in `CONV/penpot/export_images.js`, run it with `execute_code` (in batches if the
+   result is large), save the result, then:
+   ```bash
+   python3 CONV/penpot/save_images.py <result.json> games/<slug>/penpot/<Board>-images --upload
+   ```
+   This uploads through `<plugin>/scripts/opencloud_upload.py` (Open Cloud secrets from
+   setup), caches by content hash, and writes `images.json` (`{key: "rbxassetid://..."}`).
+   Without the Open Cloud key, drop `--upload` and tell the user which files to import.
+4. **Build** with `execute_luau` (datamodel_type `Edit`):
+   ```lua
+   local Builder = (function()
+   <contents of CONV/PenpotUIBuilder.luau>
+   end)()
+   local spec = [==[<contents of <Board>.spec.json>]==]
+   local images = game:GetService("HttpService"):JSONDecode([==[<images.json or {}>]==])
+   local screen, report = Builder.build(spec, { parent = game:GetService("StarterGui"), images = images })
+   print(Builder.report(report))
+   ```
+   Rebuilding replaces the ScreenGui it built before. It refuses to replace a same-named
+   ScreenGui it did not build, so hand-made UI is never destroyed.
+5. **Verify** in the same or a new `execute_luau` call:
+   ```lua
+   local Verifier = (function()
+   <contents of CONV/PenpotUIVerifier.luau>
+   end)()
+   local r = Verifier.verify(game:GetService("StarterGui")[<ScreenGui name>], spec)
+   print(Verifier.report(r)) -- PASS/FAIL with every mismatch
+   ```
+   It checks every element (class, position, size, anchor, colours, text, font, corner,
+   stroke, gradient, layout, padding) and that each visible element is on screen. Then
+   `screen_capture` in Edit mode and compare with `export_shape` of the board in Penpot.
+   Check phone and tablet sizes as `roblox-ui` describes.
+6. Set `ui.designSource` to `penpot` and `ui.screens[].status` to `built`.
 
-   This checks: every element present, sizes/positions within 1%, colors match, no off-screen
-   elements. If it fails, fix the design or the converter.
-
-4. Set `ui.screens[].status` -> `built` after the build, `verified` after the Lead's playtest.
-
-## Rules & Best Practices
-
-- **Naming is the contract**: Element names in Penpot become instance names in Roblox. Keep them
-  stable. Coding GrokBot finds UI elements by name (`player.PlayerGui:WaitForChild("Hud")`).
-- **Scale-based layout**: The converter uses `UDim2.fromScale()` for everything except hairlines.
-  Design with relative sizes and positions (flex/grid help with this).
-- **Mobile-first**: Test on phone size (390x844 or similar). Use UIAspectRatioConstraint,
-  UISizeConstraint, and readable text sizes.
-- **Button detection**: Frames/components with "button" or "btn" in the name (case-insensitive)
-  have their child text converted to TextButton (if the child is text) or ImageButton (if image).
-- **Image uploads**: Always upload images via Open Cloud. Never use external URLs directly in
-  Roblox (they don't work at runtime). Cache asset IDs by content hash so nothing uploads twice.
-- **Fallback to Studio-direct**: If Penpot fails (not connected, extraction error, converter bug),
-  immediately switch to the Studio-direct path from `roblox-ui` skill. Don't waste time debugging
-  Penpot unless the user explicitly wants it.
-
-## Supported Features
-
-- ✓ Frames, rects, text, images
-- ✓ Flex layout (row/column) -> UIListLayout
-- ✓ Grid layout -> UIGridLayout
-- ✓ Fills: solid, linear gradient
-- ✓ Strokes (first only)
-- ✓ Corner radius (uniform)
-- ✓ Opacity -> Transparency
-- ✓ Font mapping (Inter -> BuilderSans, Roboto Mono -> RobotoMono, etc., see converter)
-- ✓ Text alignment, wrapping
-- ✓ Constraints -> scale-based UDim2 + aspect ratio
-- ✓ Components (button detection)
-
-## Unsupported Features (Warnings)
-
-- ✗ Multiple strokes (uses first only)
-- ✗ Radial gradients (approximated as linear)
-- ✗ Per-corner radii (uses max)
-- ✗ Shadows (not in Roblox)
-- ✗ Blend modes, masks
-- ✗ Rich text, text paths, variable fonts
-- ✗ Vector graphics (rasterize to images first)
-
-All unsupported features produce warnings in the converter output. Review them and decide if
-they're critical.
-
-## Files & Locations
-
-- **Penpot exports**: `games/<slug>/penpot/<screen>.json`
-- **Roblox specs**: `games/<slug>/penpot/<screen>.spec.json`
-- **Image cache**: `games/<slug>/penpot/<screen>.images.json`
-- **Converter**: `/workspace/converters/penpot-to-roblox/`
-- **Extraction snippets**: `/workspace/converters/penpot-to-roblox/extract_board.py`
-
-## Troubleshooting
-
-- **Penpot MCP not connected**: Fall back to Studio-direct immediately. Don't retry unless the
-  user explicitly asks to fix Penpot.
-- **Extraction fails**: Check that a board is selected in Penpot. Try the list-boards snippet to
-  see available boards.
-- **Converter fails**: Check the board JSON structure. If Penpot changed their API, you may need
-  to adapt the extraction snippet or converter (file an issue).
-- **Images missing**: Upload them via `opencloud_upload.py` and update the image cache JSON.
-- **Verification fails**: Compare the Penpot PNG export with the Studio capture. If they differ,
-  fix the design or report a converter bug.
-
-## Integration with setup-bridge
-
-In `setup-bridge`, Penpot is an **optional** setup step (like Figma). The skill asks for the
-Penpot access token (secret prompt), checks the connection, and records success/failure. If
-skipped or failed, the Designer bot uses Studio-direct by default.
-
-## Reporting to Lead
-
-In team mode, report in your `DONE` message:
-- Which screens were designed in Penpot (list board names)
-- Element names Coding needs (e.g., `Hud/CoinCounter/Amount`)
-- Any unsupported features that affected the design (e.g., "radial gradient on shop background
-  approximated as linear")
-- Whether images are uploaded (if not, list the manual upload steps for the user)
-
-## Example Workflow
-
-```bash
-# 1. Extract from Penpot (via MCP code execution, save result)
-echo '<extracted JSON>' > games/my-game/penpot/Hud.json
-
-# 2. Convert
-cd converters/penpot-to-roblox
-npm run build
-node dist/cli.js ../../games/my-game/penpot/Hud.json ../../games/my-game/penpot/Hud.spec.json
-# Review warnings
-
-# 3. Upload images (if any)
-python3 ../../scripts/opencloud_upload.py coin.png --name "Coin Icon" --type Image
-# -> {"assetId": "123"}
-echo '{"abc123": "rbxassetid://123"}' > ../../games/my-game/penpot/Hud.images.json
-
-# 4. Build in Studio (execute_luau)
-# Load PenpotUIBuilder.luau, call buildFromSpec(specJson, imageCache)
-
-# 5. Verify
-# screen_capture, compare to Penpot PNG export, run PenpotUIVerifier if needed
-```
-
-Done when the ScreenGui is in StarterGui, matches the design, and `ui.screens[].status` is `built`.
+Edits after the build: change the design in Penpot and run the loop again. Behaviour (button
+clicks, values) belongs to Coding's scripts, which find elements by name.
