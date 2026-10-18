@@ -8,6 +8,13 @@ description: Automated playtest-and-fix loop for Roblox games through the Studio
 Prove the game works. Run the acceptance tests from `game-spec.json`, fix what fails, and
 stop with a report. This is the orchestrator's **definition-of-done gate**.
 
+**Team mode (`team-protocol`): only the Lead runs this skill.** Before starting play, take
+the `studio-play` lock and send `[GS] PLAY ON` to every specialist. After stopping, release
+it and send `[GS] PLAY OFF`. In step 3 you don't fix other owners' work: send each failure
+as `[GS] FIX #n` to its owner (scripts to Coding, UI to Designer, world and models to
+Builder, animations to Animator) with the evidence, wait for their `DONE`, then replay.
+The iteration limits below count those rounds.
+
 ## Tools (Studio MCP, https://create.roblox.com/docs/studio/mcp)
 
 `get_studio_state`, `start_stop_play`, `get_console_output`, `execute_luau`

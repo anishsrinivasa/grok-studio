@@ -9,6 +9,12 @@ Build every `game-spec.json` -> `ui.screens[]` entry as a `ScreenGui` in `Starte
 from `ui.styleGuide`, and wire it to client controllers. `reference/UiKit.luau` is a
 ready-to-paste builder (make/corner/stroke/padding/screen helpers + an example HUD).
 
+**Team mode (`team-protocol`):** Designer builds the ScreenGuis and owns `StarterGui` and
+`ReplicatedStorage.Assets.UI`. Coding writes the controllers described under *Wiring*.
+Designer's job there is to report exact element names and what each one shows or fires.
+Designer checks visuals in Edit mode (StarterGui renders in the Edit viewport, so use
+`screen_capture`). Runtime checks happen in the Lead's playtests.
+
 ## Choose a path
 
 1. **Figma path** - only if preflight found the Figma MCP authenticated (`whoami` works)
@@ -87,10 +93,13 @@ Build with `execute_luau` (`datamodel_type: "Edit"`) - one screen per call - usi
 ## Verify
 
 1. `search_game_tree` filtered to `StarterGui` to confirm the hierarchy and names.
-2. Start a playtest (`start_stop_play`) and `screen_capture` the HUD. If the client exposes
-   device emulation (ask the Studio MCP `skill` tool about "device simulation"), capture a
-   phone-sized viewport too; otherwise check math: no element should go off-screen at
-   16:9, 19.5:9 (phones), and 4:3 (tablets).
+2. `screen_capture` the screen in Edit mode. For phone and tablet sizes, load the Studio
+   MCP `skill` tool's `rbx-device-simulator-lua` skill and capture those viewports too.
+   Otherwise check the math: no element should go off-screen at 16:9, 19.5:9 (phones) and
+   4:3 (tablets). Runtime captures (data filled in, modals opened) need play mode. In team
+   mode, `ASK` the Lead for them rather than starting play yourself.
+   **Images** (icons on buttons, logos): `send-to-pc.py` the PNG (team-protocol
+   section 7), then `upload_image` with its `httpUrl` to get an `rbxassetid://` id.
 3. Click through modals with `user_mouse_input` targeting the button instances, confirm the
    expected remote fired (server log) and the UI updated.
 4. Set `ui.screens[].status` -> `built` after creation, `verified` after the playtest check.

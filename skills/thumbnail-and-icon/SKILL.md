@@ -8,6 +8,12 @@ description: Produces a Roblox game icon (512x512) and 16:9 thumbnails (1920x108
 Create `marketing/icon-512.png` and `marketing/thumb-<n>.png` from
 `game-spec.json` -> `marketing`, using real game content.
 
+**Team mode (`team-protocol`):** Designer owns this stage. Playtest captures come from the
+Lead (only the Lead plays). Blender diorama renders come from Builder: `ASK` Builder for a
+render of the exported assets, made with the headless cloud Blender from
+`blender-assets`, saved under `renders/`. Files go to
+`/workspace/grok-studio/games/<slug>/marketing/`.
+
 ## Specs (verified Oct 2026)
 
 | Image | Spec | Source |

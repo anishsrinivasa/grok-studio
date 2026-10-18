@@ -1,121 +1,129 @@
 ---
 name: grok-studio
-description: Orchestrates building a complete, playable Roblox game from a single prompt - spec, Luau code, UI, Blender models and animations, playtest-and-fix loop, thumbnail and icon. Use when the user asks to "make/build/one-shot a Roblox game", or wants an end-to-end Roblox build rather than a single script or asset.
+description: Lead playbook for building a complete, playable Roblox game from one prompt with the grok-studio team (Lead, Coding, Designer, Builder, Animator GrokBots, or subagents) - preflight, spec, task plan, parallel dispatch, integration playtests, final gate, marketing, handoff. Use when the user asks to make/build/one-shot a Roblox game or wants an end-to-end Roblox build rather than a single script or asset.
 ---
 
-# Roblox One-Shot (orchestrator)
+# grok-studio (Lead playbook)
 
-You are the build lead. Turn one prompt into a published-ready Roblox place by running the
-stage skills below **in order**, keeping `game-spec.json` as the single source of truth, and
-refusing to call the game "done" until the final playtest gate passes.
+You are the Lead. Turn one prompt into a playable Roblox place by running the team in
+parallel, with `game-spec.json` as the single source of truth. Do not call the game done
+until the final playtest gate passes. Load `team-protocol` first: ownership, locks and
+message formats are defined there and not repeated here.
 
-## Stage map
+**Team modes**
+- **Grok Bot (primary):** the specialists are separate Bots (Coding, Designer, Builder,
+  Animator GrokBot) that you message. If they don't exist, run `grok-studio-setup`.
+- **Subagents** (Claude Code, Grok Build): spawn the `coder`, `designer`, `builder` and
+  `animator` agents with the same `TASK` text. Their final answers are the `DONE` reports.
+- **Solo** (no way to delegate): do the stage skills yourself in this order: code
+  skeleton, then UI, assets and animations, then the playtest gate, then marketing.
 
-| # | Stage | Skill | Output | Required connector |
-|---|-------|-------|--------|--------------------|
-| 0 | Preflight | (this skill) | connector report, `build.connectors` | - |
-| 1 | Spec | `game-spec` | `game-spec.json` (validated) | none |
-| 2 | Code | `roblox-code` | scripts in Studio, `scripts[].status = written` | Studio |
-| 3 | UI | `roblox-ui` | ScreenGuis in StarterGui | Studio (+ Figma optional) |
-| 4 | Assets | `blender-assets` | MeshParts placed in Workspace | Studio (+ Blender optional) |
-| 5 | Animations | `roblox-animations` | Animation IDs wired in code | Studio (+ Blender optional) |
-| 6 | Playtest | `playtest-loop` | report, all `acceptanceTests` pass | Studio |
-| 7 | Marketing | `thumbnail-and-icon` | `marketing/icon-512.png`, `marketing/thumb-*.png` | Studio or Blender |
+## Stage 0 - Preflight
 
-Stages 3-5 may run in any order once Stage 2's skeleton exists, but Stage 6 always runs last
-before Stage 7, and re-runs after any later change to code.
+1. **Studio:** call `list_roblox_studios`. If it fails, run `setup-bridge` (Grok Bot) or
+   tell the user to open Studio and enable *Studio as MCP server* (local agents). Studio
+   is mandatory. If more than one Studio window is listed, ask which one, never guess.
+   Store its id in `build.studioId` and its place id in `build.placeId`.
+   `get_studio_state`: if playing, stop play.
+2. **Team:** Grok Bot: message each specialist `[GS] HELLO` and expect `READY`. Missing
+   Bots: run `grok-studio-setup`.
+3. **Workspace:** create `/workspace/grok-studio/games/<slug>/` (team-protocol layout)
+   and write the slug to `/workspace/grok-studio/current-game`.
+4. **Connectors:** cloud Blender (`cloud_blender.sh version`), Figma (`whoami`), Open
+   Cloud key (`ROBLOX_OPEN_CLOUD_API_KEY` set?). Record them in `build.connectors`. Tell
+   the user in one line what will be used and what falls back.
+5. **Safety:** the team edits the open place. Confirm it is a new or scratch place, or
+   that the user accepts edits, and ask them to save a backup (File > Save to File) first.
+   Look at what's already in the place. Never build over the user's existing work without
+   asking.
 
-## Stage 0 - Preflight (do this before anything else)
+## Stage 1 - Spec (you)
 
-1. **Detect connectors by trying them, not by assuming.** Tool names below are from the
-   official docs (Oct 2026); your client may prefix them (e.g. `roblox-studio_...`).
-   - Studio: call `list_roblox_studios`. If it fails or returns nothing, Studio is not
-     connected. If you are a **remote agent** (e.g. Grok Bot), run the `/setup-bridge`
-     skill first — it will start the bridge on the user's PC, open a tunnel, and register
-     the Studio and Blender connectors automatically, then return here. If you are a
-     **local agent** (Cursor, Claude Code on the same PC), tell the user: open Roblox
-     Studio with a place, then **Assistant > ... > Manage MCP Servers > Enable Studio as
-     MCP server**. Studio is **mandatory** — stop here without it.
-   - Pick the target Studio instance: if more than one is listed, ask which (or match the
-     place name). Store its id as `build.studioId`; **every** Studio tool call takes
-     `studio_id`.
-   - Call `get_studio_state`. If it is in play mode, stop play (`start_stop_play`) before
-     editing.
-   - Blender: call `get_addon_status` (mcp-for-blender). Unavailable => assets/animations fall
-     back to Studio generation (`generate_mesh`, `generate_procedural_model`, primitives) and
-     Studio's Animation Editor keyframes via Luau.
-   - Figma: call `whoami`. Unavailable, unauthenticated, or on a seat that can't write =>
-     UI uses the Studio-direct path. Never block on Figma.
-2. Record results in `build.connectors` and tell the user in one short message what will be
-   used and what falls back.
-3. **Safety check:** confirm the open place is a scratch/new place or that the user accepts
-   edits. Suggest File > Save to File (a `.rbxl` backup) before Stage 2. Never publish,
-   change game settings, enable API services, or spend Robux without explicit permission.
+Write `game-spec.json` with the `game-spec` skill, then validate it. Mirror it into Studio
+as `ServerStorage.GameSpec` (ModuleScript returning `[==[ <json> ]==]`). Show the user a
+6-10 line summary and continue unless they object.
 
-## The single source of truth: `game-spec.json`
+## Stage 2 - Plan
 
-- Lives in the user's project folder (repo root or the folder they name). Remote agents that
-  have no shared filesystem with the user's PC keep it in their own workspace **and** mirror
-  it into Studio as a `ModuleScript` at `game.ServerStorage.GameSpec` (source:
-  `return [==[ <json> ]==]`) so the spec travels with the place.
-- Every stage **reads** the spec first and **writes back** statuses (`scripts[].status`,
-  `ui.screens[].status`, `assets.items[].status`, `animations[].status`,
-  `acceptanceTests[].status`) and IDs (`assetId`, `instancePath`).
-- If a later stage discovers the spec is wrong (e.g. a mechanic is unbuildable), edit the
-  spec first, note the change in `meta.assumptions`, then continue. Code must never silently
-  diverge from the spec.
-- Validate against `skills/game-spec/schema.json` after every write.
+Turn the spec into `build.tasks[]` (`{id, owner, title, specRefs, dependsOn, status,
+startedAt, finishedAt, notes}`). Typical first plan:
 
-## Checkpoints (after every stage)
+| # | Owner | Task | Depends on |
+|---|---|---|---|
+| 1 | Coding | skeleton: folders, `Shared.Config`, `Shared.Remotes`, `Shared.Tags`, `Main`, `ClientMain`, `AnimationIds` placeholder | - |
+| 2 | Builder | map + spawn + tagged gameplay parts (blockout first) | 1 (tag names) |
+| 3 | Designer | style guide + every screen, element names reported | 1 |
+| 4 | Animator | every spec animation, ids in `AnimationIds` | 1 |
+| 5 | Coding | mechanics services + persistence | 1 |
+| 6 | Builder | custom models and dressing (Blender/Studio) | 2 |
+| 7 | Coding | UI controllers + animation playback | 3, 4, 5 |
+| 8 | Lead | integration playtest | 2, 5, 7 |
+| 9 | Designer | icon + thumbnails | 8 |
 
-After each stage:
-1. Append to `build.checkpoints`: `{ "stage", "at" (ISO time), "summary", "openIssues" }`
-   and set `build.stage` to the next stage.
-2. Run a cheap smoke check: `get_console_output` should show no new errors after an Edit-mode
-   `execute_luau` that `require`s every ModuleScript written so far (see `playtest-loop`).
-3. Ask the user to save the place (Ctrl+S / File > Save to File) - you cannot rely on
-   Studio autosave. If a tool exists to save in your client, use it.
-4. Post a 3-5 line progress note to the user. Do **not** wait for approval between stages
-   unless something needs a decision (monetization, publishing, deleting user content,
-   ambiguous genre).
+Keep tasks small, so one owner can finish each with a clear "done when". Split a big
+area into several tasks rather than one vague one.
 
-## Execution rules
+## Stage 3 - Dispatch and run
 
-- **Small, verifiable steps.** Write one script or one UI screen at a time, then read it
-  back (`script_read`) or inspect it (`inspect_instance`) before moving on.
-- **Prefer Luau over clicking.** Build instances with `execute_luau` (datamodel_type `Edit`);
-  write script source with `multi_edit`. Make scripts idempotent: re-running a builder must
-  not duplicate instances (find-or-create by name).
-- **Tag, don't hard-code paths.** Gameplay objects get `CollectionService` tags
-  (e.g. `Coin`, `Lava`, `Checkpoint`) so code and assets can be built independently.
-- **Budget awareness.** Keep each Studio tool call output small (filter `search_game_tree`
-  by path/type, limit depth).
-- **No secrets in the place.** Never write API keys into scripts. Open Cloud keys stay in the
-  agent's environment and are used only from outside Roblox.
-- **Content standards.** Keep everything within Roblox Community Standards; no real-brand
-  logos or copyrighted characters unless the user owns them.
+- Send each ready task as `[GS] TASK #n` (team-protocol section 5). Run independent
+  tasks **in parallel**: after task 1, tasks 2-5 can all run at once.
+- On `DONE #n`: check the claim (spec statuses updated, paths exist via
+  `search_game_tree`/`inspect_instance`, a quick Edit-mode `screen_capture` when it's
+  visual). Then mark the task done, set `finishedAt`, and dispatch whatever it unblocked.
+- On `BLOCKED #n`: unblock it (decide, edit the spec, route an `ASK`), or ask the user if
+  only they can.
+- Route `ASK`s that aren't yours to the owner. Answer spec questions yourself and record
+  the decision in `meta.assumptions`.
+- After each finished slice, append a checkpoint to `build.checkpoints`
+  (`{stage, at, summary, openIssues}`), ask the user to save the place (Ctrl+S), and send
+  them a 3-5 line progress note. Don't wait for approval unless a decision is needed:
+  monetization, publishing, deleting user content, or an ambiguous genre.
 
-## Final playtest gate (definition of done)
+## Stage 4 - Integration playtests (you only)
 
-The game is done only when **all** are true (run the `playtest-loop` skill):
-- Zero errors in `get_console_output` across Edit-mode require-check, a server+client
-  playtest start, and the full acceptance run. Warnings are listed in the report.
+1. Take the `studio-play` lock, and message all specialists `[GS] PLAY ON`. They stop
+   editing Studio.
+2. Run `playtest-loop` (boot test, acceptance tests, core-loop run).
+3. Stop play, release the lock, send `[GS] PLAY OFF`.
+4. Send each failure to its owner as `[GS] FIX #n` with the evidence: console lines, the
+   failing test, screenshot paths. Group fixes so specialists work in parallel, then
+   playtest again. The playtest-loop iteration limits apply across the whole loop.
+
+Never playtest while the user is in Play mode themselves: check `get_studio_state`, and
+ask them first.
+
+## Stage 5 - Final gate (definition of done)
+
+All of these must be true:
+- Zero errors in `get_console_output` across the Edit-mode require-check, a server and
+  client playtest start, and the full acceptance run. List the warnings in the report.
 - Every `acceptanceTests[]` item is `pass`.
-- The core loop was completed end-to-end at least once via simulated input
-  (`character_navigation`, `user_keyboard_input`, `user_mouse_input`).
+- The core loop was completed end-to-end at least once via simulated input.
 - Every `ui.screens[]` is `verified` with a `screen_capture` at a phone-like and a desktop
-  viewport (or explicitly noted as not checkable).
-- Every MeshPart is under 20,000 triangles and every `assets.items[]` is `placed`.
-- Persistence (if enabled) loads defaults in Studio without crashing even when API access
-  is off (DataStore calls are wrapped in `pcall`).
+  viewport, or explicitly noted as not checkable.
+- Every MeshPart is under 20,000 triangles, and every `assets.items[]` is `placed`.
+- Persistence (if enabled) loads defaults in Studio without crashing when API access is
+  off.
 
-If the gate fails after the playtest skill's max iterations, stop, set `build.stage` to
-`playtest`, and give the user the report with the remaining failures - do not claim success.
+If the gate still fails at the iteration limit, stop. Set `build.stage = "playtest"` and
+give the user the report with the remaining failures. Do not claim success.
 
-## Final handoff message
+## Stage 6 - Marketing and handoff
 
-Summarize: title + pitch; what was built (scripts, screens, assets, animations); files
-produced (`game-spec.json`, `marketing/*`); connectors used/fallbacks; the playtest report
-summary; and **manual steps left for the user** (save, publish via File > Publish to Roblox,
-enable Studio Access to API Services for DataStores in Game Settings > Security, upload
-icon/thumbnails in Creator Dashboard, set maturity questionnaire).
+Send Designer the icon and thumbnail task with your best playtest captures. Then tell the
+user:
+- title, pitch and what was built (scripts, screens, assets, animations)
+- files (`game-spec.json`, `marketing/*`, reports)
+- the playtest summary and per-task timings (from `build.tasks[]` `startedAt`/`finishedAt`)
+- **manual steps left:** save; publish via File > Publish to Roblox; enable Studio Access
+  to API Services for DataStores (Game Settings > Security); upload the icon and
+  thumbnails in the Creator Dashboard; any pending Import 3D or animation publishes; the
+  maturity questionnaire.
+
+## Rules that are yours alone
+
+- Never publish, change game settings, enable API services, create products or spend
+  Robux without the user's explicit yes.
+- No secrets in the place or the repo. Open Cloud keys stay in Grok Bot secrets.
+- Content follows the Roblox Community Standards. No real brands or copyrighted characters
+  unless the user owns them.

@@ -1,166 +1,132 @@
 # grok-studio
 
-**One prompt in, a playable Roblox game out.** `grok-studio` is an open-source agent
-plugin that gives any AI coding agent an end-to-end workflow for building a complete Roblox
-game: a structured game design spec, typed Luau code, mobile-ready UI, low-poly 3D models
-and animations made in Blender, an automated playtest-and-fix loop, plus a thumbnail and
-icon.
+**An agentic Roblox studio inside Grok Bot.** Install the plugin, run one setup command,
+and you get a team of five Grok Bots that build a complete Roblox game in *your* Roblox
+Studio from one prompt:
 
-It works with **Cursor**, **Claude Code**, and **Grok Bot** (which installs plugins from the
-Cursor marketplace), and drives three MCP connectors: the **Roblox Studio built-in MCP**,
-**Blender MCP**, and (optionally) **Figma MCP**.
+| Bot | Does |
+|---|---|
+| **Lead GrokBot** | talks to you, writes the game spec, plans and hands out tasks, runs playtests, final gate |
+| **Coding GrokBot** | all Luau: server services, remotes with validation, DataStores, client controllers |
+| **Designer GrokBot** | UI (HUD, menus, shops) in Studio, optional Figma, icon and thumbnails |
+| **Builder GrokBot** | the world and every 3D model, in Studio (parts, procedural and generated models) and in Blender |
+| **Animator GrokBot** | rigs and animations (Luau keyframes in Studio, or Blender) |
 
-> Status: **v0.1.0, early draft.** The skills and configs follow the documented formats as of
-> Oct 2026, but the full pipeline has not been run end-to-end against a live Studio yet.
-> See [Limitations](#limitations).
+The Bots message each other directly, work in parallel, and share one cloud computer and
+one `game-spec.json`. They follow a team protocol, so five agents in one Studio don't
+break each other's work.
+
+Also works in **Claude Code / Grok Build / Cursor**: the same roles ship as subagents in
+`agents/`, and the main session plays the Lead.
+
+> Status: **v0.2.0, early.** The bridge was run end to end against a live Studio on
+> Windows. The multi-bot flow has not yet done a full build. See [Limitations](#limitations).
 
 ---
+
+## Run it on Grok Bot
+
+**On your PC (once):** Roblox Studio open with a place, and **Assistant > ... > Manage MCP
+Servers > Enable Studio as MCP server** turned on. In Grok Bot, **Settings > General > Bot >
+Execution on Local Computer** = *Ask every time*, so the Lead can start the bridge on your
+PC with your approval.
+
+**In Grok Bot:**
+1. Install **grok-studio** from the plugin marketplace. Until it is listed, tell any Bot:
+   *"Install the grok-studio plugin from https://github.com/brain-xiang/grok-studio"*. If
+   it can't install unlisted plugins, ask it to clone the repo into
+   `/workspace/grok-studio/plugin` and save every `skills/*/SKILL.md` there as a skill.
+2. Type **`/grok-studio-setup`**. It:
+   - creates the five Bots in a **Grok Studio** sidebar section, with their instructions
+   - installs headless Blender on the Bots' cloud computer (nothing to install on your PC)
+   - has Lead GrokBot start the bridge on your PC and connect your Studio
+     (approve its commands)
+   - checks Figma (optional, one Authorize click) and an optional Roblox Open Cloud key
+   - pings Studio from every Bot and shows a ready table
+3. Open **Lead GrokBot** and describe the game:
+
+> Make a co-op tycoon where players run a volcano-powered hot sauce factory. Conveyor
+> droppers make sauce bottles, players collect cash, buy upgrades and unlock a second
+> floor. Low-poly cartoon style, mobile-friendly UI, no monetization. Save progress.
+> Make a thumbnail and icon.
+
+**Next session:** `/grok-studio-setup --reconnect`, or just ask the Lead to build: it
+reconnects Studio itself. **Stop:** tell the Lead "disconnect Studio", or press Ctrl+C in
+the bridge window. The bridge key dies with it.
+
+## How it works
+
+```mermaid
+flowchart LR
+    U([You]) <--> L[Lead GrokBot]
+    L -- TASK / FIX --> C[Coding] & D[Designer] & B[Builder] & A[Animator]
+    C & D & B & A -- DONE / BLOCKED / ASK --> L
+    subgraph Cloud computer shared by all Bots
+      SPEC[(/workspace/grok-studio/games/slug/<br/>game-spec.json, locks, .blend files, exports)]
+      BL[headless Blender]
+    end
+    C & D & B & A & L --- SPEC
+    B & A --- BL
+    subgraph Your PC
+      BR[bridge: supergateway + tunnel] --> ST[Roblox Studio MCP] --> RS[Roblox Studio]
+      BR --> FD[file drop<br/>~/grok-studio/drop]
+    end
+    C & D & B & A & L -- one shared roblox-studio connector --> BR
+```
+
+- **Studio** stays on your PC (it only runs on Windows/macOS). The bridge exposes it to
+  the cloud Bots behind one authenticated URL with a fresh key per session. See
+  [`bridge/README.md`](bridge/README.md).
+- **Blender** runs headless on the cloud computer. Models reach Studio through an Open Cloud
+  upload (automatic, if you add a key) or one **Import 3D** click per batch, with the file
+  already dropped on your PC.
+- **Team protocol** ([`skills/team-protocol`](skills/team-protocol/SKILL.md)):
+  - every Bot writes only its own part of the place and of the spec
+  - only the Lead plays the game (a `studio-play` lock, so nobody edits while play mode
+    is on)
+  - spec writes take a lock
+  - one `.blend` file per asset
+  - fixed `TASK` / `DONE` / `BLOCKED` / `ASK` / `FIX` message formats
 
 ## What's inside
 
 ```
-.cursor-plugin/plugin.json   Cursor plugin manifest
+.cursor-plugin/plugin.json   Cursor / Grok Bot plugin manifest
 .claude-plugin/plugin.json   Claude Code plugin manifest
-mcp.json                     MCP servers for Cursor  (uses ${CURSOR_PLUGIN_ROOT})
-.mcp.json                    MCP servers for Claude Code (uses ${CLAUDE_PLUGIN_ROOT}, typed http)
+mcp.json, .mcp.json          MCP servers (local agents; Grok Bot uses the bridge)
+agents/                      coder, designer, builder, animator (subagents + Grok Bot instructions)
 skills/
-  grok-studio/            orchestrator: preflight, stage order, checkpoints, final gate
+  grok-studio-setup/         one-command setup: creates the Bots, Blender, bridge, smoke test (+ lead-bot.md)
+  team-protocol/             workspace layout, ownership, locks, message formats
+  grok-studio/               Lead playbook: preflight, spec, plan, dispatch, playtests, gate, handoff
+  setup-bridge/              starts the bridge on the user's PC via ExternalShell, registers the connector
   game-spec/                 prompt -> game-spec.json (+ schema.json, example)
   roblox-code/               Luau architecture, remotes, DataStores, anti-exploit (+ reference/*.luau)
-  roblox-ui/                 Figma path + Studio-direct ScreenGui builder (+ reference/UiKit.luau)
-  blender-assets/            low-poly modeling, budgets, FBX export, import (+ reference/roblox_export.py)
-  roblox-animations/         R15, Luau keyframes or Blender import, publish, wire
-  playtest-loop/             start play, simulate input, read logs, fix, repeat, report
-  thumbnail-and-icon/        512x512 icon, 1920x1080 thumbnails (+ reference/make_marketing_images.py)
+  roblox-ui/                 Studio-direct ScreenGui builder, Figma path (+ reference/UiKit.luau)
+  roblox-building/           maps, terrain, lighting, tagged parts, Studio generation tools
+  blender-assets/            headless cloud Blender, checkpoints, review renders, FBX export, upload
+  roblox-animations/         R15 keyframes in Luau or Blender, ids, publishing
+  playtest-loop/             play, simulate input, read logs, route fixes, report
+  thumbnail-and-icon/        512x512 icon, 1920x1080 thumbnails
+bridge/                      start-bridge.ps1 / .sh, files-server.mjs (file drop)
+scripts/                     studio-mcp.mjs, send-to-pc.py, opencloud_upload.py, validate.py
 rules/roblox-luau.mdc        Luau conventions (Cursor rule)
-scripts/studio-mcp.mjs       cross-platform launcher for Studio's MCP server
-scripts/validate.py          validates JSON + skill/rule frontmatter
-bridge/                      start-bridge.ps1 / start-bridge.sh for remote agents
-assets/logo.svg
 ```
 
-## Architecture
+## Local agents (Claude Code, Cursor, Grok Build)
 
-```mermaid
-flowchart LR
-    U([One prompt]) --> O[grok-studio<br/>orchestrator skill]
-    O --> S1[game-spec] --> SPEC[(game-spec.json<br/>single source of truth)]
-    SPEC --> S2[roblox-code]
-    SPEC --> S3[roblox-ui]
-    SPEC --> S4[blender-assets]
-    SPEC --> S5[roblox-animations]
-    S2 & S3 & S4 & S5 --> S6[playtest-loop<br/>final gate]
-    S6 --> S7[thumbnail-and-icon]
-
-    subgraph Connectors
-      RS[Roblox Studio MCP<br/>stdio, built into Studio]
-      BM[Blender MCP<br/>uvx mcp-for-blender]
-      FG[Figma MCP<br/>https://mcp.figma.com/mcp<br/>optional]
-    end
-
-    S2 & S3 & S5 & S6 --> RS
-    S4 & S5 & S7 --> BM
-    S3 -.optional.-> FG
-    S7 --> RS
-```
-
-**Local agents** (Cursor / Claude Code on the same PC as Studio) launch the stdio servers
-directly. **Remote agents** (Grok Bot on a cloud Linux box) reach them through the bridge:
-
-```mermaid
-flowchart LR
-    G[Grok Bot<br/>cloud box] -- HTTPS + API key --> N[ngrok tunnel<br/>your account]
-    subgraph Your PC
-      N --> SG[supergateway<br/>127.0.0.1:8765]
-      SG -- /roblox-studio/mcp --> ST[Studio MCP<br/>stdio] --> RSt[Roblox Studio]
-      SG -- /blender/mcp --> BL[mcp-for-blender<br/>stdio] --> B[Blender + add-on]
-    end
-    G -. Figma remote MCP, OAuth .-> F[mcp.figma.com]
-```
-
-## Requirements
-
-| Need | For | Notes |
-|---|---|---|
-| Roblox Studio (latest), Windows or macOS | everything | Enable **Assistant > ... > Manage MCP Servers > Enable Studio as MCP server** ([docs](https://create.roblox.com/docs/studio/mcp)) |
-| Node.js LTS (`node`, `npx`) | Studio launcher, bridge | the plugin starts Studio MCP via `node scripts/studio-mcp.mjs` |
-| uv (`uvx`) | Blender MCP, helper scripts | [install uv](https://docs.astral.sh/uv/getting-started/installation/) |
-| Blender + MCP for Blender add-on | 3D models, animations, renders | optional; Studio generation is the fallback |
-| Figma account (Professional+ seat to write) | UI design | optional; Studio-direct UI is the fallback |
-| ngrok account | remote agents only | free tier works; any HTTPS tunnel works |
-
-## Install
-
-### A. Local agents (Cursor, Claude Code) - Studio on the same machine
-
-1. **Get the plugin**
-   - **Cursor:** once published, install **grok-studio** from the Cursor Marketplace
-     (Customize). Until then, copy the folder (not a symlink - Cursor skips symlinks that
-     point outside) into `~/.cursor/plugins/local/grok-studio`, then run **Developer:
-     Reload Window** and check **Customize** for the skills and MCP servers
-     ([docs](https://cursor.com/docs/plugins#test-plugins-locally)).
-   - **Claude Code:** `claude --plugin-dir /path/to/grok-studio` for a session, or add it
-     to a plugin marketplace you control. Claude Code reads `.claude-plugin/plugin.json`,
-     `skills/`, and `.mcp.json` (it ignores `rules/*.mdc`; the conventions are repeated in
-     the `roblox-code` skill).
-2. **Roblox Studio:** open a place, enable *Studio as MCP server* (see above).
-3. **Blender (optional):** `uvx mcp-for-blender setup` (installs/enables the add-on), open
-   Blender; the add-on starts its server (N panel > MCP for Blender).
-4. **Figma (optional):** the first Figma tool call opens an OAuth sign-in.
-5. **Avoid duplicates:** if you previously used Studio's *Quick connect* or
-   `mcp-for-blender setup` to add `Roblox_Studio`/`blender` to your client's own MCP config,
-   either remove those entries or disable this plugin's copies in your client, so the agent
-   doesn't see every tool twice. Same if you also installed Figma's own plugin.
-
-GUI apps on macOS/Windows may not inherit your shell `PATH`. If `node` or `uvx` isn't
-found, use full paths in your client's MCP settings (see the
-[mcp-for-blender README](https://github.com/ahujasid/mcp-for-blender#make-your-client-find-uvx)).
-
-### B. Remote agents (Grok Bot) - via the bridge
-
-Grok Bot runs on a cloud Linux box, so it **cannot** launch stdio servers on your PC. The
-plugin's `mcp.json` entries for Studio/Blender won't start there (the Studio launcher exits
-with a message pointing here).
-
-#### Guided setup (recommended)
-
-1. Install the plugin in Grok Bot from the Cursor Marketplace.
-2. Make sure Roblox Studio is open with a place loaded and MCP enabled, and that
-   Node.js and ngrok are installed on your PC.
-3. In Grok Bot, type:
-   ```
-   /setup-bridge
-   ```
-4. The bot uses ExternalShell to run the bridge on your local PC, start an ngrok
-   tunnel, and register the Studio (and optionally Blender) connectors automatically.
-   You will see approval prompts for local commands — accept them.
-5. When the bot says "ready", start building. When done, press Ctrl+C in the bridge
-   terminal on your PC.
-
-The `/setup-bridge` skill handles prerequisites, error messages, and retry. A fresh
-API key is generated each session — no static secrets to manage.
-
-#### Manual setup (fallback)
-
-If ExternalShell is not available or you prefer to do it yourself:
-
-1. Install the plugin in Grok Bot from the Cursor Marketplace (skills + Figma connector).
-2. On your PC (Studio + Blender open), run the bridge:
-   ```powershell
-   # Windows (PowerShell)
-   powershell -ExecutionPolicy Bypass -File .\bridge\start-bridge.ps1 -Tunnel
-   ```
-   ```bash
-   # macOS
-   ./bridge/start-bridge.sh --tunnel
-   ```
-3. It prints two URLs (`.../roblox-studio/mcp`, `.../blender/mcp`) and an API key. In Grok
-   Bot, add each as a **custom connector** (remote MCP, Streamable HTTP) with header
-   `Authorization: Bearer <key>` (or `X-API-Key: <key>`).
-4. Prompt the bot (see Quickstart). When done, **Ctrl+C** the bridge and remove the
-   connectors.
-
-Details, flags, and security notes: [`bridge/README.md`](bridge/README.md).
+Studio on the same machine, no bridge needed.
+- **Claude Code:** `claude --plugin-dir /path/to/grok-studio` (or a marketplace you
+  control). It reads `.claude-plugin/plugin.json`, `skills/`, `agents/` and `.mcp.json`.
+  Then: *"Use the grok-studio skill to build ..."*. The main session is the Lead, and
+  `coder`/`designer`/`builder`/`animator` run as subagents.
+- **Cursor:** copy the folder (not a symlink) into `~/.cursor/plugins/local/grok-studio`,
+  then **Developer: Reload Window**.
+- **Requirements:** Node.js LTS (`npx`), uv (`uvx`) for the local Blender MCP (optional),
+  Blender with the MCP for Blender add-on (`uvx mcp-for-blender setup`, optional).
+- **Avoid duplicate tools:** if Studio's *Quick connect* or `mcp-for-blender setup` already
+  added `Roblox_Studio`/`blender` to your client, remove those entries or disable this
+  plugin's copies.
 
 ## Connector setup reference
 
@@ -210,23 +176,6 @@ docs don't promise substitution inside `command`. Zero-config wins.
 - Figma also ships its own Cursor/Claude plugin with Figma skills; you can use that instead
   of this entry.
 
-## Quickstart
-
-1. Open Roblox Studio with a **new Baseplate** place (the agent edits the open place).
-2. Make sure the connectors show up in your agent (Cursor: Customize; Claude Code: `/mcp`;
-   Grok Bot: connectors list).
-3. Prompt:
-
-> Use the grok-studio skill to build a complete Roblox game: a co-op tycoon where
-> players run a volcano-powered hot sauce factory. Conveyor droppers make sauce bottles,
-> players collect cash, buy upgrades and unlock a second floor. Low-poly cartoon style,
-> mobile-friendly UI, no monetization. Save progress. Make a thumbnail and icon.
-
-The agent will: check connectors -> write and validate `game-spec.json` -> build scripts,
-UI, assets, animations in Studio -> playtest until every acceptance test passes ->
-produce `marketing/icon-512.png` and `marketing/thumb-*.png` -> hand you a short list of
-manual steps (save, publish, enable API access for DataStores, upload images).
-
 ## Security
 
 - **MCP servers here execute code.** Studio MCP runs Luau in your open places; Blender MCP
@@ -244,34 +193,27 @@ manual steps (save, publish, enable API access for DataStores, upload images).
 
 ## Limitations
 
-- **Not yet run end-to-end against a live Studio session.** Tool names and behaviour follow
-  Roblox's Studio MCP docs (Oct 2026); expect rough edges. Issues and PRs welcome.
-- **Bridge scripts:** `start-bridge.ps1` is **untested on Windows** (it was syntax-checked
-  with PowerShell 7). `start-bridge.sh` was smoke-tested on Linux with stand-in stdio
-  servers (key enforcement and teardown verified), not on macOS with real Studio/Blender.
-- Some steps still need human hands: importing FBX through Studio's Importer (unless you
-  provide an Open Cloud API key), publishing animations, publishing the place, enabling
-  Studio API access for DataStores, uploading the icon/thumbnails (no API-key endpoint
-  documented for game media).
-- Studio MCP screenshots are viewport-sized; for exact 1920x1080 thumbnails the Blender
-  render path is preferred.
-- "One-shot" scope is deliberately small (3-5 core mechanics). Bigger games need
-  iteration.
-- Grok Bot can't use the plugin's stdio entries; it needs the bridge.
+- **The full multi-bot build hasn't been run yet.** The bridge has been run against a live
+  Studio on Windows, and the skills follow the documented Studio MCP tools. What a Grok
+  Bot can set when it creates another Bot was confirmed by Grok Bot: name, instructions
+  and sidebar section. Skills are shared by all of an account's Bots.
+- One Studio serves every Bot. Play mode is global, so playtests pause the other Bots'
+  Studio edits.
+- Some steps still need you: **Import 3D** for Blender models without an Open Cloud key,
+  importing Blender animations into the Animation Editor, publishing animations and the
+  place, enabling Studio API access for DataStores, and uploading the icon and thumbnails
+  (no API-key endpoint for game media).
+- Figma's free plan is read-only and limited to about 20 calls a month, so Designer builds
+  UI directly in Studio.
+- "One-shot" scope is deliberately small (3-5 core mechanics). Bigger games need iteration.
 
 ## Roadmap
 
-- [ ] End-to-end test runs on Windows (Zephyrus) and macOS; record a demo.
-- [ ] Root `plugin.json` for the [Agent Plugins](https://agent-plugins.org) open standard.
-      Not added in v0.1 because the standard's closed `mcp.json` requires `type` on every
-      server, forbids placeholders in `command`, and uses `${PLUGIN_ROOT}` (which Cursor does
-      not expand) - a shared file would conflict with the Cursor/Claude configs. Likely
-      solution: generate a standards-conformant variant at publish time.
-- [ ] Hooks: auto-run the require-check after script edits; block `publish` tool calls.
-- [ ] Optional Rojo project template for file-based workflows.
-- [ ] Open Cloud helpers: asset upload + polling script, place publishing with explicit
-      consent.
-- [ ] Blender Lab MCP compatibility notes per tool.
+- [ ] End-to-end team build on Grok Bot (Windows + macOS); record a demo.
+- [ ] Publish to the Cursor Marketplace (so Grok Bot lists it).
+- [ ] Public Grok Bot template for the team (instructions + skills in one link).
+- [ ] Hooks: auto require-check after script edits; block publish calls.
+- [ ] Automated animation upload (Studio SerializationService -> .rbxm -> Open Cloud).
 - [ ] Genre presets (obby, tycoon, simulator, round-based PvP) with tested spec templates.
 
 ## Validate locally

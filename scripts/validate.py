@@ -76,7 +76,24 @@ for p in skills:
         errors.append(f"{p}: 'description' longer than 1024 chars")
     print(f"ok   skill     {p.relative_to(ROOT)}  ({name})")
 
-# 5. Rules
+# 5. Agents (Claude Code subagents; grok-studio-setup also copies their bodies into Grok Bots)
+skill_names = {p.parent.name for p in skills}
+for p in sorted((ROOT / "agents").glob("*.md")):
+    fm = frontmatter(p)
+    if fm is None:
+        continue
+    name, desc = fm.get("name"), fm.get("description")
+    if name != p.stem:
+        errors.append(f"{p}: name '{name}' != file name '{p.stem}'")
+    if not isinstance(desc, str) or len(desc) < 40:
+        errors.append(f"{p}: 'description' missing or too short")
+    body = p.read_text(encoding="utf-8").split("\n---\n", 1)[-1]
+    for ref in re.findall(r"`([a-z0-9-]+)`", body):
+        if ref.endswith(("-protocol", "-code", "-ui", "-icon", "-building", "-assets", "-animations")) and ref not in skill_names:
+            errors.append(f"{p}: references unknown skill '{ref}'")
+    print(f"ok   agent     {p.relative_to(ROOT)}  ({name})")
+
+# 6. Rules
 for p in sorted((ROOT / "rules").glob("*.mdc")):
     fm = frontmatter(p)
     if fm is None:

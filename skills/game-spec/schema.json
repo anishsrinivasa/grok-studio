@@ -256,7 +256,34 @@
         "placeId": { "type": ["string", "null"] },
         "connectors": { "type": "object", "properties": { "studio": { "type": "boolean" }, "blender": { "type": "boolean" }, "figma": { "type": "boolean" } } },
         "checkpoints": { "type": "array", "items": { "type": "object", "required": ["stage", "at", "summary"], "properties": { "stage": { "type": "string" }, "at": { "type": "string" }, "summary": { "type": "string" }, "openIssues": { "type": "array", "items": { "type": "string" } } } } },
-        "playtestReports": { "type": "array", "items": { "type": "string" } }
+        "playtestReports": { "type": "array", "items": { "type": "string" } },
+        "team": {
+          "type": "object",
+          "description": "How the build is staffed (see team-protocol).",
+          "properties": {
+            "mode": { "enum": ["grok-bots", "subagents", "solo"] },
+            "bots": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "tasks": {
+          "type": "array",
+          "description": "Task board kept by the Lead; each owner updates only its own entries.",
+          "items": {
+            "type": "object",
+            "required": ["id", "owner", "title", "status"],
+            "properties": {
+              "id": { "type": "integer" },
+              "owner": { "enum": ["lead", "coder", "designer", "builder", "animator"] },
+              "title": { "type": "string" },
+              "specRefs": { "type": "array", "items": { "type": "string" } },
+              "dependsOn": { "type": "array", "items": { "type": "integer" } },
+              "status": { "enum": ["open", "in-progress", "done", "blocked"] },
+              "startedAt": { "type": "string" },
+              "finishedAt": { "type": "string" },
+              "notes": { "type": "string" }
+            }
+          }
+        }
       }
     }
   }

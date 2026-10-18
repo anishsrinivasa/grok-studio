@@ -75,7 +75,8 @@ If neither is available, check required keys manually against the schema and say
 
 ## Output
 
-Write `game-spec.json` (2-space indent) to the project folder, show the user a 6-10 line
+Write `game-spec.json` (2-space indent) to the project folder (Grok Bot:
+`/workspace/grok-studio/games/<slug>/game-spec.json`, see `team-protocol`), show the user a 6-10 line
 summary (title, pitch, loop, mechanics, screens, asset count), and continue to the next
 stage unless they object.
 

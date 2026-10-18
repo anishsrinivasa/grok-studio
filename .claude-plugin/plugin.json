@@ -1,10 +1,17 @@
 {
   "name": "grok-studio",
-  "version": "0.1.0",
-  "description": "One-shot a complete Roblox game from a single prompt: game design spec, typed Luau code, UI, low-poly 3D models and animations (Blender), an automated playtest-and-fix loop, plus a thumbnail and icon.",
+  "version": "0.2.0",
+  "description": "An agentic Roblox studio for Grok Bot: a Lead bot runs Designer (UI), Animator, Builder (Studio + Blender) and Coding bots that build a complete game from one prompt in your Roblox Studio - spec, Luau code, mobile UI, maps and models, animations, an automated playtest-and-fix loop, icon and thumbnails. One setup command creates the team and connects Studio, Blender and Figma.",
   "author": {
     "name": "Anish Srinivasan"
   },
   "license": "MIT",
-  "keywords": ["roblox", "luau", "blender", "figma", "mcp", "game-development"]
+  "keywords": [
+    "roblox",
+    "luau",
+    "blender",
+    "figma",
+    "mcp",
+    "game-development"
+  ]
 }

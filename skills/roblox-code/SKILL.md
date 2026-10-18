@@ -18,6 +18,15 @@ Implement every entry in `game-spec.json` -> `scripts[]` inside Studio, honoring
 
 Also follow `rules/roblox-luau.mdc` (style + conventions).
 
+**Team mode (`team-protocol`):** Coding owns `ServerScriptService`,
+`ReplicatedStorage.Shared` (except `Shared.AnimationIds`, which is Animator's) and
+`StarterPlayer`. Your first task is the skeleton, so the others can build against it:
+the folders below, `Shared.Config`, `Shared.Remotes`, `Shared.Tags` (one constant per
+CollectionService tag in the spec, e.g. `Tags.Coin = "Coin"`), `Server.Main`,
+`ClientMain`, and a placeholder `Shared.AnimationIds` (`return {}`) that Animator then
+takes over. UI controllers use Designer's element names exactly. Animations play by name
+through `Shared.AnimationIds`. Never start or stop play yourself; `ASK` the Lead.
+
 ## Canonical layout
 
 ```
