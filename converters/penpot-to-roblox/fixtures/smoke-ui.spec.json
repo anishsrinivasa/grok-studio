@@ -1,0 +1,437 @@
+{
+  "version": 2,
+  "source": "penpot",
+  "board": {
+    "id": "bd3bca6f-ea15-80bf-8008-cf981645b491",
+    "name": "MainMenu",
+    "width": 1920,
+    "height": 1080
+  },
+  "elements": [
+    {
+      "id": "bd3bca6f-ea15-80bf-8008-cf98164ab4bc",
+      "name": "Background",
+      "type": "Frame",
+      "position": {
+        "scaleX": 0,
+        "offsetX": 0,
+        "scaleY": 0,
+        "offsetY": 0
+      },
+      "size": {
+        "scaleX": 1,
+        "offsetX": 0,
+        "scaleY": 1,
+        "offsetY": 0
+      },
+      "anchorPoint": {
+        "x": 0,
+        "y": 0
+      },
+      "design": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1080
+      },
+      "zIndex": 1,
+      "visible": true,
+      "backgroundTransparency": 0,
+      "children": [],
+      "backgroundColor": "#FFFFFF",
+      "gradient": {
+        "rotation": 90,
+        "color": [
+          {
+            "time": 0,
+            "color": "#2B1055"
+          },
+          {
+            "time": 1,
+            "color": "#7597DE"
+          }
+        ],
+        "transparency": [
+          {
+            "time": 0,
+            "value": 0
+          },
+          {
+            "time": 1,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "bd3bca6f-ea15-80bf-8008-cf981650332f",
+      "name": "Title",
+      "type": "TextLabel",
+      "position": {
+        "scaleX": 0.5,
+        "offsetX": 0,
+        "scaleY": 0.1111,
+        "offsetY": 0
+      },
+      "size": {
+        "scaleX": 0.625,
+        "offsetX": 0,
+        "scaleY": 0.1481,
+        "offsetY": 0
+      },
+      "anchorPoint": {
+        "x": 0.5,
+        "y": 0
+      },
+      "design": {
+        "x": 360,
+        "y": 120,
+        "width": 1200,
+        "height": 160
+      },
+      "zIndex": 2,
+      "visible": true,
+      "backgroundTransparency": 1,
+      "children": [],
+      "textColor": "#FFFFFF",
+      "textTransparency": 0,
+      "text": "Candy Sky Obby",
+      "font": {
+        "family": "FredokaOne",
+        "weight": "Bold",
+        "style": "Normal"
+      },
+      "textSize": 100,
+      "textScaled": true,
+      "textWrapped": true,
+      "textXAlignment": "Center",
+      "textYAlignment": "Center",
+      "lineHeight": 1.2
+    },
+    {
+      "id": "bd3bca6f-ea15-80bf-8008-cf981657a652",
+      "name": "Buttons",
+      "type": "Frame",
+      "position": {
+        "scaleX": 0.5,
+        "offsetX": 0,
+        "scaleY": 0.5676,
+        "offsetY": 0
+      },
+      "size": {
+        "scaleX": 0.25,
+        "offsetX": 0,
+        "scaleY": 0.3574,
+        "offsetY": 0
+      },
+      "anchorPoint": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "design": {
+        "x": 720,
+        "y": 420,
+        "width": 480,
+        "height": 386
+      },
+      "zIndex": 3,
+      "visible": true,
+      "backgroundTransparency": 1,
+      "children": [
+        {
+          "id": "bd3bca6f-ea15-80bf-8008-cf98165f2734",
+          "name": "PlayButton",
+          "type": "TextButton",
+          "position": {
+            "scaleX": 0,
+            "offsetX": 0,
+            "scaleY": 0,
+            "offsetY": 0
+          },
+          "size": {
+            "scaleX": 1,
+            "offsetX": 0,
+            "scaleY": 0.285,
+            "offsetY": 0
+          },
+          "anchorPoint": {
+            "x": 0,
+            "y": 0
+          },
+          "design": {
+            "x": 0,
+            "y": 0,
+            "width": 480,
+            "height": 110
+          },
+          "zIndex": 1,
+          "visible": true,
+          "backgroundTransparency": 0,
+          "children": [
+            {
+              "id": "bd3bca6f-ea15-80bf-8008-cf9816629802",
+              "name": "Label",
+              "type": "TextLabel",
+              "position": {
+                "scaleX": 0.5,
+                "offsetX": 0,
+                "scaleY": 0.5,
+                "offsetY": 0
+              },
+              "size": {
+                "scaleX": 1,
+                "offsetX": 0,
+                "scaleY": 1,
+                "offsetY": 0
+              },
+              "anchorPoint": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "design": {
+                "x": 0,
+                "y": 0,
+                "width": 480,
+                "height": 110
+              },
+              "zIndex": 1,
+              "visible": true,
+              "backgroundTransparency": 1,
+              "children": [],
+              "textColor": "#FFFFFF",
+              "textTransparency": 0,
+              "text": "Play",
+              "font": {
+                "family": "FredokaOne",
+                "weight": "Bold",
+                "style": "Normal"
+              },
+              "textSize": 48,
+              "textScaled": true,
+              "textWrapped": true,
+              "textXAlignment": "Center",
+              "textYAlignment": "Center",
+              "lineHeight": 1.2
+            }
+          ],
+          "backgroundColor": "#3BB273",
+          "corner": {
+            "scale": 0.2182,
+            "offset": 0
+          },
+          "stroke": {
+            "thickness": 4,
+            "color": "#FFFFFF",
+            "transparency": 0,
+            "mode": "Border",
+            "position": "Inner"
+          },
+          "text": "",
+          "clipsDescendants": true,
+          "layoutOrder": 1
+        },
+        {
+          "id": "bd3bca6f-ea15-80bf-8008-cf981668b779",
+          "name": "ShopButton",
+          "type": "TextButton",
+          "position": {
+            "scaleX": 0,
+            "offsetX": 0,
+            "scaleY": 0.3575,
+            "offsetY": 0
+          },
+          "size": {
+            "scaleX": 1,
+            "offsetX": 0,
+            "scaleY": 0.285,
+            "offsetY": 0
+          },
+          "anchorPoint": {
+            "x": 0,
+            "y": 0
+          },
+          "design": {
+            "x": 0,
+            "y": 138,
+            "width": 480,
+            "height": 110
+          },
+          "zIndex": 1,
+          "visible": true,
+          "backgroundTransparency": 0,
+          "children": [
+            {
+              "id": "bd3bca6f-ea15-80bf-8008-cf98166bfa11",
+              "name": "Label",
+              "type": "TextLabel",
+              "position": {
+                "scaleX": 0.5,
+                "offsetX": 0,
+                "scaleY": 0.5,
+                "offsetY": 0
+              },
+              "size": {
+                "scaleX": 1,
+                "offsetX": 0,
+                "scaleY": 1,
+                "offsetY": 0
+              },
+              "anchorPoint": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "design": {
+                "x": 0,
+                "y": 0,
+                "width": 480,
+                "height": 110
+              },
+              "zIndex": 1,
+              "visible": true,
+              "backgroundTransparency": 1,
+              "children": [],
+              "textColor": "#FFFFFF",
+              "textTransparency": 0,
+              "text": "Shop",
+              "font": {
+                "family": "FredokaOne",
+                "weight": "Bold",
+                "style": "Normal"
+              },
+              "textSize": 48,
+              "textScaled": true,
+              "textWrapped": true,
+              "textXAlignment": "Center",
+              "textYAlignment": "Center",
+              "lineHeight": 1.2
+            }
+          ],
+          "backgroundColor": "#2D7DD2",
+          "corner": {
+            "scale": 0.2182,
+            "offset": 0
+          },
+          "stroke": {
+            "thickness": 4,
+            "color": "#FFFFFF",
+            "transparency": 0,
+            "mode": "Border",
+            "position": "Inner"
+          },
+          "text": "",
+          "clipsDescendants": true,
+          "layoutOrder": 2
+        },
+        {
+          "id": "bd3bca6f-ea15-80bf-8008-cf981672caa6",
+          "name": "QuitButton",
+          "type": "TextButton",
+          "position": {
+            "scaleX": 0,
+            "offsetX": 0,
+            "scaleY": 0.715,
+            "offsetY": 0
+          },
+          "size": {
+            "scaleX": 1,
+            "offsetX": 0,
+            "scaleY": 0.285,
+            "offsetY": 0
+          },
+          "anchorPoint": {
+            "x": 0,
+            "y": 0
+          },
+          "design": {
+            "x": 0,
+            "y": 276,
+            "width": 480,
+            "height": 110
+          },
+          "zIndex": 1,
+          "visible": true,
+          "backgroundTransparency": 0,
+          "children": [
+            {
+              "id": "bd3bca6f-ea15-80bf-8008-cf98167639a9",
+              "name": "Label",
+              "type": "TextLabel",
+              "position": {
+                "scaleX": 0.5,
+                "offsetX": 0,
+                "scaleY": 0.5,
+                "offsetY": 0
+              },
+              "size": {
+                "scaleX": 1,
+                "offsetX": 0,
+                "scaleY": 1,
+                "offsetY": 0
+              },
+              "anchorPoint": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "design": {
+                "x": 0,
+                "y": 0,
+                "width": 480,
+                "height": 110
+              },
+              "zIndex": 1,
+              "visible": true,
+              "backgroundTransparency": 1,
+              "children": [],
+              "textColor": "#FFFFFF",
+              "textTransparency": 0,
+              "text": "Quit",
+              "font": {
+                "family": "FredokaOne",
+                "weight": "Bold",
+                "style": "Normal"
+              },
+              "textSize": 48,
+              "textScaled": true,
+              "textWrapped": true,
+              "textXAlignment": "Center",
+              "textYAlignment": "Center",
+              "lineHeight": 1.2
+            }
+          ],
+          "backgroundColor": "#E0245E",
+          "corner": {
+            "scale": 0.2182,
+            "offset": 0
+          },
+          "stroke": {
+            "thickness": 4,
+            "color": "#FFFFFF",
+            "transparency": 0,
+            "mode": "Border",
+            "position": "Inner"
+          },
+          "text": "",
+          "clipsDescendants": true,
+          "layoutOrder": 3
+        }
+      ],
+      "clipsDescendants": true,
+      "layout": {
+        "type": "List",
+        "fillDirection": "Vertical",
+        "horizontalAlignment": "Center",
+        "verticalAlignment": "Top",
+        "padding": {
+          "scale": 0.0725,
+          "offset": 0
+        },
+        "wraps": false
+      }
+    }
+  ],
+  "images": [],
+  "warnings": [
+    "board \"MainMenu\": its own fill is a design backdrop and is not built (it would cover the game); add a full-size rectangle named Background if the screen needs one",
+    "\"Title\": font size 120 capped at Roblox's maximum of 100"
+  ]
+}
