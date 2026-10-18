@@ -17,7 +17,10 @@ Designer checks visuals in Edit mode (StarterGui renders in the Edit viewport, s
 
 ## Choose a path
 
-1. **Figma path** - only if preflight found the Figma MCP authenticated (`whoami` works)
+1. **Penpot path** (`penpot-ui` skill) - optional. Only when the user wants to design in
+   Penpot (open source; free plan or self-hosted) and its MCP is connected. Same result as
+   Studio-direct: a scale-based ScreenGui, plus a verifier that checks it against the design.
+2. **Figma path** - only if preflight found the Figma MCP authenticated (`whoami` works)
    **and** the user's seat can write to the canvas. As of Oct 2026 Figma documents canvas
    writes (`use_figma`) for Professional, Education, Organization and Enterprise plans; it
    is in beta, and read tools are rate-limited by seat (View/Collab seats: ~20 calls/month;
@@ -25,10 +28,10 @@ Designer checks visuals in Edit mode (StarterGui renders in the Edit viewport, s
    https://developers.figma.com/docs/figma-mcp-server/rate-limits-access/ and
    https://developers.figma.com/docs/figma-mcp-server/write-to-canvas/ . Budget your calls:
    design all screens in as few `use_figma` calls as possible, then read each frame once.
-2. **Studio-direct path** (default, always works) - build directly with Luau. Use this when
-   Figma is missing, rate-limited, or the user didn't ask for Figma.
+3. **Studio-direct path** (default, always works) - build directly with Luau. Use this when
+   Penpot and Figma are missing, rate-limited, or the user didn't ask for a design tool.
 
-Set `ui.designSource` accordingly.
+Set `ui.designSource` accordingly (`penpot`, `figma`, or `studio-direct`).
 
 ### Figma path
 

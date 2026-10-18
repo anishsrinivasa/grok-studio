@@ -1,0 +1,501 @@
+{
+ "extractor": "grok-studio extract_board.js v2",
+ "page": "UI",
+ "id": "9f1c0065-5b2e-8041-8006-1a2b3c4d5e65",
+ "name": "MainMenu",
+ "type": "board",
+ "x": 0,
+ "y": 1400,
+ "width": 1920,
+ "height": 1080,
+ "parentX": 0,
+ "parentY": 1400,
+ "rotation": 0,
+ "opacity": 1,
+ "hidden": false,
+ "blendMode": "normal",
+ "proportionLock": false,
+ "constraintsHorizontal": "left",
+ "constraintsVertical": "top",
+ "borderRadius": 0,
+ "borderRadiusTopLeft": 0,
+ "borderRadiusTopRight": 0,
+ "borderRadiusBottomRight": 0,
+ "borderRadiusBottomLeft": 0,
+ "center": {
+  "x": 960,
+  "y": 1940
+ },
+ "fills": [
+  {
+   "fillColor": "#FFFFFF",
+   "fillOpacity": 1
+  }
+ ],
+ "strokes": [],
+ "shadows": [],
+ "clipContent": true,
+ "children": [
+  {
+   "id": "9f1c0066-5b2e-8041-8006-1a2b3c4d5e66",
+   "name": "Background",
+   "type": "rectangle",
+   "x": 0,
+   "y": 1400,
+   "width": 1920,
+   "height": 1080,
+   "parentX": 0,
+   "parentY": 0,
+   "rotation": 0,
+   "opacity": 1,
+   "hidden": false,
+   "blendMode": "normal",
+   "proportionLock": false,
+   "constraintsHorizontal": "left",
+   "constraintsVertical": "top",
+   "borderRadius": 0,
+   "borderRadiusTopLeft": 0,
+   "borderRadiusTopRight": 0,
+   "borderRadiusBottomRight": 0,
+   "borderRadiusBottomLeft": 0,
+   "center": {
+    "x": 960,
+    "y": 1940
+   },
+   "fills": [
+    {
+     "fillOpacity": 1,
+     "fillColorGradient": {
+      "type": "linear",
+      "startX": 0.5,
+      "startY": 0,
+      "endX": 0.5,
+      "endY": 1,
+      "width": 1,
+      "stops": [
+       {
+        "color": "#2B1055",
+        "opacity": 1,
+        "offset": 0
+       },
+       {
+        "color": "#7597DE",
+        "opacity": 1,
+        "offset": 1
+       }
+      ]
+     }
+    }
+   ],
+   "strokes": [],
+   "shadows": []
+  },
+  {
+   "id": "9f1c0067-5b2e-8041-8006-1a2b3c4d5e67",
+   "name": "Title",
+   "type": "text",
+   "x": 560,
+   "y": 1560,
+   "width": 800,
+   "height": 120,
+   "parentX": 560,
+   "parentY": 160,
+   "rotation": 0,
+   "opacity": 1,
+   "hidden": false,
+   "blendMode": "normal",
+   "proportionLock": false,
+   "constraintsHorizontal": "left",
+   "constraintsVertical": "top",
+   "borderRadius": 0,
+   "borderRadiusTopLeft": 0,
+   "borderRadiusTopRight": 0,
+   "borderRadiusBottomRight": 0,
+   "borderRadiusBottomLeft": 0,
+   "center": {
+    "x": 960,
+    "y": 1620
+   },
+   "fills": [
+    {
+     "fillColor": "#FFFFFF",
+     "fillOpacity": 1
+    }
+   ],
+   "strokes": [],
+   "shadows": [],
+   "characters": "SPACE OBBY",
+   "growType": "fixed",
+   "fontFamily": "Fredoka",
+   "fontSize": "96",
+   "fontWeight": "800",
+   "fontStyle": "normal",
+   "lineHeight": "1.2",
+   "letterSpacing": "0",
+   "textTransform": null,
+   "align": "center",
+   "verticalAlign": "top"
+  },
+  {
+   "id": "9f1c0068-5b2e-8041-8006-1a2b3c4d5e68",
+   "name": "Buttons",
+   "type": "board",
+   "x": 760,
+   "y": 1780,
+   "width": 400,
+   "height": 412,
+   "parentX": 760,
+   "parentY": 380,
+   "rotation": 0,
+   "opacity": 1,
+   "hidden": false,
+   "blendMode": "normal",
+   "proportionLock": false,
+   "constraintsHorizontal": "left",
+   "constraintsVertical": "top",
+   "borderRadius": 0,
+   "borderRadiusTopLeft": 0,
+   "borderRadiusTopRight": 0,
+   "borderRadiusBottomRight": 0,
+   "borderRadiusBottomLeft": 0,
+   "center": {
+    "x": 960,
+    "y": 1986
+   },
+   "fills": [],
+   "strokes": [],
+   "shadows": [],
+   "clipContent": true,
+   "flex": {
+    "dir": "column",
+    "wrap": "nowrap",
+    "alignItems": "center",
+    "alignContent": "stretch",
+    "justifyItems": "start",
+    "justifyContent": "start",
+    "rowGap": 24,
+    "columnGap": 0,
+    "topPadding": 0,
+    "rightPadding": 0,
+    "bottomPadding": 0,
+    "leftPadding": 0,
+    "horizontalSizing": "fit-content",
+    "verticalSizing": "fit-content"
+   },
+   "children": [
+    {
+     "id": "9f1c0069-5b2e-8041-8006-1a2b3c4d5e69",
+     "name": "QuitButton",
+     "type": "board",
+     "x": 760,
+     "y": 2072,
+     "width": 400,
+     "height": 120,
+     "parentX": 0,
+     "parentY": 292,
+     "rotation": 0,
+     "opacity": 1,
+     "hidden": false,
+     "blendMode": "normal",
+     "proportionLock": false,
+     "constraintsHorizontal": "left",
+     "constraintsVertical": "top",
+     "borderRadius": 24,
+     "borderRadiusTopLeft": 24,
+     "borderRadiusTopRight": 24,
+     "borderRadiusBottomRight": 24,
+     "borderRadiusBottomLeft": 24,
+     "center": {
+      "x": 960,
+      "y": 2132
+     },
+     "fills": [
+      {
+       "fillColor": "#3A3A4A",
+       "fillOpacity": 1
+      }
+     ],
+     "strokes": [
+      {
+       "strokeColor": "#FFFFFF",
+       "strokeOpacity": 0.4,
+       "strokeStyle": "solid",
+       "strokeWidth": 2,
+       "strokeAlignment": "inner"
+      }
+     ],
+     "shadows": [],
+     "clipContent": true,
+     "component": {
+      "id": "c0de0000-0000-8000-8000-000000000000",
+      "name": "MenuButton",
+      "path": "Buttons"
+     },
+     "layoutChild": {
+      "absolute": false,
+      "zIndex": 0,
+      "horizontalSizing": "fix",
+      "verticalSizing": "fix",
+      "alignSelf": "auto"
+     },
+     "children": [
+      {
+       "id": "9f1c006a-5b2e-8041-8006-1a2b3c4d5e6a",
+       "name": "Label",
+       "type": "text",
+       "x": 900,
+       "y": 2106,
+       "width": 120,
+       "height": 52,
+       "parentX": 140,
+       "parentY": 34,
+       "rotation": 0,
+       "opacity": 1,
+       "hidden": false,
+       "blendMode": "normal",
+       "proportionLock": false,
+       "constraintsHorizontal": "left",
+       "constraintsVertical": "top",
+       "borderRadius": 0,
+       "borderRadiusTopLeft": 0,
+       "borderRadiusTopRight": 0,
+       "borderRadiusBottomRight": 0,
+       "borderRadiusBottomLeft": 0,
+       "center": {
+        "x": 960,
+        "y": 2132
+       },
+       "fills": [
+        {
+         "fillColor": "#FFFFFF",
+         "fillOpacity": 1
+        }
+       ],
+       "strokes": [],
+       "shadows": [],
+       "characters": "Quit",
+       "growType": "fixed",
+       "fontFamily": "sourcesanspro",
+       "fontSize": "44",
+       "fontWeight": "700",
+       "fontStyle": "normal",
+       "lineHeight": "1.2",
+       "letterSpacing": "0",
+       "textTransform": null,
+       "align": "center",
+       "verticalAlign": "center"
+      }
+     ]
+    },
+    {
+     "id": "9f1c006b-5b2e-8041-8006-1a2b3c4d5e6b",
+     "name": "ShopButton",
+     "type": "board",
+     "x": 760,
+     "y": 1926,
+     "width": 400,
+     "height": 120,
+     "parentX": 0,
+     "parentY": 146,
+     "rotation": 0,
+     "opacity": 1,
+     "hidden": false,
+     "blendMode": "normal",
+     "proportionLock": false,
+     "constraintsHorizontal": "left",
+     "constraintsVertical": "top",
+     "borderRadius": 24,
+     "borderRadiusTopLeft": 24,
+     "borderRadiusTopRight": 24,
+     "borderRadiusBottomRight": 24,
+     "borderRadiusBottomLeft": 24,
+     "center": {
+      "x": 960,
+      "y": 1986
+     },
+     "fills": [
+      {
+       "fillColor": "#3A86FF",
+       "fillOpacity": 1
+      }
+     ],
+     "strokes": [
+      {
+       "strokeColor": "#FFFFFF",
+       "strokeOpacity": 0.4,
+       "strokeStyle": "solid",
+       "strokeWidth": 2,
+       "strokeAlignment": "inner"
+      }
+     ],
+     "shadows": [],
+     "clipContent": true,
+     "component": {
+      "id": "c0de0000-0000-8000-8000-000000000001",
+      "name": "MenuButton",
+      "path": "Buttons"
+     },
+     "layoutChild": {
+      "absolute": false,
+      "zIndex": 0,
+      "horizontalSizing": "fix",
+      "verticalSizing": "fix",
+      "alignSelf": "auto"
+     },
+     "children": [
+      {
+       "id": "9f1c006c-5b2e-8041-8006-1a2b3c4d5e6c",
+       "name": "Label",
+       "type": "text",
+       "x": 900,
+       "y": 1960,
+       "width": 120,
+       "height": 52,
+       "parentX": 140,
+       "parentY": 34,
+       "rotation": 0,
+       "opacity": 1,
+       "hidden": false,
+       "blendMode": "normal",
+       "proportionLock": false,
+       "constraintsHorizontal": "left",
+       "constraintsVertical": "top",
+       "borderRadius": 0,
+       "borderRadiusTopLeft": 0,
+       "borderRadiusTopRight": 0,
+       "borderRadiusBottomRight": 0,
+       "borderRadiusBottomLeft": 0,
+       "center": {
+        "x": 960,
+        "y": 1986
+       },
+       "fills": [
+        {
+         "fillColor": "#FFFFFF",
+         "fillOpacity": 1
+        }
+       ],
+       "strokes": [],
+       "shadows": [],
+       "characters": "Shop",
+       "growType": "fixed",
+       "fontFamily": "sourcesanspro",
+       "fontSize": "44",
+       "fontWeight": "700",
+       "fontStyle": "normal",
+       "lineHeight": "1.2",
+       "letterSpacing": "0",
+       "textTransform": null,
+       "align": "center",
+       "verticalAlign": "center"
+      }
+     ]
+    },
+    {
+     "id": "9f1c006d-5b2e-8041-8006-1a2b3c4d5e6d",
+     "name": "PlayButton",
+     "type": "board",
+     "x": 760,
+     "y": 1780,
+     "width": 400,
+     "height": 120,
+     "parentX": 0,
+     "parentY": 0,
+     "rotation": 0,
+     "opacity": 1,
+     "hidden": false,
+     "blendMode": "normal",
+     "proportionLock": false,
+     "constraintsHorizontal": "left",
+     "constraintsVertical": "top",
+     "borderRadius": 24,
+     "borderRadiusTopLeft": 24,
+     "borderRadiusTopRight": 24,
+     "borderRadiusBottomRight": 24,
+     "borderRadiusBottomLeft": 24,
+     "center": {
+      "x": 960,
+      "y": 1840
+     },
+     "fills": [
+      {
+       "fillColor": "#2ECC71",
+       "fillOpacity": 1
+      }
+     ],
+     "strokes": [
+      {
+       "strokeColor": "#FFFFFF",
+       "strokeOpacity": 0.4,
+       "strokeStyle": "solid",
+       "strokeWidth": 2,
+       "strokeAlignment": "inner"
+      }
+     ],
+     "shadows": [],
+     "clipContent": true,
+     "component": {
+      "id": "c0de0000-0000-8000-8000-000000000002",
+      "name": "MenuButton",
+      "path": "Buttons"
+     },
+     "layoutChild": {
+      "absolute": false,
+      "zIndex": 0,
+      "horizontalSizing": "fix",
+      "verticalSizing": "fix",
+      "alignSelf": "auto"
+     },
+     "children": [
+      {
+       "id": "9f1c006e-5b2e-8041-8006-1a2b3c4d5e6e",
+       "name": "Label",
+       "type": "text",
+       "x": 900,
+       "y": 1814,
+       "width": 120,
+       "height": 52,
+       "parentX": 140,
+       "parentY": 34,
+       "rotation": 0,
+       "opacity": 1,
+       "hidden": false,
+       "blendMode": "normal",
+       "proportionLock": false,
+       "constraintsHorizontal": "left",
+       "constraintsVertical": "top",
+       "borderRadius": 0,
+       "borderRadiusTopLeft": 0,
+       "borderRadiusTopRight": 0,
+       "borderRadiusBottomRight": 0,
+       "borderRadiusBottomLeft": 0,
+       "center": {
+        "x": 960,
+        "y": 1840
+       },
+       "fills": [
+        {
+         "fillColor": "#FFFFFF",
+         "fillOpacity": 1
+        }
+       ],
+       "strokes": [],
+       "shadows": [],
+       "characters": "Play",
+       "growType": "fixed",
+       "fontFamily": "sourcesanspro",
+       "fontSize": "44",
+       "fontWeight": "700",
+       "fontStyle": "normal",
+       "lineHeight": "1.2",
+       "letterSpacing": "0",
+       "textTransform": null,
+       "align": "center",
+       "verticalAlign": "center"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

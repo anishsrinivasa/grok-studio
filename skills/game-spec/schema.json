@@ -133,7 +133,7 @@
       "required": ["styleGuide", "screens"],
       "additionalProperties": false,
       "properties": {
-        "designSource": { "enum": ["figma", "studio-direct"], "default": "studio-direct" },
+        "designSource": { "enum": ["penpot", "figma", "studio-direct"], "default": "studio-direct" },
         "figmaFileUrl": { "type": "string" },
         "styleGuide": {
           "type": "object",

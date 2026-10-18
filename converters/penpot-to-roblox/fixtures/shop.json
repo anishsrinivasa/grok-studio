@@ -1,0 +1,1567 @@
+{
+ "extractor": "grok-studio extract_board.js v2",
+ "page": "UI",
+ "id": "9f1c00c9-5b2e-8041-8006-1a2b3c4d5ec9",
+ "name": "Shop",
+ "type": "board",
+ "x": 2200,
+ "y": 0,
+ "width": 1920,
+ "height": 1080,
+ "parentX": 2200,
+ "parentY": 0,
+ "rotation": 0,
+ "opacity": 1,
+ "hidden": false,
+ "blendMode": "normal",
+ "proportionLock": false,
+ "constraintsHorizontal": "left",
+ "constraintsVertical": "top",
+ "borderRadius": 0,
+ "borderRadiusTopLeft": 0,
+ "borderRadiusTopRight": 0,
+ "borderRadiusBottomRight": 0,
+ "borderRadiusBottomLeft": 0,
+ "center": {
+  "x": 3160,
+  "y": 540
+ },
+ "fills": [
+  {
+   "fillColor": "#FFFFFF",
+   "fillOpacity": 1
+  }
+ ],
+ "strokes": [],
+ "shadows": [],
+ "clipContent": true,
+ "children": [
+  {
+   "id": "9f1c00ca-5b2e-8041-8006-1a2b3c4d5eca",
+   "name": "Panel",
+   "type": "board",
+   "x": 2560,
+   "y": 140,
+   "width": 1200,
+   "height": 800,
+   "parentX": 360,
+   "parentY": 140,
+   "rotation": 0,
+   "opacity": 1,
+   "hidden": false,
+   "blendMode": "normal",
+   "proportionLock": true,
+   "constraintsHorizontal": "left",
+   "constraintsVertical": "top",
+   "borderRadius": 32,
+   "borderRadiusTopLeft": 32,
+   "borderRadiusTopRight": 32,
+   "borderRadiusBottomRight": 32,
+   "borderRadiusBottomLeft": 32,
+   "center": {
+    "x": 3160,
+    "y": 540
+   },
+   "fills": [
+    {
+     "fillColor": "#1E1B2E",
+     "fillOpacity": 0.95
+    }
+   ],
+   "strokes": [],
+   "shadows": [],
+   "clipContent": true,
+   "children": [
+    {
+     "id": "9f1c00cb-5b2e-8041-8006-1a2b3c4d5ecb",
+     "name": "Title",
+     "type": "text",
+     "x": 2608,
+     "y": 172,
+     "width": 300,
+     "height": 64,
+     "parentX": 48,
+     "parentY": 32,
+     "rotation": 0,
+     "opacity": 1,
+     "hidden": false,
+     "blendMode": "normal",
+     "proportionLock": false,
+     "constraintsHorizontal": "left",
+     "constraintsVertical": "top",
+     "borderRadius": 0,
+     "borderRadiusTopLeft": 0,
+     "borderRadiusTopRight": 0,
+     "borderRadiusBottomRight": 0,
+     "borderRadiusBottomLeft": 0,
+     "center": {
+      "x": 2758,
+      "y": 204
+     },
+     "fills": [
+      {
+       "fillColor": "#FFFFFF",
+       "fillOpacity": 1
+      }
+     ],
+     "strokes": [],
+     "shadows": [],
+     "characters": "Shop",
+     "growType": "auto-width",
+     "fontFamily": "Luckiest Guy",
+     "fontSize": "56",
+     "fontWeight": "800",
+     "fontStyle": "normal",
+     "lineHeight": "1.2",
+     "letterSpacing": "0",
+     "textTransform": null,
+     "align": "left",
+     "verticalAlign": "top"
+    },
+    {
+     "id": "9f1c00cc-5b2e-8041-8006-1a2b3c4d5ecc",
+     "name": "CloseButton",
+     "type": "path",
+     "x": 3672,
+     "y": 172,
+     "width": 56,
+     "height": 56,
+     "parentX": 1112,
+     "parentY": 32,
+     "rotation": 0,
+     "opacity": 1,
+     "hidden": false,
+     "blendMode": "normal",
+     "proportionLock": false,
+     "constraintsHorizontal": "left",
+     "constraintsVertical": "top",
+     "borderRadius": 0,
+     "borderRadiusTopLeft": 0,
+     "borderRadiusTopRight": 0,
+     "borderRadiusBottomRight": 0,
+     "borderRadiusBottomLeft": 0,
+     "center": {
+      "x": 3700,
+      "y": 200
+     },
+     "fills": [
+      {
+       "fillColor": "#FF4D6D",
+       "fillOpacity": 1
+      }
+     ],
+     "strokes": [],
+     "shadows": []
+    },
+    {
+     "id": "9f1c00cd-5b2e-8041-8006-1a2b3c4d5ecd",
+     "name": "Items",
+     "type": "board",
+     "x": 2608,
+     "y": 268,
+     "width": 1104,
+     "height": 624,
+     "parentX": 48,
+     "parentY": 128,
+     "rotation": 0,
+     "opacity": 1,
+     "hidden": false,
+     "blendMode": "normal",
+     "proportionLock": false,
+     "constraintsHorizontal": "left",
+     "constraintsVertical": "top",
+     "borderRadius": 0,
+     "borderRadiusTopLeft": 0,
+     "borderRadiusTopRight": 0,
+     "borderRadiusBottomRight": 0,
+     "borderRadiusBottomLeft": 0,
+     "center": {
+      "x": 3160,
+      "y": 580
+     },
+     "fills": [],
+     "strokes": [],
+     "shadows": [],
+     "clipContent": true,
+     "grid": {
+      "dir": "row",
+      "alignItems": "start",
+      "alignContent": "stretch",
+      "justifyItems": "start",
+      "justifyContent": "start",
+      "rowGap": 24,
+      "columnGap": 24,
+      "topPadding": 0,
+      "rightPadding": 0,
+      "bottomPadding": 0,
+      "leftPadding": 0,
+      "horizontalSizing": "fit-content",
+      "verticalSizing": "fit-content",
+      "rows": [
+       {
+        "type": "flex",
+        "value": 1
+       },
+       {
+        "type": "flex",
+        "value": 1
+       }
+      ],
+      "columns": [
+       {
+        "type": "flex",
+        "value": 1
+       },
+       {
+        "type": "flex",
+        "value": 1
+       },
+       {
+        "type": "flex",
+        "value": 1
+       },
+       {
+        "type": "flex",
+        "value": 1
+       }
+      ]
+     },
+     "children": [
+      {
+       "id": "9f1c00ce-5b2e-8041-8006-1a2b3c4d5ece",
+       "name": "SpeedCoil",
+       "type": "board",
+       "x": 2608,
+       "y": 268,
+       "width": 258,
+       "height": 300,
+       "parentX": 0,
+       "parentY": 0,
+       "rotation": 0,
+       "opacity": 1,
+       "hidden": false,
+       "blendMode": "normal",
+       "proportionLock": false,
+       "constraintsHorizontal": "left",
+       "constraintsVertical": "top",
+       "borderRadius": 20,
+       "borderRadiusTopLeft": 20,
+       "borderRadiusTopRight": 20,
+       "borderRadiusBottomRight": 20,
+       "borderRadiusBottomLeft": 20,
+       "center": {
+        "x": 2737,
+        "y": 418
+       },
+       "fills": [
+        {
+         "fillColor": "#2A2438",
+         "fillOpacity": 1
+        }
+       ],
+       "strokes": [],
+       "shadows": [],
+       "clipContent": true,
+       "component": {
+        "id": "c0de1111-0000-8000-8000-000000000001",
+        "name": "ShopCard",
+        "path": "Shop"
+       },
+       "layoutChild": {
+        "absolute": false,
+        "zIndex": 0,
+        "horizontalSizing": "fix",
+        "verticalSizing": "fix",
+        "alignSelf": "auto"
+       },
+       "children": [
+        {
+         "id": "9f1c00cf-5b2e-8041-8006-1a2b3c4d5ecf",
+         "name": "Icon",
+         "type": "image",
+         "x": 2657,
+         "y": 292,
+         "width": 160,
+         "height": 160,
+         "parentX": 49,
+         "parentY": 24,
+         "rotation": 0,
+         "opacity": 1,
+         "hidden": false,
+         "blendMode": "normal",
+         "proportionLock": true,
+         "constraintsHorizontal": "left",
+         "constraintsVertical": "top",
+         "borderRadius": 0,
+         "borderRadiusTopLeft": 0,
+         "borderRadiusTopRight": 0,
+         "borderRadiusBottomRight": 0,
+         "borderRadiusBottomLeft": 0,
+         "center": {
+          "x": 2737,
+          "y": 372
+         },
+         "fills": [
+          {
+           "fillOpacity": 1,
+           "fillImage": {
+            "id": "6b1f3a52-0d4e-80a1-8006-2c9b1e7d0b00",
+            "name": "coin.png",
+            "width": 512,
+            "height": 512,
+            "mtype": "image/png",
+            "keepAspectRatio": true
+           }
+          }
+         ],
+         "strokes": [],
+         "shadows": []
+        },
+        {
+         "id": "9f1c00d0-5b2e-8041-8006-1a2b3c4d5ed0",
+         "name": "Name",
+         "type": "text",
+         "x": 2624,
+         "y": 464,
+         "width": 226,
+         "height": 36,
+         "parentX": 16,
+         "parentY": 196,
+         "rotation": 0,
+         "opacity": 1,
+         "hidden": false,
+         "blendMode": "normal",
+         "proportionLock": false,
+         "constraintsHorizontal": "left",
+         "constraintsVertical": "top",
+         "borderRadius": 0,
+         "borderRadiusTopLeft": 0,
+         "borderRadiusTopRight": 0,
+         "borderRadiusBottomRight": 0,
+         "borderRadiusBottomLeft": 0,
+         "center": {
+          "x": 2737,
+          "y": 482
+         },
+         "fills": [
+          {
+           "fillColor": "#FFFFFF",
+           "fillOpacity": 1
+          }
+         ],
+         "strokes": [],
+         "shadows": [],
+         "characters": "SpeedCoil",
+         "growType": "fixed",
+         "fontFamily": "sourcesanspro",
+         "fontSize": "28",
+         "fontWeight": "700",
+         "fontStyle": "normal",
+         "lineHeight": "1.2",
+         "letterSpacing": "0",
+         "textTransform": null,
+         "align": "center",
+         "verticalAlign": "top"
+        },
+        {
+         "id": "9f1c00d1-5b2e-8041-8006-1a2b3c4d5ed1",
+         "name": "BuyButton",
+         "type": "board",
+         "x": 2648,
+         "y": 508,
+         "width": 178,
+         "height": 44,
+         "parentX": 40,
+         "parentY": 240,
+         "rotation": 0,
+         "opacity": 1,
+         "hidden": false,
+         "blendMode": "normal",
+         "proportionLock": false,
+         "constraintsHorizontal": "left",
+         "constraintsVertical": "top",
+         "borderRadius": 22,
+         "borderRadiusTopLeft": 22,
+         "borderRadiusTopRight": 22,
+         "borderRadiusBottomRight": 22,
+         "borderRadiusBottomLeft": 22,
+         "center": {
+          "x": 2737,
+          "y": 530
+         },
+         "fills": [
+          {
+           "fillColor": "#FFD23F",
+           "fillOpacity": 1
+          }
+         ],
+         "strokes": [],
+         "shadows": [],
+         "clipContent": true,
+         "children": [
+          {
+           "id": "9f1c00d2-5b2e-8041-8006-1a2b3c4d5ed2",
+           "name": "Price",
+           "type": "text",
+           "x": 2668,
+           "y": 514,
+           "width": 138,
+           "height": 32,
+           "parentX": 20,
+           "parentY": 6,
+           "rotation": 0,
+           "opacity": 1,
+           "hidden": false,
+           "blendMode": "normal",
+           "proportionLock": false,
+           "constraintsHorizontal": "left",
+           "constraintsVertical": "top",
+           "borderRadius": 0,
+           "borderRadiusTopLeft": 0,
+           "borderRadiusTopRight": 0,
+           "borderRadiusBottomRight": 0,
+           "borderRadiusBottomLeft": 0,
+           "center": {
+            "x": 2737,
+            "y": 530
+           },
+           "fills": [
+            {
+             "fillColor": "#1E1B2E",
+             "fillOpacity": 1
+            }
+           ],
+           "strokes": [],
+           "shadows": [],
+           "characters": "250",
+           "growType": "fixed",
+           "fontFamily": "sourcesanspro",
+           "fontSize": "26",
+           "fontWeight": "700",
+           "fontStyle": "normal",
+           "lineHeight": "1.2",
+           "letterSpacing": "0",
+           "textTransform": null,
+           "align": "center",
+           "verticalAlign": "center"
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "id": "9f1c00d3-5b2e-8041-8006-1a2b3c4d5ed3",
+       "name": "GravityCoil",
+       "type": "board",
+       "x": 2890,
+       "y": 268,
+       "width": 258,
+       "height": 300,
+       "parentX": 282,
+       "parentY": 0,
+       "rotation": 0,
+       "opacity": 1,
+       "hidden": false,
+       "blendMode": "normal",
+       "proportionLock": false,
+       "constraintsHorizontal": "left",
+       "constraintsVertical": "top",
+       "borderRadius": 20,
+       "borderRadiusTopLeft": 20,
+       "borderRadiusTopRight": 20,
+       "borderRadiusBottomRight": 20,
+       "borderRadiusBottomLeft": 20,
+       "center": {
+        "x": 3019,
+        "y": 418
+       },
+       "fills": [
+        {
+         "fillColor": "#2A2438",
+         "fillOpacity": 1
+        }
+       ],
+       "strokes": [],
+       "shadows": [],
+       "clipContent": true,
+       "component": {
+        "id": "c0de1111-0000-8000-8000-000000000001",
+        "name": "ShopCard",
+        "path": "Shop"
+       },
+       "layoutChild": {
+        "absolute": false,
+        "zIndex": 0,
+        "horizontalSizing": "fix",
+        "verticalSizing": "fix",
+        "alignSelf": "auto"
+       },
+       "children": [
+        {
+         "id": "9f1c00d4-5b2e-8041-8006-1a2b3c4d5ed4",
+         "name": "Icon",
+         "type": "image",
+         "x": 2939,
+         "y": 292,
+         "width": 160,
+         "height": 160,
+         "parentX": 49,
+         "parentY": 24,
+         "rotation": 0,
+         "opacity": 1,
+         "hidden": false,
+         "blendMode": "normal",
+         "proportionLock": true,
+         "constraintsHorizontal": "left",
+         "constraintsVertical": "top",
+         "borderRadius": 0,
+         "borderRadiusTopLeft": 0,
+         "borderRadiusTopRight": 0,
+         "borderRadiusBottomRight": 0,
+         "borderRadiusBottomLeft": 0,
+         "center": {
+          "x": 3019,
+          "y": 372
+         },
+         "fills": [
+          {
+           "fillOpacity": 1,
+           "fillImage": {
+            "id": "6b1f3a52-0d4e-80a1-8006-2c9b1e7d0b01",
+            "name": "coin.png",
+            "width": 512,
+            "height": 512,
+            "mtype": "image/png",
+            "keepAspectRatio": true
+           }
+          }
+         ],
+         "strokes": [],
+         "shadows": []
+        },
+        {
+         "id": "9f1c00d5-5b2e-8041-8006-1a2b3c4d5ed5",
+         "name": "Name",
+         "type": "text",
+         "x": 2906,
+         "y": 464,
+         "width": 226,
+         "height": 36,
+         "parentX": 16,
+         "parentY": 196,
+         "rotation": 0,
+         "opacity": 1,
+         "hidden": false,
+         "blendMode": "normal",
+         "proportionLock": false,
+         "constraintsHorizontal": "left",
+         "constraintsVertical": "top",
+         "borderRadius": 0,
+         "borderRadiusTopLeft": 0,
+         "borderRadiusTopRight": 0,
+         "borderRadiusBottomRight": 0,
+         "borderRadiusBottomLeft": 0,
+         "center": {
+          "x": 3019,
+          "y": 482
+         },
+         "fills": [
+          {
+           "fillColor": "#FFFFFF",
+           "fillOpacity": 1
+          }
+         ],
+         "strokes": [],
+         "shadows": [],
+         "characters": "GravityCoil",
+         "growType": "fixed",
+         "fontFamily": "sourcesanspro",
+         "fontSize": "28",
+         "fontWeight": "700",
+         "fontStyle": "normal",
+         "lineHeight": "1.2",
+         "letterSpacing": "0",
+         "textTransform": null,
+         "align": "center",
+         "verticalAlign": "top"
+        },
+        {
+         "id": "9f1c00d6-5b2e-8041-8006-1a2b3c4d5ed6",
+         "name": "BuyButton",
+         "type": "board",
+         "x": 2930,
+         "y": 508,
+         "width": 178,
+         "height": 44,
+         "parentX": 40,
+         "parentY": 240,
+         "rotation": 0,
+         "opacity": 1,
+         "hidden": false,
+         "blendMode": "normal",
+         "proportionLock": false,
+         "constraintsHorizontal": "left",
+         "constraintsVertical": "top",
+         "borderRadius": 22,
+         "borderRadiusTopLeft": 22,
+         "borderRadiusTopRight": 22,
+         "borderRadiusBottomRight": 22,
+         "borderRadiusBottomLeft": 22,
+         "center": {
+          "x": 3019,
+          "y": 530
+         },
+         "fills": [
+          {
+           "fillColor": "#FFD23F",
+           "fillOpacity": 1
+          }
+         ],
+         "strokes": [],
+         "shadows": [],
+         "clipContent": true,
+         "children": [
+          {
+           "id": "9f1c00d7-5b2e-8041-8006-1a2b3c4d5ed7",
+           "name": "Price",
+           "type": "text",
+           "x": 2950,
+           "y": 514,
+           "width": 138,
+           "height": 32,
+           "parentX": 20,
+           "parentY": 6,
+           "rotation": 0,
+           "opacity": 1,
+           "hidden": false,
+           "blendMode": "normal",
+           "proportionLock": false,
+           "constraintsHorizontal": "left",
+           "constraintsVertical": "top",
+           "borderRadius": 0,
+           "borderRadiusTopLeft": 0,
+           "borderRadiusTopRight": 0,
+           "borderRadiusBottomRight": 0,
+           "borderRadiusBottomLeft": 0,
+           "center": {
+            "x": 3019,
+            "y": 530
+           },
+           "fills": [
+            {
+             "fillColor": "#1E1B2E",
+             "fillOpacity": 1
+            }
+           ],
+           "strokes": [],
+           "shadows": [],
+           "characters": "400",
+           "growType": "fixed",
+           "fontFamily": "sourcesanspro",
+           "fontSize": "26",
+           "fontWeight": "700",
+           "fontStyle": "normal",
+           "lineHeight": "1.2",
+           "letterSpacing": "0",
+           "textTransform": null,
+           "align": "center",
+           "verticalAlign": "center"
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "id": "9f1c00d8-5b2e-8041-8006-1a2b3c4d5ed8",
+       "name": "Jetpack",
+       "type": "board",
+       "x": 3172,
+       "y": 268,
+       "width": 258,
+       "height": 300,
+       "parentX": 564,
+       "parentY": 0,
+       "rotation": 0,
+       "opacity": 1,
+       "hidden": false,
+       "blendMode": "normal",
+       "proportionLock": false,
+       "constraintsHorizontal": "left",
+       "constraintsVertical": "top",
+       "borderRadius": 20,
+       "borderRadiusTopLeft": 20,
+       "borderRadiusTopRight": 20,
+       "borderRadiusBottomRight": 20,
+       "borderRadiusBottomLeft": 20,
+       "center": {
+        "x": 3301,
+        "y": 418
+       },
+       "fills": [
+        {
+         "fillColor": "#2A2438",
+         "fillOpacity": 1
+        }
+       ],
+       "strokes": [],
+       "shadows": [],
+       "clipContent": true,
+       "component": {
+        "id": "c0de1111-0000-8000-8000-000000000001",
+        "name": "ShopCard",
+        "path": "Shop"
+       },
+       "layoutChild": {
+        "absolute": false,
+        "zIndex": 0,
+        "horizontalSizing": "fix",
+        "verticalSizing": "fix",
+        "alignSelf": "auto"
+       },
+       "children": [
+        {
+         "id": "9f1c00d9-5b2e-8041-8006-1a2b3c4d5ed9",
+         "name": "Icon",
+         "type": "image",
+         "x": 3221,
+         "y": 292,
+         "width": 160,
+         "height": 160,
+         "parentX": 49,
+         "parentY": 24,
+         "rotation": 0,
+         "opacity": 1,
+         "hidden": false,
+         "blendMode": "normal",
+         "proportionLock": true,
+         "constraintsHorizontal": "left",
+         "constraintsVertical": "top",
+         "borderRadius": 0,
+         "borderRadiusTopLeft": 0,
+         "borderRadiusTopRight": 0,
+         "borderRadiusBottomRight": 0,
+         "borderRadiusBottomLeft": 0,
+         "center": {
+          "x": 3301,
+          "y": 372
+         },
+         "fills": [
+          {
+           "fillOpacity": 1,
+           "fillImage": {
+            "id": "6b1f3a52-0d4e-80a1-8006-2c9b1e7d0b02",
+            "name": "coin.png",
+            "width": 512,
+            "height": 512,
+            "mtype": "image/png",
+            "keepAspectRatio": true
+           }
+          }
+         ],
+         "strokes": [],
+         "shadows": []
+        },
+        {
+         "id": "9f1c00da-5b2e-8041-8006-1a2b3c4d5eda",
+         "name": "Name",
+         "type": "text",
+         "x": 3188,
+         "y": 464,
+         "width": 226,
+         "height": 36,
+         "parentX": 16,
+         "parentY": 196,
+         "rotation": 0,
+         "opacity": 1,
+         "hidden": false,
+         "blendMode": "normal",
+         "proportionLock": false,
+         "constraintsHorizontal": "left",
+         "constraintsVertical": "top",
+         "borderRadius": 0,
+         "borderRadiusTopLeft": 0,
+         "borderRadiusTopRight": 0,
+         "borderRadiusBottomRight": 0,
+         "borderRadiusBottomLeft": 0,
+         "center": {
+          "x": 3301,
+          "y": 482
+         },
+         "fills": [
+          {
+           "fillColor": "#FFFFFF",
+           "fillOpacity": 1
+          }
+         ],
+         "strokes": [],
+         "shadows": [],
+         "characters": "Jetpack",
+         "growType": "fixed",
+         "fontFamily": "sourcesanspro",
+         "fontSize": "28",
+         "fontWeight": "700",
+         "fontStyle": "normal",
+         "lineHeight": "1.2",
+         "letterSpacing": "0",
+         "textTransform": null,
+         "align": "center",
+         "verticalAlign": "top"
+        },
+        {
+         "id": "9f1c00db-5b2e-8041-8006-1a2b3c4d5edb",
+         "name": "BuyButton",
+         "type": "board",
+         "x": 3212,
+         "y": 508,
+         "width": 178,
+         "height": 44,
+         "parentX": 40,
+         "parentY": 240,
+         "rotation": 0,
+         "opacity": 1,
+         "hidden": false,
+         "blendMode": "normal",
+         "proportionLock": false,
+         "constraintsHorizontal": "left",
+         "constraintsVertical": "top",
+         "borderRadius": 22,
+         "borderRadiusTopLeft": 22,
+         "borderRadiusTopRight": 22,
+         "borderRadiusBottomRight": 22,
+         "borderRadiusBottomLeft": 22,
+         "center": {
+          "x": 3301,
+          "y": 530
+         },
+         "fills": [
+          {
+           "fillColor": "#FFD23F",
+           "fillOpacity": 1
+          }
+         ],
+         "strokes": [],
+         "shadows": [],
+         "clipContent": true,
+         "children": [
+          {
+           "id": "9f1c00dc-5b2e-8041-8006-1a2b3c4d5edc",
+           "name": "Price",
+           "type": "text",
+           "x": 3232,
+           "y": 514,
+           "width": 138,
+           "height": 32,
+           "parentX": 20,
+           "parentY": 6,
+           "rotation": 0,
+           "opacity": 1,
+           "hidden": false,
+           "blendMode": "normal",
+           "proportionLock": false,
+           "constraintsHorizontal": "left",
+           "constraintsVertical": "top",
+           "borderRadius": 0,
+           "borderRadiusTopLeft": 0,
+           "borderRadiusTopRight": 0,
+           "borderRadiusBottomRight": 0,
+           "borderRadiusBottomLeft": 0,
+           "center": {
+            "x": 3301,
+            "y": 530
+           },
+           "fills": [
+            {
+             "fillColor": "#1E1B2E",
+             "fillOpacity": 1
+            }
+           ],
+           "strokes": [],
+           "shadows": [],
+           "characters": "900",
+           "growType": "fixed",
+           "fontFamily": "sourcesanspro",
+           "fontSize": "26",
+           "fontWeight": "700",
+           "fontStyle": "normal",
+           "lineHeight": "1.2",
+           "letterSpacing": "0",
+           "textTransform": null,
+           "align": "center",
+           "verticalAlign": "center"
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "id": "9f1c00dd-5b2e-8041-8006-1a2b3c4d5edd",
+       "name": "Trail",
+       "type": "board",
+       "x": 3454,
+       "y": 268,
+       "width": 258,
+       "height": 300,
+       "parentX": 846,
+       "parentY": 0,
+       "rotation": 0,
+       "opacity": 1,
+       "hidden": false,
+       "blendMode": "normal",
+       "proportionLock": false,
+       "constraintsHorizontal": "left",
+       "constraintsVertical": "top",
+       "borderRadius": 20,
+       "borderRadiusTopLeft": 20,
+       "borderRadiusTopRight": 20,
+       "borderRadiusBottomRight": 20,
+       "borderRadiusBottomLeft": 20,
+       "center": {
+        "x": 3583,
+        "y": 418
+       },
+       "fills": [
+        {
+         "fillColor": "#2A2438",
+         "fillOpacity": 1
+        }
+       ],
+       "strokes": [],
+       "shadows": [],
+       "clipContent": true,
+       "component": {
+        "id": "c0de1111-0000-8000-8000-000000000001",
+        "name": "ShopCard",
+        "path": "Shop"
+       },
+       "layoutChild": {
+        "absolute": false,
+        "zIndex": 0,
+        "horizontalSizing": "fix",
+        "verticalSizing": "fix",
+        "alignSelf": "auto"
+       },
+       "children": [
+        {
+         "id": "9f1c00de-5b2e-8041-8006-1a2b3c4d5ede",
+         "name": "Icon",
+         "type": "image",
+         "x": 3503,
+         "y": 292,
+         "width": 160,
+         "height": 160,
+         "parentX": 49,
+         "parentY": 24,
+         "rotation": 0,
+         "opacity": 1,
+         "hidden": false,
+         "blendMode": "normal",
+         "proportionLock": true,
+         "constraintsHorizontal": "left",
+         "constraintsVertical": "top",
+         "borderRadius": 0,
+         "borderRadiusTopLeft": 0,
+         "borderRadiusTopRight": 0,
+         "borderRadiusBottomRight": 0,
+         "borderRadiusBottomLeft": 0,
+         "center": {
+          "x": 3583,
+          "y": 372
+         },
+         "fills": [
+          {
+           "fillOpacity": 1,
+           "fillImage": {
+            "id": "6b1f3a52-0d4e-80a1-8006-2c9b1e7d0b03",
+            "name": "coin.png",
+            "width": 512,
+            "height": 512,
+            "mtype": "image/png",
+            "keepAspectRatio": true
+           }
+          }
+         ],
+         "strokes": [],
+         "shadows": []
+        },
+        {
+         "id": "9f1c00df-5b2e-8041-8006-1a2b3c4d5edf",
+         "name": "Name",
+         "type": "text",
+         "x": 3470,
+         "y": 464,
+         "width": 226,
+         "height": 36,
+         "parentX": 16,
+         "parentY": 196,
+         "rotation": 0,
+         "opacity": 1,
+         "hidden": false,
+         "blendMode": "normal",
+         "proportionLock": false,
+         "constraintsHorizontal": "left",
+         "constraintsVertical": "top",
+         "borderRadius": 0,
+         "borderRadiusTopLeft": 0,
+         "borderRadiusTopRight": 0,
+         "borderRadiusBottomRight": 0,
+         "borderRadiusBottomLeft": 0,
+         "center": {
+          "x": 3583,
+          "y": 482
+         },
+         "fills": [
+          {
+           "fillColor": "#FFFFFF",
+           "fillOpacity": 1
+          }
+         ],
+         "strokes": [],
+         "shadows": [],
+         "characters": "Trail",
+         "growType": "fixed",
+         "fontFamily": "sourcesanspro",
+         "fontSize": "28",
+         "fontWeight": "700",
+         "fontStyle": "normal",
+         "lineHeight": "1.2",
+         "letterSpacing": "0",
+         "textTransform": null,
+         "align": "center",
+         "verticalAlign": "top"
+        },
+        {
+         "id": "9f1c00e0-5b2e-8041-8006-1a2b3c4d5ee0",
+         "name": "BuyButton",
+         "type": "board",
+         "x": 3494,
+         "y": 508,
+         "width": 178,
+         "height": 44,
+         "parentX": 40,
+         "parentY": 240,
+         "rotation": 0,
+         "opacity": 1,
+         "hidden": false,
+         "blendMode": "normal",
+         "proportionLock": false,
+         "constraintsHorizontal": "left",
+         "constraintsVertical": "top",
+         "borderRadius": 22,
+         "borderRadiusTopLeft": 22,
+         "borderRadiusTopRight": 22,
+         "borderRadiusBottomRight": 22,
+         "borderRadiusBottomLeft": 22,
+         "center": {
+          "x": 3583,
+          "y": 530
+         },
+         "fills": [
+          {
+           "fillColor": "#FFD23F",
+           "fillOpacity": 1
+          }
+         ],
+         "strokes": [],
+         "shadows": [],
+         "clipContent": true,
+         "children": [
+          {
+           "id": "9f1c00e1-5b2e-8041-8006-1a2b3c4d5ee1",
+           "name": "Price",
+           "type": "text",
+           "x": 3514,
+           "y": 514,
+           "width": 138,
+           "height": 32,
+           "parentX": 20,
+           "parentY": 6,
+           "rotation": 0,
+           "opacity": 1,
+           "hidden": false,
+           "blendMode": "normal",
+           "proportionLock": false,
+           "constraintsHorizontal": "left",
+           "constraintsVertical": "top",
+           "borderRadius": 0,
+           "borderRadiusTopLeft": 0,
+           "borderRadiusTopRight": 0,
+           "borderRadiusBottomRight": 0,
+           "borderRadiusBottomLeft": 0,
+           "center": {
+            "x": 3583,
+            "y": 530
+           },
+           "fills": [
+            {
+             "fillColor": "#1E1B2E",
+             "fillOpacity": 1
+            }
+           ],
+           "strokes": [],
+           "shadows": [],
+           "characters": "150",
+           "growType": "fixed",
+           "fontFamily": "sourcesanspro",
+           "fontSize": "26",
+           "fontWeight": "700",
+           "fontStyle": "normal",
+           "lineHeight": "1.2",
+           "letterSpacing": "0",
+           "textTransform": null,
+           "align": "center",
+           "verticalAlign": "center"
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "id": "9f1c00e2-5b2e-8041-8006-1a2b3c4d5ee2",
+       "name": "Pet",
+       "type": "board",
+       "x": 2608,
+       "y": 592,
+       "width": 258,
+       "height": 300,
+       "parentX": 0,
+       "parentY": 324,
+       "rotation": 0,
+       "opacity": 1,
+       "hidden": false,
+       "blendMode": "normal",
+       "proportionLock": false,
+       "constraintsHorizontal": "left",
+       "constraintsVertical": "top",
+       "borderRadius": 20,
+       "borderRadiusTopLeft": 20,
+       "borderRadiusTopRight": 20,
+       "borderRadiusBottomRight": 20,
+       "borderRadiusBottomLeft": 20,
+       "center": {
+        "x": 2737,
+        "y": 742
+       },
+       "fills": [
+        {
+         "fillColor": "#2A2438",
+         "fillOpacity": 1
+        }
+       ],
+       "strokes": [],
+       "shadows": [],
+       "clipContent": true,
+       "component": {
+        "id": "c0de1111-0000-8000-8000-000000000001",
+        "name": "ShopCard",
+        "path": "Shop"
+       },
+       "layoutChild": {
+        "absolute": false,
+        "zIndex": 0,
+        "horizontalSizing": "fix",
+        "verticalSizing": "fix",
+        "alignSelf": "auto"
+       },
+       "children": [
+        {
+         "id": "9f1c00e3-5b2e-8041-8006-1a2b3c4d5ee3",
+         "name": "Icon",
+         "type": "image",
+         "x": 2657,
+         "y": 616,
+         "width": 160,
+         "height": 160,
+         "parentX": 49,
+         "parentY": 24,
+         "rotation": 0,
+         "opacity": 1,
+         "hidden": false,
+         "blendMode": "normal",
+         "proportionLock": true,
+         "constraintsHorizontal": "left",
+         "constraintsVertical": "top",
+         "borderRadius": 0,
+         "borderRadiusTopLeft": 0,
+         "borderRadiusTopRight": 0,
+         "borderRadiusBottomRight": 0,
+         "borderRadiusBottomLeft": 0,
+         "center": {
+          "x": 2737,
+          "y": 696
+         },
+         "fills": [
+          {
+           "fillOpacity": 1,
+           "fillImage": {
+            "id": "6b1f3a52-0d4e-80a1-8006-2c9b1e7d0b04",
+            "name": "coin.png",
+            "width": 512,
+            "height": 512,
+            "mtype": "image/png",
+            "keepAspectRatio": true
+           }
+          }
+         ],
+         "strokes": [],
+         "shadows": []
+        },
+        {
+         "id": "9f1c00e4-5b2e-8041-8006-1a2b3c4d5ee4",
+         "name": "Name",
+         "type": "text",
+         "x": 2624,
+         "y": 788,
+         "width": 226,
+         "height": 36,
+         "parentX": 16,
+         "parentY": 196,
+         "rotation": 0,
+         "opacity": 1,
+         "hidden": false,
+         "blendMode": "normal",
+         "proportionLock": false,
+         "constraintsHorizontal": "left",
+         "constraintsVertical": "top",
+         "borderRadius": 0,
+         "borderRadiusTopLeft": 0,
+         "borderRadiusTopRight": 0,
+         "borderRadiusBottomRight": 0,
+         "borderRadiusBottomLeft": 0,
+         "center": {
+          "x": 2737,
+          "y": 806
+         },
+         "fills": [
+          {
+           "fillColor": "#FFFFFF",
+           "fillOpacity": 1
+          }
+         ],
+         "strokes": [],
+         "shadows": [],
+         "characters": "Pet",
+         "growType": "fixed",
+         "fontFamily": "sourcesanspro",
+         "fontSize": "28",
+         "fontWeight": "700",
+         "fontStyle": "normal",
+         "lineHeight": "1.2",
+         "letterSpacing": "0",
+         "textTransform": null,
+         "align": "center",
+         "verticalAlign": "top"
+        },
+        {
+         "id": "9f1c00e5-5b2e-8041-8006-1a2b3c4d5ee5",
+         "name": "BuyButton",
+         "type": "board",
+         "x": 2648,
+         "y": 832,
+         "width": 178,
+         "height": 44,
+         "parentX": 40,
+         "parentY": 240,
+         "rotation": 0,
+         "opacity": 1,
+         "hidden": false,
+         "blendMode": "normal",
+         "proportionLock": false,
+         "constraintsHorizontal": "left",
+         "constraintsVertical": "top",
+         "borderRadius": 22,
+         "borderRadiusTopLeft": 22,
+         "borderRadiusTopRight": 22,
+         "borderRadiusBottomRight": 22,
+         "borderRadiusBottomLeft": 22,
+         "center": {
+          "x": 2737,
+          "y": 854
+         },
+         "fills": [
+          {
+           "fillColor": "#FFD23F",
+           "fillOpacity": 1
+          }
+         ],
+         "strokes": [],
+         "shadows": [],
+         "clipContent": true,
+         "children": [
+          {
+           "id": "9f1c00e6-5b2e-8041-8006-1a2b3c4d5ee6",
+           "name": "Price",
+           "type": "text",
+           "x": 2668,
+           "y": 838,
+           "width": 138,
+           "height": 32,
+           "parentX": 20,
+           "parentY": 6,
+           "rotation": 0,
+           "opacity": 1,
+           "hidden": false,
+           "blendMode": "normal",
+           "proportionLock": false,
+           "constraintsHorizontal": "left",
+           "constraintsVertical": "top",
+           "borderRadius": 0,
+           "borderRadiusTopLeft": 0,
+           "borderRadiusTopRight": 0,
+           "borderRadiusBottomRight": 0,
+           "borderRadiusBottomLeft": 0,
+           "center": {
+            "x": 2737,
+            "y": 854
+           },
+           "fills": [
+            {
+             "fillColor": "#1E1B2E",
+             "fillOpacity": 1
+            }
+           ],
+           "strokes": [],
+           "shadows": [],
+           "characters": "1200",
+           "growType": "fixed",
+           "fontFamily": "sourcesanspro",
+           "fontSize": "26",
+           "fontWeight": "700",
+           "fontStyle": "normal",
+           "lineHeight": "1.2",
+           "letterSpacing": "0",
+           "textTransform": null,
+           "align": "center",
+           "verticalAlign": "center"
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "id": "9f1c00e7-5b2e-8041-8006-1a2b3c4d5ee7",
+       "name": "DoubleJump",
+       "type": "board",
+       "x": 2890,
+       "y": 592,
+       "width": 258,
+       "height": 300,
+       "parentX": 282,
+       "parentY": 324,
+       "rotation": 0,
+       "opacity": 1,
+       "hidden": false,
+       "blendMode": "normal",
+       "proportionLock": false,
+       "constraintsHorizontal": "left",
+       "constraintsVertical": "top",
+       "borderRadius": 20,
+       "borderRadiusTopLeft": 20,
+       "borderRadiusTopRight": 20,
+       "borderRadiusBottomRight": 20,
+       "borderRadiusBottomLeft": 20,
+       "center": {
+        "x": 3019,
+        "y": 742
+       },
+       "fills": [
+        {
+         "fillColor": "#2A2438",
+         "fillOpacity": 1
+        }
+       ],
+       "strokes": [],
+       "shadows": [],
+       "clipContent": true,
+       "component": {
+        "id": "c0de1111-0000-8000-8000-000000000001",
+        "name": "ShopCard",
+        "path": "Shop"
+       },
+       "layoutChild": {
+        "absolute": false,
+        "zIndex": 0,
+        "horizontalSizing": "fix",
+        "verticalSizing": "fix",
+        "alignSelf": "auto"
+       },
+       "children": [
+        {
+         "id": "9f1c00e8-5b2e-8041-8006-1a2b3c4d5ee8",
+         "name": "Icon",
+         "type": "image",
+         "x": 2939,
+         "y": 616,
+         "width": 160,
+         "height": 160,
+         "parentX": 49,
+         "parentY": 24,
+         "rotation": 0,
+         "opacity": 1,
+         "hidden": false,
+         "blendMode": "normal",
+         "proportionLock": true,
+         "constraintsHorizontal": "left",
+         "constraintsVertical": "top",
+         "borderRadius": 0,
+         "borderRadiusTopLeft": 0,
+         "borderRadiusTopRight": 0,
+         "borderRadiusBottomRight": 0,
+         "borderRadiusBottomLeft": 0,
+         "center": {
+          "x": 3019,
+          "y": 696
+         },
+         "fills": [
+          {
+           "fillOpacity": 1,
+           "fillImage": {
+            "id": "6b1f3a52-0d4e-80a1-8006-2c9b1e7d0b05",
+            "name": "coin.png",
+            "width": 512,
+            "height": 512,
+            "mtype": "image/png",
+            "keepAspectRatio": true
+           }
+          }
+         ],
+         "strokes": [],
+         "shadows": []
+        },
+        {
+         "id": "9f1c00e9-5b2e-8041-8006-1a2b3c4d5ee9",
+         "name": "Name",
+         "type": "text",
+         "x": 2906,
+         "y": 788,
+         "width": 226,
+         "height": 36,
+         "parentX": 16,
+         "parentY": 196,
+         "rotation": 0,
+         "opacity": 1,
+         "hidden": false,
+         "blendMode": "normal",
+         "proportionLock": false,
+         "constraintsHorizontal": "left",
+         "constraintsVertical": "top",
+         "borderRadius": 0,
+         "borderRadiusTopLeft": 0,
+         "borderRadiusTopRight": 0,
+         "borderRadiusBottomRight": 0,
+         "borderRadiusBottomLeft": 0,
+         "center": {
+          "x": 3019,
+          "y": 806
+         },
+         "fills": [
+          {
+           "fillColor": "#FFFFFF",
+           "fillOpacity": 1
+          }
+         ],
+         "strokes": [],
+         "shadows": [],
+         "characters": "DoubleJump",
+         "growType": "fixed",
+         "fontFamily": "sourcesanspro",
+         "fontSize": "28",
+         "fontWeight": "700",
+         "fontStyle": "normal",
+         "lineHeight": "1.2",
+         "letterSpacing": "0",
+         "textTransform": null,
+         "align": "center",
+         "verticalAlign": "top"
+        },
+        {
+         "id": "9f1c00ea-5b2e-8041-8006-1a2b3c4d5eea",
+         "name": "BuyButton",
+         "type": "board",
+         "x": 2930,
+         "y": 832,
+         "width": 178,
+         "height": 44,
+         "parentX": 40,
+         "parentY": 240,
+         "rotation": 0,
+         "opacity": 1,
+         "hidden": false,
+         "blendMode": "normal",
+         "proportionLock": false,
+         "constraintsHorizontal": "left",
+         "constraintsVertical": "top",
+         "borderRadius": 22,
+         "borderRadiusTopLeft": 22,
+         "borderRadiusTopRight": 22,
+         "borderRadiusBottomRight": 22,
+         "borderRadiusBottomLeft": 22,
+         "center": {
+          "x": 3019,
+          "y": 854
+         },
+         "fills": [
+          {
+           "fillColor": "#FFD23F",
+           "fillOpacity": 1
+          }
+         ],
+         "strokes": [],
+         "shadows": [],
+         "clipContent": true,
+         "children": [
+          {
+           "id": "9f1c00eb-5b2e-8041-8006-1a2b3c4d5eeb",
+           "name": "Price",
+           "type": "text",
+           "x": 2950,
+           "y": 838,
+           "width": 138,
+           "height": 32,
+           "parentX": 20,
+           "parentY": 6,
+           "rotation": 0,
+           "opacity": 1,
+           "hidden": false,
+           "blendMode": "normal",
+           "proportionLock": false,
+           "constraintsHorizontal": "left",
+           "constraintsVertical": "top",
+           "borderRadius": 0,
+           "borderRadiusTopLeft": 0,
+           "borderRadiusTopRight": 0,
+           "borderRadiusBottomRight": 0,
+           "borderRadiusBottomLeft": 0,
+           "center": {
+            "x": 3019,
+            "y": 854
+           },
+           "fills": [
+            {
+             "fillColor": "#1E1B2E",
+             "fillOpacity": 1
+            }
+           ],
+           "strokes": [],
+           "shadows": [],
+           "characters": "600",
+           "growType": "fixed",
+           "fontFamily": "sourcesanspro",
+           "fontSize": "26",
+           "fontWeight": "700",
+           "fontStyle": "normal",
+           "lineHeight": "1.2",
+           "letterSpacing": "0",
+           "textTransform": null,
+           "align": "center",
+           "verticalAlign": "center"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

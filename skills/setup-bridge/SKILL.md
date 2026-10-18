@@ -99,6 +99,10 @@ for each missing key, with these exact instructions:
 - **Figma** (optional, skip with `--no-figma`): nothing to paste. The Figma connector
   signs in with one **Authorize** click. Free Figma plans are read-only, about 20 calls a
   month, so Designer builds UI directly in Studio either way.
+- **Penpot** (optional, only if the user asks to design in Penpot): follow "Connecting" in
+  the `penpot-ui` skill. The remote MCP server URL contains the user's MCP key, so it goes
+  through the secret prompt only. Check with the read-only `high_level_overview` call. If
+  it fails or is skipped, Designer builds in Studio directly. Never block on Penpot.
 
 ## Step 3 - Roblox Studio on the PC (persistent bridge)
 
@@ -185,7 +189,7 @@ Then show the user one table. Every row is **pass**, **fail: <fix>** or **skippe
 | Bridge service | pass | | static URL, survives restarts |
 | Cloud Blender | | pass | version, render engine |
 | G2 model round trip / G3 Luau play / G4 capture | pass | | |
-| Open Cloud key / Figma | pass / skipped | | owner id, scopes |
+| Open Cloud key / Figma / Penpot | pass / skipped | | owner id, scopes |
 
 Say **ready** only if every row is pass or an accepted skip.
 
