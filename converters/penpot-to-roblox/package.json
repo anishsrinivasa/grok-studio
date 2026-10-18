@@ -1,16 +1,17 @@
 {
   "name": "penpot-to-roblox",
   "version": "0.1.0",
-  "description": "Converts Penpot board exports to Roblox UI specifications",
+  "description": "Converts Penpot boards (from penpot/extract_board.js) into Roblox UI specs for PenpotUIBuilder.luau",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "check:snippets": "node scripts/check-snippets.mjs"
   },
-  "dependencies": {},
   "devDependencies": {
+    "@penpot/plugin-types": "^1.4.2",
     "@types/node": "^20.0.0",
     "typescript": "^5.3.0"
   }
