@@ -1,0 +1,69 @@
+{
+  "id": "board-1",
+  "name": "GameHUD",
+  "width": 1920,
+  "height": 1080,
+  "children": [
+    {
+      "id": "hud-container",
+      "name": "HUD",
+      "type": "frame",
+      "x": 0,
+      "y": 0,
+      "width": 1920,
+      "height": 1080,
+      "opacity": 1,
+      "children": [
+        {
+          "id": "coin-counter",
+          "name": "CoinCounter",
+          "type": "frame",
+          "x": 38,
+          "y": 32,
+          "width": 346,
+          "height": 86,
+          "cornerRadius": 12,
+          "fills": [{ "type": "solid", "color": "#1E1B2E", "opacity": 0.85 }],
+          "strokes": [{ "color": "#FFD23F", "width": 2, "opacity": 1 }],
+          "proportionLock": true,
+          "layout": {
+            "type": "flex",
+            "dir": "row",
+            "alignItems": "center",
+            "gap": 17,
+            "padding": { "top": 8, "right": 8, "bottom": 8, "left": 8 }
+          },
+          "children": [
+            {
+              "id": "coin-icon",
+              "name": "Icon",
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "width": 70,
+              "height": 70,
+              "fills": [{ "type": "image", "imageUrl": "https://example.com/coin.png" }],
+              "layoutChild": { "zIndex": 1 }
+            },
+            {
+              "id": "coin-amount",
+              "name": "Amount",
+              "type": "text",
+              "x": 87,
+              "y": 0,
+              "width": 251,
+              "height": 70,
+              "content": "0",
+              "fontFamily": "Inter",
+              "fontSize": 48,
+              "fontWeight": "700",
+              "textAlign": "left",
+              "fills": [{ "type": "solid", "color": "#FFFFFF", "opacity": 1 }],
+              "layoutChild": { "zIndex": 2 }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

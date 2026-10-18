@@ -1,0 +1,17 @@
+{
+  "name": "penpot-to-roblox",
+  "version": "0.1.0",
+  "description": "Converts Penpot board exports to Roblox UI specifications",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  }
+}

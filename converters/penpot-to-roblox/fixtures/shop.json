@@ -1,0 +1,83 @@
+{
+  "id": "board-3",
+  "name": "ShopGrid",
+  "width": 1920,
+  "height": 1080,
+  "children": [
+    {
+      "id": "shop-container",
+      "name": "Shop",
+      "type": "frame",
+      "x": 260,
+      "y": 140,
+      "width": 1400,
+      "height": 800,
+      "cornerRadius": 16,
+      "fills": [{ "type": "solid", "color": "#2C2C34", "opacity": 0.95 }],
+      "layout": {
+        "type": "grid",
+        "columns": 4,
+        "rows": 2,
+        "gap": 20,
+        "padding": { "top": 30, "right": 30, "bottom": 30, "left": 30 }
+      },
+      "children": [
+        {
+          "id": "item-1",
+          "name": "Item1",
+          "type": "frame",
+          "x": 0,
+          "y": 0,
+          "width": 320,
+          "height": 360,
+          "cornerRadius": 12,
+          "fills": [{ "type": "solid", "color": "#3A3A44", "opacity": 1 }],
+          "proportionLock": true,
+          "layoutChild": { "zIndex": 1 },
+          "children": [
+            {
+              "id": "item-1-image",
+              "name": "ItemImage",
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "width": 320,
+              "height": 240,
+              "fills": [{ "type": "image", "imageUrl": "https://example.com/item1.png" }]
+            },
+            {
+              "id": "item-1-name",
+              "name": "ItemName",
+              "type": "text",
+              "x": 10,
+              "y": 250,
+              "width": 300,
+              "height": 40,
+              "content": "Sword",
+              "fontFamily": "Inter",
+              "fontSize": 24,
+              "fontWeight": "600",
+              "textAlign": "center",
+              "fills": [{ "type": "solid", "color": "#FFFFFF", "opacity": 1 }]
+            },
+            {
+              "id": "item-1-price",
+              "name": "ItemPrice",
+              "type": "text",
+              "x": 10,
+              "y": 300,
+              "width": 300,
+              "height": 40,
+              "content": "100 coins",
+              "fontFamily": "Inter",
+              "fontSize": 18,
+              "fontWeight": "400",
+              "textAlign": "center",
+              "fills": [{ "type": "solid", "color": "#FFD700", "opacity": 1 }]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
