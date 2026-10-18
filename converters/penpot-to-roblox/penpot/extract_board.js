@@ -3,11 +3,9 @@
 // Set BOARD to a top-level board name, or leave it "" to use the board around the selection.
 // Save the returned JSON as games/<slug>/penpot/<Board>.json, then run the converter.
 const BOARD = "";
-// (The JSDoc types below are for `npm run check:snippets`, which type-checks this file
-// against @penpot/plugin-types; Penpot ignores them.)
-/** @typedef {import("@penpot/plugin-types").Shape} Shape */
-/** @typedef {import("@penpot/plugin-types").Fill} Fill */
-/** @typedef {import("@penpot/plugin-types").Gradient} Gradient */
+// (JSDoc types such as Shape are declared by `npm run check:snippets`, which type-checks this
+// file against @penpot/plugin-types. Never write the import-call syntax here, not even in a
+// comment: the plugin sandbox (SES) rejects the whole script.)
 
 /** @param {any} obj @param {string[]} keys */
 const pick = (obj, keys) => {
@@ -47,11 +45,12 @@ function extract(shape) {
     "borderRadius", "borderRadiusTopLeft", "borderRadiusTopRight", "borderRadiusBottomRight", "borderRadiusBottomLeft"]);
   d.center = { x: shape.center.x, y: shape.center.y };
   d.fills = copyFills(shape.fills);
-  d.strokes = shape.strokes.map((s) => ({
+  // strokes/shadows can be null at runtime (text shapes) although the typings say arrays.
+  d.strokes = (shape.strokes || []).map((s) => ({
     ...pick(s, ["strokeColor", "strokeOpacity", "strokeStyle", "strokeWidth", "strokeAlignment"]),
     strokeColorGradient: copyGradient(s.strokeColorGradient),
   }));
-  d.shadows = shape.shadows.map((s) => pick(s, ["style", "hidden", "offsetX", "offsetY", "blur", "spread"]));
+  d.shadows = (shape.shadows || []).map((s) => pick(s, ["style", "hidden", "offsetX", "offsetY", "blur", "spread"]));
   if (shape.blur) d.blur = pick(shape.blur, ["value", "hidden"]);
   if (shape.layoutChild) {
     d.layoutChild = pick(shape.layoutChild, ["absolute", "zIndex", "horizontalSizing", "verticalSizing", "alignSelf"]);
@@ -77,13 +76,14 @@ function extract(shape) {
     // Mixed styles: take the first character's style (the converter has one style per label).
     const first = shape.characters.length ? shape.getRange(0, 1) : null;
     for (const k of TEXT_KEYS) {
-      const v = shape[/** @type {keyof import("@penpot/plugin-types").Text} */ (k)];
-      d[k] = v === "mixed" && first ? first[/** @type {keyof import("@penpot/plugin-types").TextRange} */ (k)] : v;
+      const v = shape[/** @type {keyof PText} */ (k)];
+      d[k] = v === "mixed" && first ? first[/** @type {keyof PTextRange} */ (k)] : v;
     }
     if (shape.fills === "mixed" && first) d.fills = copyFills(first.fills);
   }
-  if ("children" in shape && shape.type !== "boolean") {
-    d.children = shape.children.map(extract);
+  const kids = /** @type {any} */ (shape).children;
+  if (Array.isArray(kids) && shape.type !== "boolean") {
+    d.children = kids.map(extract);
   }
   return d;
 }

@@ -47,7 +47,7 @@ def main(argv):
             continue
         if digest not in cache:
             name = re.sub(r"[^A-Za-z0-9 _-]+", " ", item.get("name") or item["key"]).strip()[:50] or "UI image"
-            out = subprocess.run([sys.executable, UPLOADER, path, "--name", name, "--type", "Image"],
+            out = subprocess.run([sys.executable, UPLOADER, "upload", path, "--name", name, "--type", "Image"],
                                  capture_output=True, text=True)
             if out.returncode != 0:
                 print(f"upload failed for {path}: {out.stderr.strip()}", file=sys.stderr)
