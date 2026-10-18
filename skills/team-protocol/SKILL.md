@@ -30,6 +30,7 @@ subagents (Claude Code / Cursor / Grok Build), where "message" means "your final
     game-spec.json          THE source of truth
     locks/                  section 4
     blender/<id>.blend      one .blend per asset or rig - never two writers on one file
+    blender/<id>/           its checkpoints (NN_<label>.blend) and job_*.py scripts
     exports/<id>.fbx        exported meshes / animations
     renders/                previews and marketing renders
     reports/                playtest reports, handoff notes too long for a message
@@ -37,7 +38,9 @@ subagents (Claude Code / Cursor / Grok Build), where "message" means "your final
 ```
 
 `/workspace` is durable and every Bot can read it; temp dirs are not. Never write secrets
-(API keys) into it, except the short-lived bridge session file (section 7).
+(API keys) into it, except the short-lived bridge session file (section 7). Secrets the
+user saves in Grok Bot reach the shell as environment variables:
+`ROBLOX_OPEN_CLOUD_API_KEY`, `ROBLOX_CREATOR_USER_ID` or `ROBLOX_CREATOR_GROUP_ID`.
 
 Read the slug from `current-game`, then always use absolute paths. Subagents running on
 the user's own PC use `<project>/grok-studio/games/<slug>/` with the same layout.

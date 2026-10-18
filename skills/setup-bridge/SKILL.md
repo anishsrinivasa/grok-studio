@@ -114,8 +114,11 @@ Wait for the background install from Step 1 (`tail "$GS/.tools/blender-install.l
 then check it:
 
 ```bash
-bash "$GS/plugin/skills/blender-assets/reference/cloud_blender.sh" version
+bash "$GS/plugin/skills/blender-assets/reference/cloud_blender.sh" probe
 ```
+
+`probe` renders a tiny test scene headless and picks the render engine (Workbench, or
+Cycles on the CPU as a fallback).
 
 If it failed (no space, unsupported CPU), say so in the Step 6 table. Builder and Animator
 then work in Studio only.
