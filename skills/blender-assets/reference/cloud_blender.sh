@@ -108,7 +108,10 @@ cmd_install() {
     if (( waited >= 900 )); then die "another install has held $lock for 15 min; remove it if it is stale"; fi
     info "another install is running; waiting..."; sleep 10; waited=$((waited + 10))
   done
-  trap 'rm -rf "$lock" "$TOOLS/.dl-$v" "$TOOLS/.unpack-$v"' EXIT
+  # Expand now: the trap runs at script exit, after these locals are gone (set -u would
+  # abort it and leave a stale lock that blocks every later install for 15 min).
+  # shellcheck disable=SC2064
+  trap "rm -rf '$lock' '$TOOLS/.dl-$v' '$TOOLS/.unpack-$v'" EXIT
 
   if [[ -x "$dest/blender" ]] && "$dest/blender" --version >/dev/null 2>&1; then
     info "Blender $v was installed by another Bot meanwhile"; echo "$dest/blender"; return
