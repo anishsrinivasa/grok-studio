@@ -93,7 +93,7 @@ local function decorate(inst: GuiObject, el: any)
 	end
 	if el.textScaled and el.textSize then
 		local t = Instance.new("UITextSizeConstraint")
-		t.MaxTextSize = math.max(1, math.floor(el.textSize + 0.5))
+		t.MaxTextSize = math.clamp(math.floor(el.textSize + 0.5), 1, 100)
 		t.MinTextSize = 1
 		t.Parent = inst
 	end
@@ -165,7 +165,7 @@ local function create(el: any, ctx: Ctx): GuiObject
 				enumItem(Enum.FontWeight, el.font.weight, Enum.FontWeight.Regular),
 				enumItem(Enum.FontStyle, el.font.style, Enum.FontStyle.Normal))
 		end
-		t.TextSize = el.textSize or 14
+		t.TextSize = math.clamp(el.textSize or 14, 1, 100)
 		-- Order matters: setting TextWrapped = false turns TextScaled off in Roblox.
 		t.TextWrapped = el.textWrapped ~= false
 		t.TextScaled = el.textScaled == true

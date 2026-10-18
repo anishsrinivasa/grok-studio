@@ -33,7 +33,8 @@ const FONT_WEIGHTS: Record<string, string> = {
   '600': 'SemiBold', '700': 'Bold', '800': 'ExtraBold', '900': 'Heavy',
 };
 
-const BUTTON_NAME = /button|btn/i;
+// PlayButton, BuyBtn, Button -> clickable. Not "Buttons" (a container of buttons).
+const BUTTON_NAME = /(button|btn)$/i;
 const VECTOR_TYPES = new Set(['path', 'boolean', 'svg-raw']);
 
 const r4 = (n: number) => Math.round(n * 10000) / 10000;
@@ -93,7 +94,7 @@ function convertGradient(g: PenpotGradient, fillOpacity: number, where: string, 
 }
 
 function robloxClass(shape: PenpotShape, isContainer: boolean): RobloxClass {
-  const button = BUTTON_NAME.test(shape.name);
+  const button = BUTTON_NAME.test((shape.name ?? '').split('/').pop()!.trim());
   const image = shape.type === 'image' || VECTOR_TYPES.has(shape.type) || fillsOf(shape).some(f => f.fillImage);
   if (shape.type === 'text') return button ? 'TextButton' : 'TextLabel';
   if (image && !isContainer) return button ? 'ImageButton' : 'ImageLabel';
@@ -156,6 +157,7 @@ function convertShape(
     position: udim2(px / PW, py / PH),
     size: udim2(w / PW, h / PH),
     anchorPoint: { x: ax, y: ay },
+    design: { x: r4(relX), y: r4(relY), width: r4(w), height: r4(h) },
     zIndex: 1 + index + (shape.layoutChild?.zIndex ?? 0),
     visible: !shape.hidden,
     backgroundTransparency: 1,
@@ -191,6 +193,9 @@ function convertShape(
   }
 
   // Images: fill images by Penpot media id; vector shapes need rasterizing (export_shape).
+  // A rasterized shape's PNG already carries its fills, strokes and corners, so none of
+  // those are rebuilt on top of it (a UIStroke would box the image, a UIGradient tint it).
+  let rasterized = false;
   if (type === 'ImageLabel' || type === 'ImageButton') {
     const img = fills.find(f => f.fillImage)?.fillImage;
     if (img) {
@@ -200,6 +205,8 @@ function convertShape(
       const key = `shape:${shape.id}`;
       ctx.images.set(key, { key, source: 'shape', shapeId: shape.id, name, width: w, height: h });
       el.image = { key, scaleType: 'Fit' };
+      rasterized = true;
+      delete el.gradient;
       if (VECTOR_TYPES.has(shape.type)) warn(`${where}: ${shape.type} becomes an image; export it as PNG (penpot/export_images.js) and upload`);
     }
     el.backgroundTransparency = 1;
@@ -210,7 +217,9 @@ function convertShape(
   const radii = [shape.borderRadiusTopLeft, shape.borderRadiusTopRight, shape.borderRadiusBottomRight, shape.borderRadiusBottomLeft]
     .map(v => v ?? shape.borderRadius ?? 0);
   const radius = Math.max(shape.borderRadius ?? 0, ...radii);
-  if (shape.type === 'ellipse') {
+  if (rasterized) {
+    // drawn into the exported PNG
+  } else if (shape.type === 'ellipse') {
     el.corner = udim(0.5);
     if (Math.abs(w - h) > 0.5) warn(`${where}: non-circular ellipse drawn as a pill (UICorner 0.5)`);
   } else if (radius > 0 && !isText) {
@@ -219,7 +228,7 @@ function convertShape(
   }
 
   // Strokes: UIStroke (thickness in pixels; Roblox has no scale for it).
-  const strokes = (shape.strokes ?? []).filter(s => s.strokeStyle !== 'none' && (s.strokeWidth ?? 0) > 0);
+  const strokes = rasterized ? [] : (shape.strokes ?? []).filter(s => s.strokeStyle !== 'none' && (s.strokeWidth ?? 0) > 0);
   if (strokes.length) {
     const s = strokes[0];
     el.stroke = {
@@ -258,6 +267,11 @@ function convertShape(
     };
     const size = parseFloat(shape.fontSize ?? '14');
     el.textSize = Number.isFinite(size) ? Math.round(size) : 14;
+    if (el.textSize > 100) {
+      // Roblox caps TextSize and UITextSizeConstraint.MaxTextSize at 100.
+      warn(`${where}: font size ${el.textSize} capped at Roblox's maximum of 100`);
+      el.textSize = 100;
+    }
     el.textScaled = true; // fit the scale-sized box on any screen, capped at textSize
     // Roblox ties these together: TextWrapped = false switches TextScaled off (seen in Studio).
     // A scaled auto-width box is sized to one line at the design size, so it stays one line.
@@ -279,6 +293,12 @@ function convertShape(
   const flow = kids.filter(k => !k.hidden);
   const hasAbsolute = flow.some(k => k.layoutChild?.absolute);
   let layoutUsed = false;
+  // Roblox lays children out inside the UIPadding: their scale sizes, list gaps and grid cells
+  // are relative to the padded content box, not the whole element.
+  const lay = shape.flex ?? shape.grid;
+  const pad = [lay?.topPadding, lay?.rightPadding, lay?.bottomPadding, lay?.leftPadding].map(v => v || 0);
+  const cw = Math.max(1, w - pad[1] - pad[3]);
+  const ch = Math.max(1, h - pad[0] - pad[2]);
   if (shape.flex && isContainer) {
     const f = shape.flex;
     if (hasAbsolute) {
@@ -298,7 +318,7 @@ function convertShape(
         fillDirection: row ? 'Horizontal' : 'Vertical',
         horizontalAlignment: toH(row ? along : across),
         verticalAlignment: toV(row ? across : along),
-        padding: udim((gap || 0) / (row ? w : h)),
+        padding: udim((gap || 0) / (row ? cw : ch)),
         wraps: f.wrap === 'wrap',
       };
       if (jc === 'space-between') el.layout.flex = 'SpaceBetween';
@@ -315,16 +335,16 @@ function convertShape(
       el.layout = {
         type: 'Grid',
         fillDirection: g.dir === 'column' ? 'Vertical' : 'Horizontal',
-        cellSize: udim2(flow[0].width / w, flow[0].height / h),
-        cellPadding: udim2((g.columnGap || 0) / w, (g.rowGap || 0) / h),
+        cellSize: udim2(flow[0].width / cw, flow[0].height / ch),
+        cellPadding: udim2((g.columnGap || 0) / cw, (g.rowGap || 0) / ch),
       };
       layoutUsed = true;
     }
   }
-  const lay = shape.flex ?? shape.grid;
-  if (layoutUsed && lay) {
-    const p = [lay.topPadding, lay.rightPadding, lay.bottomPadding, lay.leftPadding].map(v => v || 0);
-    if (p.some(v => v > 0)) {
+  const padded = layoutUsed && pad.some(v => v > 0);
+  if (padded) {
+    const p = pad;
+    {
       // UIPadding scale is relative to the element itself: top/bottom of its height, left/right of its width.
       el.padding = { top: udim(p[0] / h), right: udim(p[1] / w), bottom: udim(p[2] / h), left: udim(p[3] / w) };
     }
@@ -333,7 +353,8 @@ function convertShape(
   // Children. Paint order = array order (index 0 at the back). Inside a layout the plugin may
   // expose children reversed, so LayoutOrder comes from the laid-out positions instead.
   const childUsed = new Map<string, number>();
-  el.children = kids.map((k, i) => convertShape(k, shape, ctx, childUsed, layoutUsed ? 0 : i, layoutUsed && !k.layoutChild?.absolute));
+  const frame: PenpotShape = padded ? { ...shape, x: shape.x + pad[3], y: shape.y + pad[0], width: cw, height: ch } : shape;
+  el.children = kids.map((k, i) => convertShape(k, frame, ctx, childUsed, layoutUsed ? 0 : i, layoutUsed && !k.layoutChild?.absolute));
   if (layoutUsed) {
     const vertical = el.layout && el.layout.fillDirection === 'Vertical';
     const order = kids

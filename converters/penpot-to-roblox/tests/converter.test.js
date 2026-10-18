@@ -39,7 +39,7 @@ const FILL_KEYS = new Set(['fillColor', 'fillOpacity', 'fillColorGradient', 'fil
 
 function validateShape(s, parent, path) {
   for (const k of Object.keys(s)) assert(SHAPE_KEYS.has(k), `${path}: unknown key ${k}`);
-  for (const [k, vals] of Object.entries(ENUMS)) if (k in s) assert(vals.includes(s[k]), `${path}: ${k}=${s[k]}`);
+  for (const [k, vals] of Object.entries(ENUMS)) if (k in s && s[k] !== null) assert(vals.includes(s[k]), `${path}: ${k}=${s[k]}`);
   for (const f of Array.isArray(s.fills) ? s.fills : []) for (const k of Object.keys(f)) assert(FILL_KEYS.has(k), `${path}: fill key ${k}`);
   for (const st of s.strokes) for (const k of Object.keys(st)) assert(k.startsWith('stroke'), `${path}: stroke key ${k}`);
   if (s.type === 'text') assert.strictEqual(typeof s.fontSize, 'string', `${path}: fontSize is a string in the plugin API`);
@@ -51,11 +51,11 @@ function validateShape(s, parent, path) {
 }
 
 describe('fixtures', () => {
-  for (const n of ['hud', 'menu', 'shop']) {
+  for (const n of ['hud', 'menu', 'shop', 'live/Hud', 'live/MainMenu', 'live/Shop']) {
     test(`${n}.json matches the plugin API shape`, () => {
       const b = load(n);
       assert.strictEqual(b.type, 'board');
-      assert(b.x !== 0 || b.y !== 0, 'boards sit away from the page origin so absolute coordinates are exercised');
+      if (!n.startsWith('live/')) assert(b.x !== 0 || b.y !== 0, 'boards sit away from the page origin so absolute coordinates are exercised');
       validateShape(b, null, b.name);
     });
   }
@@ -88,10 +88,14 @@ describe('HUD', () => {
     assert.strictEqual(c.layout.type, 'List');
     assert.strictEqual(c.layout.fillDirection, 'Horizontal');
     assert.strictEqual(c.layout.verticalAlignment, 'Center');
-    close(c.layout.padding.scale, 16 / 300, 'columnGap / width');
+    close(c.layout.padding.scale, 16 / 268, 'columnGap / padded content width (300 - 8 - 24)');
     close(c.padding.left.scale, 8 / 300, 'left / width'); close(c.padding.top.scale, 8 / 86, 'top / height');
     close(c.padding.right.scale, 24 / 300, 'right / width');
     assert.deepStrictEqual(c.children.map(k => [k.name, k.layoutOrder, k.anchorPoint.x]), [['Icon', 1, 0], ['Amount', 2, 0]]);
+    // Roblox sizes children inside the UIPadding, so child scale is relative to the content box.
+    const icon = c.children[0];
+    close(icon.size.scaleX, icon.design.width / 268, 'child width / content width');
+    close(icon.size.scaleY, icon.design.height / 70, 'child height / content height (86 - 8 - 8)');
   });
   test('text: colour from fills, no background, plugin strings parsed', () => {
     const a = find(spec.elements, 'CoinCounter/Amount');
@@ -143,6 +147,7 @@ describe('Menu', () => {
     assert.strictEqual(b.layout.fillDirection, 'Vertical');
     assert.strictEqual(b.layout.horizontalAlignment, 'Center');
     close(b.layout.padding.scale, 24 / 412, 'rowGap / height');
+    assert.strictEqual(b.type, 'Frame', '"Buttons" holds buttons; it is not one');
     const order = Object.fromEntries(b.children.map(c => [c.name, c.layoutOrder]));
     assert.deepStrictEqual(order, { PlayButton: 1, ShopButton: 2, QuitButton: 3 });
     for (const c of b.children) {
@@ -176,6 +181,48 @@ describe('Shop', () => {
     assert.strictEqual(buy.type, 'TextButton');
     assert.strictEqual(find(spec.elements, 'Panel/Items/Jetpack/BuyButton/Price').text, '900');
     assert.strictEqual(find(spec.elements, 'Panel/Title').font.family, 'LuckiestGuy');
+  });
+});
+
+// Real exports from a self-hosted Penpot 2.15.4, made through the Penpot MCP with
+// penpot/extract_board.js (text strokes come back null, opacity null, colours lower-case).
+describe('live Penpot exports', () => {
+  test('main menu: column of buttons in laid-out order, title capped at 100', () => {
+    const spec = convert('live/MainMenu');
+    const b = find(spec.elements, 'Buttons');
+    assert.strictEqual(b.type, 'Frame');
+    assert.deepStrictEqual(b.children.map(c => [c.name, c.type, c.layoutOrder]),
+      [['PlayButton', 'TextButton', 1], ['ShopButton', 'TextButton', 2], ['QuitButton', 'TextButton', 3]]);
+    const title = find(spec.elements, 'Title');
+    assert.strictEqual(title.textSize, 100);
+    assert.strictEqual(title.font.family, 'FredokaOne');
+    assert(spec.warnings.some(w => w.includes('capped at Roblox')));
+  });
+  test('HUD: padded flex row, image fill, centred banner', () => {
+    const spec = convert('live/Hud');
+    const c = find(spec.elements, 'CoinCounter');
+    assert.strictEqual(c.backgroundColor, '#1E1B2E');
+    assert.strictEqual(c.layout.type, 'List');
+    const icon = find(spec.elements, 'CoinCounter/Icon');
+    close(icon.size.scaleX, 64 / (320 - 12 - 28), 'icon width / content width');
+    assert.strictEqual(icon.type, 'ImageLabel');
+    assert.deepStrictEqual(find(spec.elements, 'StageBanner').anchorPoint, { x: 0.5, y: 0 });
+    assert.strictEqual(find(spec.elements, 'StageBanner/Label').font.family, 'LuckiestGuy');
+    assert.strictEqual(spec.images.length, 1);
+  });
+  test('shop: 3x2 grid, 6 image fills + exported close path', () => {
+    const spec = convert('live/Shop');
+    const g = find(spec.elements, 'Panel/Items');
+    assert.strictEqual(g.layout.type, 'Grid');
+    assert.deepStrictEqual(g.children.map(c => c.name), ['Gem', 'Jetpack', 'Boots', 'Potion', 'Shield', 'Sword']);
+    assert.deepStrictEqual(g.children.map(c => c.layoutOrder), [6, 5, 4, 3, 2, 1]);
+    assert.strictEqual(spec.images.filter(i => i.source === 'fill').length, 6);
+    const closeBtn = find(spec.elements, 'Panel/CloseButton');
+    assert.strictEqual(closeBtn.type, 'ImageButton');
+    // Its 8px white stroke is drawn into the exported PNG; a UIStroke on top boxed the X in Studio.
+    assert.strictEqual(closeBtn.stroke, undefined, 'no UIStroke on a rasterized path');
+    assert.strictEqual(closeBtn.corner, undefined);
+    assert.strictEqual(closeBtn.gradient, undefined);
   });
 });
 
@@ -216,7 +263,7 @@ describe('edge cases', () => {
 describe('phone / tablet aspect', () => {
   // Absolute rects for top-level elements, like Roblox: scale size, UIAspectRatioConstraint
   // (FitWithinMaxSize), AnchorPoint. Every element must stay on screen at every viewport.
-  for (const n of ['hud', 'menu', 'shop']) {
+  for (const n of ['hud', 'menu', 'shop', 'live/Hud', 'live/MainMenu', 'live/Shop']) {
     test(`${n}: top-level elements stay on screen at 1920x1080, 844x390, 1024x768, 1280x720`, () => {
       const spec = convert(n);
       for (const [W, H] of [[1920, 1080], [844, 390], [1024, 768], [1280, 720]]) {

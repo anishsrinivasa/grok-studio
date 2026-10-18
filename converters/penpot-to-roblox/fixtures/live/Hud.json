@@ -1,0 +1,541 @@
+{
+ "extractor": "grok-studio extract_board.js v2",
+ "page": "Page 1",
+ "id": "bd3bca6f-ea15-80bf-8008-cf97ee36e4e1",
+ "name": "Hud",
+ "type": "board",
+ "x": 0,
+ "y": 0,
+ "width": 1920,
+ "height": 1080,
+ "parentX": 0,
+ "parentY": 0,
+ "rotation": 0,
+ "opacity": null,
+ "hidden": false,
+ "blendMode": "normal",
+ "proportionLock": false,
+ "constraintsHorizontal": null,
+ "constraintsVertical": null,
+ "borderRadius": 0,
+ "borderRadiusTopLeft": 0,
+ "borderRadiusTopRight": 0,
+ "borderRadiusBottomRight": 0,
+ "borderRadiusBottomLeft": 0,
+ "center": {
+  "x": 960,
+  "y": 540
+ },
+ "fills": [
+  {
+   "fillColor": "#87ceeb",
+   "fillOpacity": 1
+  }
+ ],
+ "strokes": [],
+ "shadows": [],
+ "clipContent": true,
+ "children": [
+  {
+   "id": "bd3bca6f-ea15-80bf-8008-cf97ee3adec6",
+   "name": "CoinCounter",
+   "type": "board",
+   "x": 32,
+   "y": 32,
+   "width": 320,
+   "height": 88,
+   "parentX": 32,
+   "parentY": 32,
+   "rotation": 0,
+   "opacity": null,
+   "hidden": false,
+   "blendMode": "normal",
+   "proportionLock": false,
+   "constraintsHorizontal": "left",
+   "constraintsVertical": "top",
+   "borderRadius": 44,
+   "borderRadiusTopLeft": 44,
+   "borderRadiusTopRight": 44,
+   "borderRadiusBottomRight": 44,
+   "borderRadiusBottomLeft": 44,
+   "center": {
+    "x": 192,
+    "y": 76
+   },
+   "fills": [
+    {
+     "fillColor": "#1e1b2e",
+     "fillOpacity": 0.85
+    }
+   ],
+   "strokes": [
+    {
+     "strokeColor": "#ffd23f",
+     "strokeOpacity": 1,
+     "strokeStyle": "solid",
+     "strokeWidth": 3,
+     "strokeAlignment": "inner"
+    }
+   ],
+   "shadows": [],
+   "clipContent": true,
+   "flex": {
+    "dir": "row",
+    "wrap": "nowrap",
+    "alignItems": "center",
+    "alignContent": "stretch",
+    "justifyItems": null,
+    "justifyContent": "start",
+    "rowGap": 0,
+    "columnGap": 16,
+    "topPadding": 12,
+    "rightPadding": 28,
+    "bottomPadding": 12,
+    "leftPadding": 12,
+    "horizontalSizing": "fix",
+    "verticalSizing": "fix"
+   },
+   "children": [
+    {
+     "id": "bd3bca6f-ea15-80bf-8008-cf97eddcea3c",
+     "name": "Icon",
+     "type": "rectangle",
+     "x": 60,
+     "y": 44,
+     "width": 64,
+     "height": 64,
+     "parentX": 28,
+     "parentY": 12,
+     "rotation": 0,
+     "opacity": null,
+     "hidden": false,
+     "blendMode": "normal",
+     "proportionLock": false,
+     "constraintsHorizontal": "left",
+     "constraintsVertical": "top",
+     "borderRadius": 0,
+     "borderRadiusTopLeft": 0,
+     "borderRadiusTopRight": 0,
+     "borderRadiusBottomRight": 0,
+     "borderRadiusBottomLeft": 0,
+     "center": {
+      "x": 92,
+      "y": 76
+     },
+     "fills": [
+      {
+       "fillOpacity": 1,
+       "fillImage": {
+        "id": "ba3a7f13-d6c9-8076-8008-cf97edc8d4d5",
+        "name": "prev_coin.png",
+        "width": 512,
+        "height": 512,
+        "mtype": "image/png",
+        "keepAspectRatio": null
+       }
+      }
+     ],
+     "strokes": [],
+     "shadows": [],
+     "layoutChild": {
+      "absolute": false,
+      "zIndex": 0,
+      "horizontalSizing": "fix",
+      "verticalSizing": "fix",
+      "alignSelf": "auto"
+     }
+    },
+    {
+     "id": "bd3bca6f-ea15-80bf-8008-cf97ee45ebde",
+     "name": "Amount",
+     "type": "text",
+     "x": 140,
+     "y": 47,
+     "width": 108,
+     "height": 58,
+     "parentX": 108,
+     "parentY": 15,
+     "rotation": 0,
+     "opacity": null,
+     "hidden": false,
+     "blendMode": "normal",
+     "proportionLock": false,
+     "constraintsHorizontal": "left",
+     "constraintsVertical": "top",
+     "borderRadius": null,
+     "borderRadiusTopLeft": null,
+     "borderRadiusTopRight": null,
+     "borderRadiusBottomRight": null,
+     "borderRadiusBottomLeft": null,
+     "center": {
+      "x": 194,
+      "y": 76
+     },
+     "fills": [
+      {
+       "fillColor": "#ffffff",
+       "fillOpacity": 1
+      }
+     ],
+     "strokes": [],
+     "shadows": [],
+     "layoutChild": {
+      "absolute": false,
+      "zIndex": 0,
+      "horizontalSizing": "fix",
+      "verticalSizing": "fix",
+      "alignSelf": "auto"
+     },
+     "characters": "1,250",
+     "growType": "auto-width",
+     "fontFamily": "Fredoka",
+     "fontSize": "48",
+     "fontWeight": "700",
+     "fontStyle": "normal",
+     "lineHeight": "1.2",
+     "letterSpacing": "0",
+     "textTransform": "none",
+     "align": "left",
+     "verticalAlign": "top"
+    }
+   ]
+  },
+  {
+   "id": "bd3bca6f-ea15-80bf-8008-cf97ee4c4d67",
+   "name": "StageBanner",
+   "type": "board",
+   "x": 760,
+   "y": 32,
+   "width": 400,
+   "height": 64,
+   "parentX": 760,
+   "parentY": 32,
+   "rotation": 0,
+   "opacity": null,
+   "hidden": false,
+   "blendMode": "normal",
+   "proportionLock": false,
+   "constraintsHorizontal": "center",
+   "constraintsVertical": "top",
+   "borderRadius": 16,
+   "borderRadiusTopLeft": 16,
+   "borderRadiusTopRight": 16,
+   "borderRadiusBottomRight": 16,
+   "borderRadiusBottomLeft": 16,
+   "center": {
+    "x": 960,
+    "y": 64
+   },
+   "fills": [
+    {
+     "fillColor": "#7b2ff7",
+     "fillOpacity": 1
+    }
+   ],
+   "strokes": [],
+   "shadows": [],
+   "clipContent": true,
+   "children": [
+    {
+     "id": "bd3bca6f-ea15-80bf-8008-cf97ee518d0a",
+     "name": "Label",
+     "type": "text",
+     "x": 760,
+     "y": 32,
+     "width": 400,
+     "height": 64,
+     "parentX": 0,
+     "parentY": 0,
+     "rotation": 0,
+     "opacity": null,
+     "hidden": false,
+     "blendMode": "normal",
+     "proportionLock": false,
+     "constraintsHorizontal": "left",
+     "constraintsVertical": "top",
+     "borderRadius": null,
+     "borderRadiusTopLeft": null,
+     "borderRadiusTopRight": null,
+     "borderRadiusBottomRight": null,
+     "borderRadiusBottomLeft": null,
+     "center": {
+      "x": 960,
+      "y": 64
+     },
+     "fills": [
+      {
+       "fillColor": "#ffffff",
+       "fillOpacity": 1
+      }
+     ],
+     "strokes": [],
+     "shadows": [],
+     "characters": "Stage 3/12",
+     "growType": "fixed",
+     "fontFamily": "Luckiest Guy",
+     "fontSize": "36",
+     "fontWeight": "400",
+     "fontStyle": "normal",
+     "lineHeight": "1.2",
+     "letterSpacing": "0",
+     "textTransform": "none",
+     "align": "center",
+     "verticalAlign": "center"
+    }
+   ]
+  },
+  {
+   "id": "bd3bca6f-ea15-80bf-8008-cf97ee596532",
+   "name": "HealthBar",
+   "type": "board",
+   "x": 1488,
+   "y": 40,
+   "width": 400,
+   "height": 40,
+   "parentX": 1488,
+   "parentY": 40,
+   "rotation": 0,
+   "opacity": null,
+   "hidden": false,
+   "blendMode": "normal",
+   "proportionLock": false,
+   "constraintsHorizontal": "right",
+   "constraintsVertical": "top",
+   "borderRadius": 20,
+   "borderRadiusTopLeft": 20,
+   "borderRadiusTopRight": 20,
+   "borderRadiusBottomRight": 20,
+   "borderRadiusBottomLeft": 20,
+   "center": {
+    "x": 1688,
+    "y": 60
+   },
+   "fills": [
+    {
+     "fillColor": "#2a2438",
+     "fillOpacity": 1
+    }
+   ],
+   "strokes": [],
+   "shadows": [],
+   "clipContent": true,
+   "children": [
+    {
+     "id": "bd3bca6f-ea15-80bf-8008-cf97ee5e94fb",
+     "name": "Fill",
+     "type": "rectangle",
+     "x": 1488,
+     "y": 40,
+     "width": 280,
+     "height": 40,
+     "parentX": 0,
+     "parentY": 0,
+     "rotation": 0,
+     "opacity": null,
+     "hidden": false,
+     "blendMode": "normal",
+     "proportionLock": false,
+     "constraintsHorizontal": "left",
+     "constraintsVertical": "top",
+     "borderRadius": 20,
+     "borderRadiusTopLeft": 20,
+     "borderRadiusTopRight": 20,
+     "borderRadiusBottomRight": 20,
+     "borderRadiusBottomLeft": 20,
+     "center": {
+      "x": 1628,
+      "y": 60
+     },
+     "fills": [
+      {
+       "fillColorGradient": {
+        "type": "linear",
+        "startX": 0,
+        "startY": 0.5,
+        "endX": 1,
+        "endY": 0.5,
+        "width": 1,
+        "stops": [
+         {
+          "color": "#ff4d6d",
+          "opacity": 1,
+          "offset": 0
+         },
+         {
+          "color": "#ffb347",
+          "opacity": 1,
+          "offset": 1
+         }
+        ]
+       }
+      }
+     ],
+     "strokes": [],
+     "shadows": []
+    },
+    {
+     "id": "bd3bca6f-ea15-80bf-8008-cf97ee62da3b",
+     "name": "Label",
+     "type": "text",
+     "x": 1488,
+     "y": 40,
+     "width": 400,
+     "height": 40,
+     "parentX": 0,
+     "parentY": 0,
+     "rotation": 0,
+     "opacity": null,
+     "hidden": false,
+     "blendMode": "normal",
+     "proportionLock": false,
+     "constraintsHorizontal": "left",
+     "constraintsVertical": "top",
+     "borderRadius": null,
+     "borderRadiusTopLeft": null,
+     "borderRadiusTopRight": null,
+     "borderRadiusBottomRight": null,
+     "borderRadiusBottomLeft": null,
+     "center": {
+      "x": 1688,
+      "y": 60
+     },
+     "fills": [
+      {
+       "fillColor": "#ffffff",
+       "fillOpacity": 1
+      }
+     ],
+     "strokes": [],
+     "shadows": [],
+     "characters": "hp 70/100",
+     "growType": "fixed",
+     "fontFamily": "sourcesanspro",
+     "fontSize": "22",
+     "fontWeight": "700",
+     "fontStyle": "normal",
+     "lineHeight": "1.2",
+     "letterSpacing": "0",
+     "textTransform": "uppercase",
+     "align": "center",
+     "verticalAlign": "center"
+    }
+   ]
+  },
+  {
+   "id": "bd3bca6f-ea15-80bf-8008-cf97ee6922e3",
+   "name": "PauseButton",
+   "type": "board",
+   "x": 1792,
+   "y": 952,
+   "width": 96,
+   "height": 96,
+   "parentX": 1792,
+   "parentY": 952,
+   "rotation": 0,
+   "opacity": null,
+   "hidden": false,
+   "blendMode": "normal",
+   "proportionLock": false,
+   "constraintsHorizontal": "right",
+   "constraintsVertical": "bottom",
+   "borderRadius": 48,
+   "borderRadiusTopLeft": 48,
+   "borderRadiusTopRight": 48,
+   "borderRadiusBottomRight": 48,
+   "borderRadiusBottomLeft": 48,
+   "center": {
+    "x": 1840,
+    "y": 1000
+   },
+   "fills": [
+    {
+     "fillColor": "#ffffff",
+     "fillOpacity": 0.9
+    }
+   ],
+   "strokes": [
+    {
+     "strokeColor": "#1e1b2e",
+     "strokeOpacity": 1,
+     "strokeStyle": "solid",
+     "strokeWidth": 4,
+     "strokeAlignment": "inner"
+    }
+   ],
+   "shadows": [],
+   "clipContent": true,
+   "children": [
+    {
+     "id": "bd3bca6f-ea15-80bf-8008-cf97ee6e5ad8",
+     "name": "BarLeft",
+     "type": "rectangle",
+     "x": 1822,
+     "y": 978,
+     "width": 12,
+     "height": 44,
+     "parentX": 30,
+     "parentY": 26,
+     "rotation": 0,
+     "opacity": null,
+     "hidden": false,
+     "blendMode": "normal",
+     "proportionLock": false,
+     "constraintsHorizontal": "left",
+     "constraintsVertical": "top",
+     "borderRadius": 4,
+     "borderRadiusTopLeft": 4,
+     "borderRadiusTopRight": 4,
+     "borderRadiusBottomRight": 4,
+     "borderRadiusBottomLeft": 4,
+     "center": {
+      "x": 1828,
+      "y": 1000
+     },
+     "fills": [
+      {
+       "fillColor": "#1e1b2e",
+       "fillOpacity": 1
+      }
+     ],
+     "strokes": [],
+     "shadows": []
+    },
+    {
+     "id": "bd3bca6f-ea15-80bf-8008-cf97ee71cc8e",
+     "name": "BarRight",
+     "type": "rectangle",
+     "x": 1846,
+     "y": 978,
+     "width": 12,
+     "height": 44,
+     "parentX": 54,
+     "parentY": 26,
+     "rotation": 0,
+     "opacity": null,
+     "hidden": false,
+     "blendMode": "normal",
+     "proportionLock": false,
+     "constraintsHorizontal": "left",
+     "constraintsVertical": "top",
+     "borderRadius": 4,
+     "borderRadiusTopLeft": 4,
+     "borderRadiusTopRight": 4,
+     "borderRadiusBottomRight": 4,
+     "borderRadiusBottomLeft": 4,
+     "center": {
+      "x": 1852,
+      "y": 1000
+     },
+     "fills": [
+      {
+       "fillColor": "#1e1b2e",
+       "fillOpacity": 1
+      }
+     ],
+     "strokes": [],
+     "shadows": []
+    }
+   ]
+  }
+ ]
+}

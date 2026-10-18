@@ -50,7 +50,7 @@ local function fmt(u: UDim2): string
 	return string.format("{%.4f,%g},{%.4f,%g}", u.X.Scale, u.X.Offset, u.Y.Scale, u.Y.Offset)
 end
 
-type Ctx = { errors: { string }, warnings: { string }, checks: number, screenPos: Vector2?, screenSize: Vector2? }
+type Ctx = { errors: { string }, warnings: { string }, checks: number, screenPos: Vector2?, screenSize: Vector2?, factor: Vector2? }
 
 local function check(ctx: Ctx, ok: boolean, msg: string)
 	ctx.checks += 1
@@ -110,7 +110,7 @@ local function verifyElement(inst: GuiObject, el: any, path: string, ctx: Ctx)
 		end
 		if el.textScaled and el.textSize then
 			local c = inst:FindFirstChildOfClass("UITextSizeConstraint")
-			check(ctx, c ~= nil and c.MaxTextSize == math.max(1, math.floor(el.textSize + 0.5)),
+			check(ctx, c ~= nil and c.MaxTextSize == math.clamp(math.floor(el.textSize + 0.5), 1, 100),
 				`{path}: UITextSizeConstraint MaxTextSize {el.textSize} missing`)
 		end
 		if t.Text ~= "" and t.TextFits == false and inst.Visible then
@@ -165,7 +165,61 @@ local function verifyElement(inst: GuiObject, el: any, path: string, ctx: Ctx)
 				ctx.screenSize.X, ctx.screenSize.Y))
 	end
 
+	-- Rendered size = design size stretched to this screen (fitted for aspect-locked elements).
+	-- Catches layout effects the properties alone don't show, e.g. UIPadding shrinking children.
+	-- ctx.factor = how much the parent was stretched from the design (screen/board at the top).
+	local factor = ctx.factor
+	local childFactor: Vector2? = nil
+	if el.design and inst.Visible and ctx.screenSize and factor and ctx.screenSize.X > 0 and (el.rotation or 0) == 0 then
+		local sx, sy = factor.X, factor.Y
+		local ew, eh = el.design.width * sx, el.design.height * sy
+		if el.aspectRatio then
+			if ew / math.max(eh, 1e-6) > el.aspectRatio then ew = eh * el.aspectRatio else eh = ew / el.aspectRatio end
+		end
+		local s = inst.AbsoluteSize
+		local tol = function(v: number) return 2 + v * 0.01 end
+		check(ctx, math.abs(s.X - ew) <= tol(ew) and math.abs(s.Y - eh) <= tol(eh),
+			string.format("%s: renders %.0fx%.0f, design says %.0fx%.0f on this screen", path, s.X, s.Y, ew, eh))
+		if el.design.width > 0 and el.design.height > 0 then
+			childFactor = Vector2.new(s.X / el.design.width, s.Y / el.design.height)
+		end
+	end
+
+	ctx.factor = childFactor
+
 	M._children(inst, el.children or {}, path, ctx, inst.Visible)
+	ctx.factor = factor
+end
+
+local function intersects(ax: number, ay: number, aw: number, ah: number, bx: number, by: number, bw: number, bh: number, slack: number): boolean
+	return math.min(ax + aw, bx + bw) - math.max(ax, bx) > slack and math.min(ay + ah, by + bh) - math.max(ay, by) > slack
+end
+
+-- Siblings that are apart in the design must not overlap on this screen (a layout broken
+-- by the viewport's aspect ratio, e.g. a right-anchored bar running into a left one).
+function M._overlaps(byName: { [string]: { GuiObject } }, elements: { any }, path: string, ctx: Ctx, visible: boolean)
+	if not visible or not ctx.screenSize then
+		return
+	end
+	local items = {}
+	for _, el in elements do
+		local found = byName[el.name]
+		if el.design and el.visible ~= false and found and #found == 1 and found[1].Visible then
+			table.insert(items, { el = el, inst = found[1] })
+		end
+	end
+	for i = 1, #items do
+		for j = i + 1, #items do
+			local a, b = items[i], items[j]
+			local da, db = a.el.design, b.el.design
+			if not intersects(da.x, da.y, da.width, da.height, db.x, db.y, db.width, db.height, 1) then
+				local pa, sa = a.inst.AbsolutePosition, a.inst.AbsoluteSize
+				local pb, sb = b.inst.AbsolutePosition, b.inst.AbsoluteSize
+				check(ctx, not intersects(pa.X, pa.Y, sa.X, sa.Y, pb.X, pb.Y, sb.X, sb.Y, 2),
+					`{path}: {a.el.name} overlaps {b.el.name} on this screen (apart in the design)`)
+			end
+		end
+	end
 end
 
 function M._children(parent: Instance, elements: { any }, path: string, ctx: Ctx, visible: boolean)
@@ -188,6 +242,7 @@ function M._children(parent: Instance, elements: { any }, path: string, ctx: Ctx
 			ctx.screenSize = saved
 		end
 	end
+	M._overlaps(byName, elements, path, ctx, visible)
 	for name in byName do
 		if not expected[name] then
 			table.insert(ctx.warnings, `{path}/{name}: not in the spec (added by hand?)`)
@@ -207,8 +262,12 @@ function M.verify(screen: Instance?, spec: any): Result
 		return { status = "FAIL", checks = 0, errors = { "not a version 2 penpot-to-roblox spec" }, warnings = {} }
 	end
 	if screen:IsA("ScreenGui") then
+		local size = screen.AbsoluteSize
 		ctx.screenPos = screen.AbsolutePosition
-		ctx.screenSize = screen.AbsoluteSize
+		ctx.screenSize = size
+		if spec.board and spec.board.width and spec.board.height then
+			ctx.factor = Vector2.new(size.X / spec.board.width, size.Y / spec.board.height)
+		end
 		check(ctx, screen:GetAttribute("PenpotBoardId") == spec.board.id, `{screen.Name}: PenpotBoardId differs (built from another board?)`)
 	end
 	M._children(screen, spec.elements, screen.Name, ctx, true)

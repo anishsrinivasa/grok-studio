@@ -44,7 +44,7 @@ Help: https://help.penpot.app/mcp/
   or corner on phones. Without them, the converter infers anchors from placement.
 - Flex (row/column) → UIListLayout, uniform grids → UIGridLayout. Absolutely positioned
   children turn the layout off (fixed positions are kept).
-- Containers whose name contains `Button`/`Btn` become TextButton (or ImageButton for images
+- Layers whose name ends in `Button`/`Btn` (`PlayButton`, not `Buttons`) become TextButton (or ImageButton for images
   and vectors); their text child stays a TextLabel.
 - Fonts: Roblox has its own catalogue. Mapped: Source Sans Pro (Penpot's default), Fredoka,
   Luckiest Guy, Gotham, Montserrat, Roboto, Roboto Mono, Arial, Bangers, Oswald, Nunito and

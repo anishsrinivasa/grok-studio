@@ -164,6 +164,8 @@ export interface RobloxElement {
   size: UDim2Spec;
   anchorPoint: { x: number; y: number };
   rotation?: number;
+  /** Where the shape sits in the design, in px relative to its parent (for overlap checks). */
+  design?: { x: number; y: number; width: number; height: number };
   zIndex: number;
   layoutOrder?: number;
   visible: boolean;

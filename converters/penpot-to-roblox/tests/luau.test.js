@@ -20,8 +20,9 @@ const longString = (s) => `[==[${s}]==]`;
 
 test('Luau builder + verifier against a fake Roblox API', { skip: luau ? false : 'no luau CLI (github.com/luau-lang/luau/releases)' }, () => {
   const wrap = (f) => `(function()\n${readFileSync(f, 'utf-8')}\nend)()`;
-  const specs = ['hud', 'menu', 'shop']
-    .map(n => `${n} = ${longString(JSON.stringify(convertPenpotToRoblox(JSON.parse(readFileSync(`fixtures/${n}.json`, 'utf-8')))))}`)
+  // fixtures/live/* are real exports from Penpot 2.15.4 (extract_board.js over the Penpot MCP).
+  const specs = ['hud', 'menu', 'shop', 'live/Hud', 'live/MainMenu', 'live/Shop']
+    .map(n => `["${n}"] = ${longString(JSON.stringify(convertPenpotToRoblox(JSON.parse(readFileSync(`fixtures/${n}.json`, 'utf-8')))))}`)
     .join(',\n');
   const src = readFileSync('tests/roblox_mock.luau', 'utf-8')
     .replace('--@@BUILDER@@', wrap('PenpotUIBuilder.luau'))

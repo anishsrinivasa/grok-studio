@@ -126,6 +126,16 @@ local function absRect(self)
 		return Vector2.new(0, 0), Vector2.new(0, 0)
 	end
 	local pp, ps = absRect(parent)
+	for _, c in rawget(parent, "_c") do
+		if c.ClassName == "UIPadding" then -- children live inside the padded content box
+			local q = rawget(c, "_p")
+			local l = q.PaddingLeft.Scale * ps.X + q.PaddingLeft.Offset
+			local r = q.PaddingRight.Scale * ps.X + q.PaddingRight.Offset
+			local t = q.PaddingTop.Scale * ps.Y + q.PaddingTop.Offset
+			local b = q.PaddingBottom.Scale * ps.Y + q.PaddingBottom.Offset
+			pp, ps = Vector2.new(pp.X + l, pp.Y + t), Vector2.new(ps.X - l - r, ps.Y - t - b)
+		end
+	end
 	local s, p, a = props.Size, props.Position, props.AnchorPoint
 	local w, h = s.X.Scale * ps.X + s.X.Offset, s.Y.Scale * ps.Y + s.Y.Offset
 	for _, c in rawget(self, "_c") do
@@ -160,6 +170,9 @@ InstMT.__newindex = function(self, k, v)
 		props.Parent = v
 		if v then table.insert(rawget(v, "_c"), self) end
 		return
+	end
+	if (k == "MaxTextSize" or k == "TextSize") and type(v) == "number" then
+		v = math.clamp(v, 1, 100) -- Roblox caps both at 100
 	end
 	if k == "TextWrapped" and v == false then
 		props.TextScaled = false -- real Roblox behaviour, observed in Studio
@@ -273,7 +286,7 @@ local function has(list, pat)
 end
 local VIEWPORTS = { { "desktop 1920x1080", 1920, 1080 }, { "phone 844x390", 844, 390 }, { "tablet 1024x768", 1024, 768 } }
 
-for _, name in { "hud", "menu", "shop" } do
+for _, name in { "hud", "menu", "shop", "live/Hud", "live/MainMenu", "live/Shop" } do
 	print(`{name}:`)
 	local specJson = SPECS[name]
 	local screen, rep = Builder.build(specJson, { name = "PenpotTest" })
@@ -302,6 +315,7 @@ screen:FindFirstChild("PauseButton").Position = UDim2.new(1.2, 0, 0.97, 0)      
 coin:FindFirstChildOfClass("UICorner"):Destroy()               -- decoration lost
 screen:FindFirstChild("Toast"):Destroy()                        -- element missing
 local overlay = Instance.new("Frame"); overlay.Name = "FakeBorder"; overlay.Parent = coin -- hand-made extra
+screen:FindFirstChild("HealthBar").Size = UDim2.fromScale(0.95, 0.04)       -- runs into the coin counter
 local r = Verifier.verify(screen, hud)
 print(Verifier.report(r))
 check(r.status == "FAIL", "verify FAILs on a broken build")
@@ -311,6 +325,7 @@ check(has(r.errors, "PauseButton: outside the screen"), "reports off-screen elem
 check(has(r.errors, "CoinCounter: UICorner"), "reports missing UICorner")
 check(has(r.errors, "Toast: missing"), "reports missing element")
 check(has(r.warnings, "FakeBorder: not in the spec"), "warns about the hand-added Frame")
+check(has(r.errors, "CoinCounter overlaps HealthBar"), "reports siblings that overlap but are apart in the design")
 
 print("safety:")
 local foreign = Instance.new("ScreenGui"); foreign.Name = "MainHud"; foreign.Parent = StarterGuiService
