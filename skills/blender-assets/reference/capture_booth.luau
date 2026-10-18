@@ -26,6 +26,7 @@ local CAMERA_JSON = [==[
 local BACKDROP = "#FF00FF"
 local BOOTH_ORIGIN = Vector3.new(0, 4000, 0)
 local BOOTH_NAME = "_GS_CaptureBooth"
+local BOOTH_PARENT = "Workspace" -- dot path; e.g. "Workspace.GS_Tests" to keep test objects together
 
 local HttpService = game:GetService("HttpService")
 
@@ -42,8 +43,12 @@ local function resolve(path: string): Instance?
 	return node
 end
 
+local function boothParent(): Instance
+	return resolve(BOOTH_PARENT) or workspace
+end
+
 local function cleanup(): { [string]: any }
-	local booth = workspace:FindFirstChild(BOOTH_NAME)
+	local booth = boothParent():FindFirstChild(BOOTH_NAME)
 	if booth then
 		booth:Destroy()
 	end
@@ -96,7 +101,7 @@ local function setup(): { [string]: any }
 	local centre = lookAt - dir * behind
 	backdrop.CFrame = CFrame.lookAt(centre, centre + dir)
 	backdrop.Parent = booth
-	booth.Parent = workspace
+	booth.Parent = boothParent()
 
 	local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.zero
 	return {

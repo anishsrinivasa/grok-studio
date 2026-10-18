@@ -288,6 +288,9 @@ def compare_capture(paths, capture_png, view="front", **thresholds):
     """Score the Studio capture against renders/<id>_compare_<view>.png."""
     _require_bpy()
     render = os.path.join(paths["renders"], f"{paths['id']}_compare_{view}.png")
+    if "palette" not in thresholds:
+        with open(paths["manifest"], encoding="utf-8") as f:
+            thresholds["palette"] = _cmp.palette_from_manifest(json.load(f))
     return _cmp.compare_images(render, capture_png, **thresholds)
 
 

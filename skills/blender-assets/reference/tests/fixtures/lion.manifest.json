@@ -1,0 +1,217 @@
+{
+  "version": 1,
+  "id": "lion",
+  "fbx": "lion.fbx",
+  "units": "studs",
+  "axes": "Roblox: +Y up, -Z forward (LookVector) = Blender -Y front; Roblox (x, y, z) = Blender (-x, z, y)",
+  "size": [
+    4.618,
+    8.0875,
+    11.8741
+  ],
+  "pivot": {
+    "description": "bottom centre of the asset bounds",
+    "blender": [
+      0.0,
+      -0.017,
+      0.0
+    ]
+  },
+  "triangles": 2340,
+  "primaryPart": "lion_Lion_Fur",
+  "anchored": true,
+  "canCollide": true,
+  "collisionFidelity": "Box",
+  "parts": [
+    {
+      "name": "lion_Lion_Fur",
+      "material": "Lion_Fur",
+      "hex": "#F6C57F",
+      "robloxMaterial": "SmoothPlastic",
+      "size": [
+        3.05,
+        7.1,
+        10.8805
+      ],
+      "position": [
+        0.0,
+        3.75,
+        -0.2232
+      ],
+      "triangles": 756,
+      "rotated": false,
+      "multiMaterial": false
+    },
+    {
+      "name": "lion_Lion_Cream",
+      "material": "Lion_Cream",
+      "hex": "#FFE6BF",
+      "robloxMaterial": "SmoothPlastic",
+      "size": [
+        2.3,
+        3.3,
+        8.3
+      ],
+      "position": [
+        0.0,
+        4.3,
+        1.667
+      ],
+      "triangles": 216,
+      "rotated": false,
+      "multiMaterial": false
+    },
+    {
+      "name": "lion_Lion_Saddle",
+      "material": "Lion_Saddle",
+      "hex": "#8FD6F0",
+      "robloxMaterial": "SmoothPlastic",
+      "size": [
+        3.0,
+        0.22,
+        2.2
+      ],
+      "position": [
+        0.0,
+        5.3,
+        0.017
+      ],
+      "triangles": 108,
+      "rotated": false,
+      "multiMaterial": false
+    },
+    {
+      "name": "lion_Lion_SaddleTrim",
+      "material": "Lion_SaddleTrim",
+      "hex": "#C9A2F2",
+      "robloxMaterial": "SmoothPlastic",
+      "size": [
+        2.4,
+        0.12,
+        1.6
+      ],
+      "position": [
+        0.0,
+        5.42,
+        0.017
+      ],
+      "triangles": 108,
+      "rotated": false,
+      "multiMaterial": false
+    },
+    {
+      "name": "lion_Lion_Nose",
+      "material": "Lion_Nose",
+      "hex": "#9C4B66",
+      "robloxMaterial": "SmoothPlastic",
+      "size": [
+        0.6,
+        0.38,
+        0.2
+      ],
+      "position": [
+        0.0,
+        5.75,
+        5.837
+      ],
+      "triangles": 108,
+      "rotated": false,
+      "multiMaterial": false
+    },
+    {
+      "name": "lion_Lion_Eye",
+      "material": "Lion_Eye",
+      "hex": "#3B2A40",
+      "robloxMaterial": "SmoothPlastic",
+      "size": [
+        1.4614,
+        0.46,
+        0.2
+      ],
+      "position": [
+        0.0,
+        6.25,
+        5.197
+      ],
+      "triangles": 200,
+      "rotated": false,
+      "multiMaterial": false
+    },
+    {
+      "name": "lion_Lion_EyeHi",
+      "material": "Lion_EyeHi",
+      "hex": "#FFFFFF",
+      "robloxMaterial": "SmoothPlastic",
+      "size": [
+        1.2039,
+        0.12,
+        0.08
+      ],
+      "position": [
+        -0.07,
+        6.37,
+        5.277
+      ],
+      "triangles": 72,
+      "rotated": false,
+      "multiMaterial": false
+    },
+    {
+      "name": "lion_Lion_Paw",
+      "material": "Lion_Paw",
+      "hex": "#FFD9A0",
+      "robloxMaterial": "SmoothPlastic",
+      "size": [
+        2.95,
+        0.5,
+        6.2
+      ],
+      "position": [
+        0.0,
+        0.25,
+        0.217
+      ],
+      "triangles": 432,
+      "rotated": false,
+      "multiMaterial": false
+    },
+    {
+      "name": "lion_Lion_Mane",
+      "material": "Lion_Mane",
+      "hex": "#FF8DB8",
+      "robloxMaterial": "SmoothPlastic",
+      "size": [
+        4.1491,
+        4.575,
+        10.3541
+      ],
+      "position": [
+        0.0,
+        5.8,
+        -0.76
+      ],
+      "triangles": 220,
+      "rotated": false,
+      "multiMaterial": false
+    },
+    {
+      "name": "lion_Lion_ManeTip",
+      "material": "Lion_ManeTip",
+      "hex": "#FFB3D1",
+      "robloxMaterial": "SmoothPlastic",
+      "size": [
+        4.618,
+        4.1295,
+        0.8506
+      ],
+      "position": [
+        0.0,
+        5.8,
+        3.617
+      ],
+      "triangles": 120,
+      "rotated": false,
+      "multiMaterial": false
+    }
+  ]
+}

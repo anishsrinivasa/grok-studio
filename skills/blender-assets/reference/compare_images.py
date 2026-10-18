@@ -32,7 +32,9 @@ from mathutils import Vector
 VIEWS = {"front": (0.0, 0.0, -1.0), "three_quarter": (-1.0, 0.75, -1.0)}
 BACKDROPS = ["#FF00FF", "#00FFFF", "#00FF00", "#FFFF00", "#0000FF", "#FF0000"]
 MIN_IOU = 0.80     # silhouette overlap after normalising position and scale
-MIN_COLOR = 0.70   # colour histogram intersection
+MIN_COLOR = 0.70   # colour histogram intersection (used when no palette is given)
+MIN_PALETTE = 0.75  # palette share agreement, 1 - L1/2 over the manifest's hue groups
+MIN_KEEP = 0.35    # a colour with >= 5 % of the render must keep >= 35 % of that share
 HUE_NAMES = ["red", "orange", "yellow", "lime", "green", "spring", "cyan", "azure",
              "blue", "violet", "magenta", "rose", "dark", "grey", "light"]
 
@@ -111,6 +113,19 @@ def render_compare(manifest, view="front", out_png="//compare.png", size=256, fo
     }
     hidden = [o for o in scene.objects if o.name not in names and not o.hide_render]
     temp = []
+    # Workbench shows a material's viewport colour (diffuse_color), not its node Base Color:
+    # a .blend made without flat_material rendered all grey (seen on the lion). Paint each
+    # part's material with the manifest hex for the render and put it back afterwards.
+    saved_colours = []
+    for p in manifest["parts"]:
+        obj = bpy.data.objects[p["name"]]
+        mat = obj.material_slots[0].material if obj.material_slots else None
+        if mat is not None:
+            saved_colours.append((mat, tuple(mat.diffuse_color)))
+            h = p["hex"].lstrip("#")
+            srgb = [int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+            lin = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in srgb]
+            mat.diffuse_color = (lin[0], lin[1], lin[2], 1.0)
     try:
         used = _set_engine(scene, ([engine] if engine else []) + ["BLENDER_WORKBENCH", "BLENDER_EEVEE", "BLENDER_EEVEE_NEXT", "CYCLES"])
         for o in hidden:
@@ -151,6 +166,8 @@ def render_compare(manifest, view="front", out_png="//compare.png", size=256, fo
         scene.render.filepath = out_png
         bpy.ops.render.render(write_still=True)
     finally:
+        for mat, colour in saved_colours:
+            mat.diffuse_color = colour
         for o in hidden:
             o.hide_render = False
         for o in temp:
@@ -228,12 +245,22 @@ def _mask(px, size):
     bg = _border_colour(px, size)
     cb = _chroma(bg)
     lb = (bg[0] + bg[1] + bg[2]) / 3
+    bh, bs, _ = colorsys.rgb_to_hsv(*[min(max(c, 0.0), 1.0) for c in bg])
     out = []
     for p in px:
         c = _chroma(p)
         dc = math.hypot(c[0] - cb[0], c[1] - cb[1])
         dl = abs((p[0] + p[1] + p[2]) / 3 - lb)
-        out.append(dc > 0.07 or dl > 0.30)
+        fg = dc > 0.07 or dl > 0.30
+        if fg and bs > 0.5:
+            # Studio lights the backdrop unevenly (a sun highlight turns pure green into pale
+            # green): same hue and still clearly saturated = backdrop. pick_backdrop keeps
+            # part colours far from the backdrop hue.
+            h, sat, _ = colorsys.rgb_to_hsv(*[min(max(x, 0.0), 1.0) for x in p[:3]])
+            dh = min(abs(h - bh), 1 - abs(h - bh))
+            if dh < 0.07 and sat > 0.2:
+                fg = False
+        out.append(fg)
     return out, bg
 
 
@@ -294,7 +321,79 @@ def _top(hist, k=3):
     return [[HUE_NAMES[i], round(-nv, 3)] for nv, i in order if -nv > 0.01]
 
 
-def compare_images(render_png, capture_png, size=128, min_iou=MIN_IOU, min_color=MIN_COLOR):
+def _hsv(c):
+    return colorsys.rgb_to_hsv(min(max(c[0], 0.0), 1.0), min(max(c[1], 0.0), 1.0), min(max(c[2], 0.0), 1.0))
+
+
+def _hue_dist(a, b):
+    d = abs(a - b)
+    return min(d, 1 - d)
+
+
+def palette_groups(palette, merge=0.06):
+    """Group the palette by hue (within ~22°), plus "light" / "dark" groups for greys.
+
+    Measured live: Studio lights pastel parts much brighter than Workbench renders them (the
+    lion's #F6C57F fur came out near #FFF0D0), so brightness and saturation can't tell
+    #F6C57F, #FFE6BF and #FFD9A0 apart, but the hue survives. Returns
+    [{"name", "hue" (or None), "colours": [hex]}]."""
+    groups = []
+    for hx in palette:
+        h, sat, v = _hsv(_hex_rgb(hx))
+        if sat < 0.15:
+            name = "light" if v >= 0.5 else "dark"
+            g = next((x for x in groups if x["name"] == name), None)
+            if g is None:
+                groups.append({"name": name, "hue": None, "colours": [hx]})
+            else:
+                g["colours"].append(hx)
+            continue
+        g = next((x for x in groups if x["hue"] is not None and _hue_dist(x["hue"], h) < merge), None)
+        if g is None:
+            groups.append({"name": hx, "hue": h, "colours": [hx]})
+        else:
+            g["colours"].append(hx)
+            g["name"] = "+".join(g["colours"])
+    return groups
+
+
+def _group_shares(px, mask, groups):
+    """Share of the model's pixels in each palette group (by hue; greys by brightness)."""
+    hued = [i for i, g in enumerate(groups) if g["hue"] is not None]
+    light = next((i for i, g in enumerate(groups) if g["name"] == "light"), None)
+    dark = next((i for i, g in enumerate(groups) if g["name"] == "dark"), None)
+    counts = [0] * len(groups)
+    n = 0
+    for p, m in zip(px, mask):
+        if not m:
+            continue
+        h, sat, v = _hsv(p)
+        n += 1
+        if (sat < 0.08 or not hued) and (light is not None or dark is not None):
+            k = light if (v >= 0.5 and light is not None) or dark is None else dark
+            counts[k] += 1
+            continue
+        if not hued:
+            continue
+        best = hued[0]
+        for i in hued[1:]:
+            if _hue_dist(groups[i]["hue"], h) < _hue_dist(groups[best]["hue"], h):
+                best = i
+        counts[best] += 1
+    return [c / n for c in counts] if n else counts
+
+
+def palette_from_manifest(manifest):
+    """The distinct part colours of a manifest (for compare_images(palette=...))."""
+    out = []
+    for p in manifest["parts"]:
+        if p["hex"].upper() not in out:
+            out.append(p["hex"].upper())
+    return out
+
+
+def compare_images(render_png, capture_png, size=128, min_iou=MIN_IOU, min_color=MIN_COLOR, palette=None,
+                   min_palette=MIN_PALETTE, min_keep=MIN_KEEP):
     """Score a Blender render against a Studio capture of the same view.
 
     Silhouette: IoU after normalising position and scale (the Studio framing never matches to
@@ -317,13 +416,31 @@ def compare_images(render_png, capture_png, size=128, min_iou=MIN_IOU, min_color
     visible = fa > 0.005 and fb > 0.005
     sil_ok = visible and iou_n >= min_iou
     col_ok = visible and colour >= min_color
+    pal = None
+    if palette:
+        # Measured live: the hue histogram passed a capture whose Neon-blue top was hidden
+        # (0.735) and failed the correct capture (0.66, Neon renders cyan in Studio). Grouping
+        # pixels by the manifest's own hues and requiring every visible group to survive
+        # catches a missing or hidden part and tolerates lighting, Neon and pastels.
+        groups = palette_groups(palette)
+        names = [g["name"] for g in groups]
+        sa = _group_shares(a, ma, groups)
+        sb = _group_shares(b, mb, groups)
+        agree = 1 - 0.5 * sum(abs(x - y) for x, y in zip(sa, sb))
+        missing = [names[i] for i in range(len(groups)) if sa[i] >= 0.05 and sb[i] < min_keep * sa[i]]
+        pal_ok = visible and agree >= min_palette and not missing
+        pal = {"agreement": round(agree, 3), "missing": missing, "pass": pal_ok,
+               "render": dict((names[i], round(sa[i], 3)) for i in range(len(groups))),
+               "capture": dict((names[i], round(sb[i], 3)) for i in range(len(groups)))}
+        col_ok = pal_ok
     return {
         "pass": sil_ok and col_ok,
+        "palette": pal,
         "silhouette": {"iouNormalized": round(iou_n, 3), "iouRaw": round(_iou(ma, mb), 3),
                        "aspect": [round(aspect_a, 3), round(aspect_b, 3)], "pass": sil_ok},
         "color": {"intersection": round(colour, 3), "render": _top(ha), "capture": _top(hb), "pass": col_ok},
         "foreground": {"render": round(fa, 3), "capture": round(fb, 3)},
         "captureBackground": None if bg is None else "#%02X%02X%02X" % tuple(round(min(max(c, 0), 1) * 255) for c in bg),
-        "thresholds": {"iouNormalized": min_iou, "color": min_color},
+        "thresholds": {"iouNormalized": min_iou, "color": min_color, "palette": min_palette, "keep": min_keep},
         "note": None if visible else "model not visible in one of the images",
     }
