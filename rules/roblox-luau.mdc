@@ -1,0 +1,58 @@
+---
+description: Luau and Roblox scripting conventions for code written by the grok-studio workflow (strict typing, services, networking safety, task library, structure)
+globs:
+  - "**/*.luau"
+  - "**/*.lua"
+alwaysApply: false
+---
+
+# Roblox Luau conventions
+
+Apply to every Luau script you write, whether as a file (Rojo) or into Studio via MCP.
+
+## Language
+- Start every script with `--!strict`. Type function parameters/returns and module
+  exports (`export type`). Use `unknown` for untrusted input (remote args) and narrow with
+  `typeof`.
+- Prefer `local` everything; no globals. Constants `UPPER_SNAKE_CASE`, locals/functions
+  `camelCase`, modules/classes/instances `PascalCase`.
+- Use generalized iteration (`for k, v in t do`) instead of `pairs/ipairs` in new code.
+- String interpolation with backticks: `` `Coins: {coins}` ``.
+- Compound assignment (`+=`), `if x then a else b` expressions, `table.clone`,
+  `table.freeze` for config tables.
+- Never use `loadstring`, `getfenv`/`setfenv`, or `wait()`/`spawn()`/`delay()` - use
+  `task.wait`, `task.spawn`, `task.defer`, `task.delay`.
+
+## Roblox APIs
+- Get services once at the top: `local Players = game:GetService("Players")`.
+- `WaitForChild` with a timeout on the client for things the server creates; never on the
+  server for things the server itself creates (create them first).
+- Use `Instance.new(className)` then set properties, then set `Parent` **last**.
+- Use `CollectionService` tags + `GetInstanceAddedSignal` for gameplay objects; Attributes
+  for simple per-instance replicated state.
+- Disconnect connections you own; clean up per-player state on `PlayerRemoving`.
+- Prefer `TweenService` for UI/props motion; `RunService.Heartbeat` only for real per-frame
+  work, never with yields inside.
+- `pcall` every yielding network call: DataStores, MessagingService, HttpService,
+  MarketplaceService, TeleportService. Retry with backoff.
+
+## Structure
+- One server entry `ServerScriptService.Server.Main` (Script) and one client entry
+  `StarterPlayerScripts.ClientMain` (LocalScript); everything else is ModuleScripts with
+  `start()` and no side effects at require time.
+- Shared code in `ReplicatedStorage.Shared`; server-only code/assets in
+  `ServerScriptService` / `ServerStorage`.
+- Tunables in `ReplicatedStorage.Shared.Config`; no magic numbers in services.
+
+## Networking and security
+- Server is authoritative for anything valuable (currency, inventory, damage, progress).
+- Every `OnServerEvent`: rate limit, type-check all args, range-check numbers (reject NaN/inf),
+  length-check strings, verify ownership/distance, then act. Ignore invalid requests
+  silently (optionally log).
+- Server->client is RemoteEvent only; never `InvokeClient`.
+- Never place secrets, admin lists, or anti-cheat logic where clients can read it.
+
+## Style
+- Tabs for indentation (StyLua defaults), max ~100 columns.
+- Short header comment on each module: purpose and location.
+- Comments explain *why*, not *what*.

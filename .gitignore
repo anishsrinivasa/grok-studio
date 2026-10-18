@@ -1,0 +1,26 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+
+# Python / Node tooling
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+
+# Bridge runtime artifacts (contain secrets - never commit)
+bridge/.runtime/
+*.key
+.env
+.env.*
+
+# Generated game artifacts when the plugin repo is used as a scratch project
+out/
+exports/
+renders/
+*.blend1
+*.rbxl.lock

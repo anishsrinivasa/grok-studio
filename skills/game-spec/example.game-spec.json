@@ -1,0 +1,105 @@
+{
+  "specVersion": "1.0",
+  "meta": {
+    "title": "Lava Leap",
+    "slug": "lava-leap",
+    "genre": "obby",
+    "subGenres": ["collectathon"],
+    "targetSessionMinutes": 10,
+    "maxPlayers": 12,
+    "platforms": ["pc", "mobile", "tablet"],
+    "ageGuidance": "All ages; cartoon peril only.",
+    "originalPrompt": "Make an obby where you jump over lava collecting coins to unlock new stages.",
+    "assumptions": [
+      "3 stages for v1; each unlocks at a coin threshold",
+      "Coins persist between sessions",
+      "No monetization"
+    ]
+  },
+  "pitch": "Hop across crumbling basalt platforms above a glowing lava lake, grab coins mid-air, and spend them to open the next volcano stage before your friends do.",
+  "coreLoop": {
+    "steps": ["Spawn at stage start", "Jump across platforms collecting coins", "Touch checkpoint/finish pad", "Spend coins to unlock next stage"],
+    "loopSeconds": 90,
+    "funHypothesis": "Short, readable jumps with risk/reward coin placements create 'one more try' tension."
+  },
+  "mechanics": [
+    { "id": "lavaKill", "name": "Lava kills", "description": "Touching lava resets the character to the last checkpoint.", "authority": "server", "priority": "must" },
+    { "id": "coinPickup", "name": "Coin pickup", "description": "Coins are server-owned; touching one awards currency and hides it for that player for 30s.", "authority": "server", "priority": "must", "tunables": { "coinValue": 1, "respawnSeconds": 30 } },
+    { "id": "checkpoints", "name": "Checkpoints", "description": "SpawnLocation-like pads that save stage progress.", "authority": "server", "priority": "must" },
+    { "id": "crumblePlatforms", "name": "Crumbling platforms", "description": "Platforms shake 0.5s then fall 1s after being stepped on; reset after 4s.", "authority": "server", "priority": "should", "tunables": { "shakeSeconds": 0.5, "fallDelay": 1, "resetSeconds": 4 } }
+  ],
+  "progression": {
+    "currencies": [{ "id": "coins", "name": "Coins", "startingAmount": 0 }],
+    "unlocks": [
+      { "id": "stage2", "name": "Stage 2: Ash Ridge", "cost": { "coins": 25 } },
+      { "id": "stage3", "name": "Stage 3: Caldera", "cost": { "coins": 60 }, "requires": ["stage2"] }
+    ],
+    "persistence": { "enabled": true, "dataStoreName": "LavaLeap_PlayerData_v1", "schemaVersion": 1 },
+    "leaderstats": ["Coins", "Stage"]
+  },
+  "monetization": { "enabled": false },
+  "world": {
+    "setting": "Stylized volcano interior at dusk",
+    "layout": "Three linear stages ~300 studs long each, connected by locked gates; lava plane at Y=0, platforms at Y=10-60.",
+    "sizeStuds": [1000, 120, 200],
+    "lighting": { "technology": "Future", "clockTime": 18.5, "atmosphere": true, "notes": "Orange PointLights under lava edges; Bloom subtle." },
+    "terrain": false,
+    "spawn": "Stage 1 start pad at (0, 12, 0)"
+  },
+  "scripts": [
+    { "name": "Config", "class": "ModuleScript", "parentPath": "game.ReplicatedStorage.Shared", "purpose": "Tunables mirrored from spec.mechanics[].tunables", "services": [], "dependsOn": [], "status": "planned" },
+    { "name": "Remotes", "class": "ModuleScript", "parentPath": "game.ReplicatedStorage.Shared", "purpose": "Creates/fetches RemoteEvents by name", "services": ["ReplicatedStorage", "RunService"], "dependsOn": [], "status": "planned" },
+    { "name": "DataService", "class": "ModuleScript", "parentPath": "game.ServerScriptService.Server.Services", "purpose": "Session-locked-lite profile load/save with retries", "services": ["DataStoreService", "Players"], "dependsOn": ["Config"], "status": "planned" },
+    { "name": "CoinService", "class": "ModuleScript", "parentPath": "game.ServerScriptService.Server.Services", "purpose": "Coin spawning, pickup validation, awarding", "services": ["CollectionService", "Players"], "dependsOn": ["DataService", "Remotes", "Config"], "status": "planned" },
+    { "name": "StageService", "class": "ModuleScript", "parentPath": "game.ServerScriptService.Server.Services", "purpose": "Checkpoints, lava kill, stage unlock purchases", "services": ["CollectionService", "Players"], "dependsOn": ["DataService", "Remotes", "Config"], "status": "planned" },
+    { "name": "Main", "class": "Script", "parentPath": "game.ServerScriptService.Server", "purpose": "Server bootstrap: requires and starts services in order", "services": [], "dependsOn": ["DataService", "CoinService", "StageService"], "status": "planned" },
+    { "name": "ClientMain", "class": "LocalScript", "parentPath": "game.StarterPlayer.StarterPlayerScripts", "purpose": "Client bootstrap: HUD binding, unlock prompts, coin VFX", "services": ["Players", "TweenService"], "dependsOn": ["Remotes", "Config"], "status": "planned" }
+  ],
+  "remotes": [
+    { "name": "CoinsChanged", "kind": "RemoteEvent", "direction": "serverToClient", "payload": "(coins: number)", "serverValidation": [], "rateLimitPerSecond": 0 },
+    { "name": "RequestUnlock", "kind": "RemoteEvent", "direction": "clientToServer", "payload": "(stageId: string)", "serverValidation": ["stageId is a known unlock id", "player has required coins", "prerequisites owned", "not already owned"], "rateLimitPerSecond": 2 }
+  ],
+  "dataModel": {
+    "profileTemplate": { "schemaVersion": 1, "coins": 0, "unlocked": { "stage1": true }, "bestStage": 1 }
+  },
+  "ui": {
+    "designSource": "studio-direct",
+    "styleGuide": { "palette": { "primary": "#FF6B1A", "surface": "#1E1B2E", "text": "#FFFFFF", "accent": "#FFD23F" }, "font": "BuilderSans", "cornerRadiusPx": 12, "strokePx": 2 },
+    "screens": [
+      { "name": "Hud", "purpose": "Coin counter and current stage", "elements": ["CoinCounter (icon + number)", "StageLabel"], "shownWhen": "Always during play", "mobileNotes": "Top-left, clear of the jump button (bottom-right).", "status": "planned" },
+      { "name": "UnlockPrompt", "purpose": "Buy the next stage", "elements": ["Title", "CostLabel", "BuyButton", "CloseButton"], "shownWhen": "Player touches a locked gate", "status": "planned" }
+    ]
+  },
+  "assets": {
+    "styleGuide": { "artStyle": "flat-shaded low-poly", "palette": ["#2B2B3A", "#4A3F55", "#FF6B1A", "#FFD23F"], "texturing": "flat-materials", "defaultTriangleBudget": 2000 },
+    "items": [
+      { "id": "platformBasalt", "name": "Basalt platform", "source": "blender", "triangleBudget": 300, "approxSizeStuds": [8, 2, 8], "collision": "Box", "anchored": true, "usage": "Main jump platform, ~60 instances", "status": "planned" },
+      { "id": "coin", "name": "Coin", "source": "blender", "triangleBudget": 200, "approxSizeStuds": [2, 2, 0.4], "collision": "none", "anchored": true, "usage": "Collectible, spinning", "status": "planned" },
+      { "id": "gate", "name": "Stage gate", "source": "blender", "triangleBudget": 1500, "approxSizeStuds": [16, 20, 3], "collision": "Hull", "anchored": true, "usage": "Locked gate between stages", "status": "planned" }
+    ]
+  },
+  "animations": [
+    { "id": "victoryCheer", "name": "Victory cheer", "rig": "R15", "source": "blender", "looped": false, "priority": "Action", "durationSeconds": 1.5, "trigger": "Unlocking a stage", "status": "planned" }
+  ],
+  "audio": [
+    { "id": "coinSfx", "purpose": "Coin pickup", "source": "creator-store" }
+  ],
+  "marketing": {
+    "icon": { "brief": "Single chunky gold coin mid-air above glowing lava, bold rim light, no text.", "sizePx": 512 },
+    "thumbnails": [
+      { "brief": "Avatar mid-jump between crumbling basalt platforms, lava below, coins trailing, dusk volcano backdrop.", "widthPx": 1920, "heightPx": 1080 }
+    ],
+    "description": "Jump the lava, grab the coins, unlock the volcano! Three stages of crumbling platforms. Works great on mobile."
+  },
+  "acceptanceTests": [
+    { "id": "AT1", "description": "Coins award and persist", "steps": ["Start playtest", "Navigate character to first coin", "Read leaderstats.Coins"], "expected": "Coins == 1 and CoinsChanged fired; no errors in output", "status": "pending" },
+    { "id": "AT2", "description": "Lava resets to checkpoint", "steps": ["Teleport character above lava", "Wait 2s"], "expected": "Character respawns at last checkpoint", "status": "pending" },
+    { "id": "AT3", "description": "Unlock validation", "steps": ["From client, fire RequestUnlock('stage3') with 0 coins"], "expected": "Server rejects; coins unchanged; no error", "status": "pending" }
+  ],
+  "build": {
+    "stage": "spec",
+    "placeId": null,
+    "connectors": { "studio": true, "blender": true, "figma": false },
+    "checkpoints": []
+  }
+}

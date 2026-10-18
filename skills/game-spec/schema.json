@@ -1,0 +1,263 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:grok-studio:game-spec:1.0",
+  "title": "grok-studio game-spec.json",
+  "description": "Single source of truth for a one-shot Roblox game build. Every later stage reads from and writes status back to this file.",
+  "type": "object",
+  "required": ["specVersion", "meta", "pitch", "coreLoop", "mechanics", "progression", "monetization", "world", "scripts", "remotes", "dataModel", "ui", "assets", "animations", "audio", "marketing", "acceptanceTests", "build"],
+  "additionalProperties": false,
+  "properties": {
+    "specVersion": { "const": "1.0" },
+    "meta": {
+      "type": "object",
+      "required": ["title", "slug", "genre", "targetSessionMinutes", "maxPlayers", "platforms", "ageGuidance", "originalPrompt"],
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string", "minLength": 2, "maxLength": 50 },
+        "slug": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+        "genre": { "type": "string", "examples": ["obby", "tycoon", "simulator", "round-based-pvp", "survival", "horror", "racing", "tower-defense", "puzzle", "roleplay"] },
+        "subGenres": { "type": "array", "items": { "type": "string" } },
+        "targetSessionMinutes": { "type": "integer", "minimum": 1, "maximum": 120 },
+        "maxPlayers": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "platforms": { "type": "array", "items": { "enum": ["pc", "mobile", "tablet", "console", "vr"] }, "minItems": 1 },
+        "ageGuidance": { "type": "string", "description": "Intended maturity level; keep content within Roblox Community Standards." },
+        "originalPrompt": { "type": "string" },
+        "assumptions": { "type": "array", "items": { "type": "string" }, "description": "Every decision the agent made that the prompt did not specify." }
+      }
+    },
+    "pitch": { "type": "string", "maxLength": 400, "description": "One-paragraph elevator pitch." },
+    "coreLoop": {
+      "type": "object",
+      "required": ["steps", "loopSeconds", "funHypothesis"],
+      "additionalProperties": false,
+      "properties": {
+        "steps": { "type": "array", "items": { "type": "string" }, "minItems": 3, "maxItems": 6 },
+        "loopSeconds": { "type": "integer", "minimum": 5, "description": "Approximate length of one loop iteration." },
+        "funHypothesis": { "type": "string" }
+      }
+    },
+    "mechanics": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "description", "authority", "priority"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9]*$" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "authority": { "enum": ["server", "client", "shared"], "description": "Where the source of truth lives. Anything affecting score, currency, inventory or other players must be server." },
+          "priority": { "enum": ["must", "should", "could"] },
+          "tunables": { "type": "object", "additionalProperties": { "type": ["number", "string", "boolean"] } }
+        }
+      }
+    },
+    "progression": {
+      "type": "object",
+      "required": ["currencies", "unlocks", "persistence"],
+      "additionalProperties": false,
+      "properties": {
+        "currencies": { "type": "array", "items": { "type": "object", "required": ["id", "name", "startingAmount"], "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "startingAmount": { "type": "number" } } } },
+        "unlocks": { "type": "array", "items": { "type": "object", "required": ["id", "name", "cost"], "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "cost": { "type": "object", "additionalProperties": { "type": "number" } }, "requires": { "type": "array", "items": { "type": "string" } } } } },
+        "persistence": { "type": "object", "required": ["enabled"], "properties": { "enabled": { "type": "boolean" }, "dataStoreName": { "type": "string" }, "schemaVersion": { "type": "integer" } } },
+        "leaderstats": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "monetization": {
+      "type": "object",
+      "required": ["enabled"],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": false, "description": "Monetization-free by default. Only enable when the user explicitly asks." },
+        "gamePasses": { "type": "array", "items": { "type": "object" } },
+        "developerProducts": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "world": {
+      "type": "object",
+      "required": ["setting", "layout", "lighting", "spawn"],
+      "additionalProperties": false,
+      "properties": {
+        "setting": { "type": "string" },
+        "layout": { "type": "string", "description": "Plain-language map description with rough stud dimensions." },
+        "sizeStuds": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+        "lighting": { "type": "object", "properties": { "technology": { "enum": ["Voxel", "ShadowMap", "Future"] }, "clockTime": { "type": "number" }, "atmosphere": { "type": "boolean" }, "notes": { "type": "string" } } },
+        "terrain": { "type": "boolean" },
+        "spawn": { "type": "string" }
+      }
+    },
+    "scripts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "class", "parentPath", "purpose", "dependsOn", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$" },
+          "class": { "enum": ["Script", "LocalScript", "ModuleScript"] },
+          "runContext": { "enum": ["Legacy", "Server", "Client"], "description": "Script.RunContext; leave unset for Legacy." },
+          "parentPath": { "type": "string", "examples": ["game.ServerScriptService.Server", "game.ReplicatedStorage.Shared", "game.StarterPlayer.StarterPlayerScripts.Client"] },
+          "purpose": { "type": "string" },
+          "services": { "type": "array", "items": { "type": "string" } },
+          "dependsOn": { "type": "array", "items": { "type": "string" } },
+          "status": { "enum": ["planned", "written", "verified"] }
+        }
+      }
+    },
+    "remotes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "kind", "direction", "payload", "serverValidation", "rateLimitPerSecond"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "kind": { "enum": ["RemoteEvent", "UnreliableRemoteEvent", "RemoteFunction", "BindableEvent"] },
+          "direction": { "enum": ["clientToServer", "serverToClient", "both"] },
+          "payload": { "type": "string", "description": "Luau type of arguments, e.g. '(itemId: string, qty: number)'." },
+          "serverValidation": { "type": "array", "items": { "type": "string" } },
+          "rateLimitPerSecond": { "type": "number" }
+        }
+      }
+    },
+    "dataModel": {
+      "type": "object",
+      "description": "Shape of persisted player data.",
+      "required": ["profileTemplate"],
+      "properties": { "profileTemplate": { "type": "object" } }
+    },
+    "ui": {
+      "type": "object",
+      "required": ["styleGuide", "screens"],
+      "additionalProperties": false,
+      "properties": {
+        "designSource": { "enum": ["figma", "studio-direct"], "default": "studio-direct" },
+        "figmaFileUrl": { "type": "string" },
+        "styleGuide": {
+          "type": "object",
+          "required": ["palette", "font", "cornerRadiusPx"],
+          "properties": {
+            "palette": { "type": "object", "additionalProperties": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" } },
+            "font": { "type": "string", "description": "Enum.Font / Font family name, e.g. 'GothamSsm' or 'BuilderSans'." },
+            "cornerRadiusPx": { "type": "number" },
+            "strokePx": { "type": "number" }
+          }
+        },
+        "screens": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "purpose", "elements", "shownWhen", "status"],
+            "properties": {
+              "name": { "type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$" },
+              "purpose": { "type": "string" },
+              "elements": { "type": "array", "items": { "type": "string" } },
+              "shownWhen": { "type": "string" },
+              "mobileNotes": { "type": "string" },
+              "status": { "enum": ["planned", "designed", "built", "verified"] }
+            }
+          }
+        }
+      }
+    },
+    "assets": {
+      "type": "object",
+      "required": ["styleGuide", "items"],
+      "additionalProperties": false,
+      "properties": {
+        "styleGuide": {
+          "type": "object",
+          "required": ["artStyle", "palette", "texturing", "defaultTriangleBudget"],
+          "properties": {
+            "artStyle": { "type": "string", "examples": ["flat-shaded low-poly", "stylized hand-painted", "voxel"] },
+            "palette": { "type": "array", "items": { "type": "string" } },
+            "texturing": { "enum": ["vertex-colors", "flat-materials", "atlas-texture", "pbr"] },
+            "defaultTriangleBudget": { "type": "integer", "maximum": 20000 }
+          }
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "source", "triangleBudget", "approxSizeStuds", "usage", "status"],
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "source": { "enum": ["blender", "studio-generate-mesh", "studio-procedural-model", "studio-primitives", "creator-store"] },
+              "triangleBudget": { "type": "integer", "maximum": 20000, "description": "Per MeshPart; Roblox rejects meshes over 20,000 triangles." },
+              "approxSizeStuds": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+              "collision": { "enum": ["Default", "Hull", "Box", "PreciseConvexDecomposition", "none"] },
+              "anchored": { "type": "boolean" },
+              "usage": { "type": "string" },
+              "instancePath": { "type": "string" },
+              "assetId": { "type": "string" },
+              "status": { "enum": ["planned", "modeled", "exported", "imported", "placed"] }
+            }
+          }
+        }
+      }
+    },
+    "animations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "rig", "source", "looped", "priority", "trigger", "status"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "rig": { "enum": ["R15", "R6", "custom"] },
+          "source": { "enum": ["blender", "studio-keyframes", "creator-store", "default"] },
+          "looped": { "type": "boolean" },
+          "priority": { "enum": ["Core", "Idle", "Movement", "Action", "Action2", "Action3", "Action4"] },
+          "durationSeconds": { "type": "number" },
+          "trigger": { "type": "string" },
+          "markers": { "type": "array", "items": { "type": "string" } },
+          "assetId": { "type": "string" },
+          "status": { "enum": ["planned", "authored", "imported", "published", "wired"] }
+        }
+      }
+    },
+    "audio": {
+      "type": "array",
+      "items": { "type": "object", "required": ["id", "purpose", "source"], "properties": { "id": { "type": "string" }, "purpose": { "type": "string" }, "source": { "enum": ["creator-store", "none"] }, "assetId": { "type": "string" } } }
+    },
+    "marketing": {
+      "type": "object",
+      "required": ["icon", "thumbnails", "description"],
+      "properties": {
+        "icon": { "type": "object", "required": ["brief", "sizePx"], "properties": { "brief": { "type": "string" }, "sizePx": { "const": 512 }, "file": { "type": "string" } } },
+        "thumbnails": { "type": "array", "items": { "type": "object", "required": ["brief"], "properties": { "brief": { "type": "string" }, "widthPx": { "const": 1920 }, "heightPx": { "const": 1080 }, "file": { "type": "string" } } }, "minItems": 1, "maxItems": 10 },
+        "description": { "type": "string", "maxLength": 1000 }
+      }
+    },
+    "acceptanceTests": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "description", "steps", "expected"],
+        "properties": {
+          "id": { "type": "string" },
+          "description": { "type": "string" },
+          "steps": { "type": "array", "items": { "type": "string" } },
+          "expected": { "type": "string" },
+          "status": { "enum": ["pending", "pass", "fail"] }
+        }
+      }
+    },
+    "build": {
+      "type": "object",
+      "required": ["stage", "checkpoints"],
+      "properties": {
+        "stage": { "enum": ["spec", "code", "ui", "assets", "animations", "playtest", "marketing", "done"] },
+        "studioId": { "type": "string" },
+        "placeId": { "type": ["string", "null"] },
+        "connectors": { "type": "object", "properties": { "studio": { "type": "boolean" }, "blender": { "type": "boolean" }, "figma": { "type": "boolean" } } },
+        "checkpoints": { "type": "array", "items": { "type": "object", "required": ["stage", "at", "summary"], "properties": { "stage": { "type": "string" }, "at": { "type": "string" }, "summary": { "type": "string" }, "openIssues": { "type": "array", "items": { "type": "string" } } } } },
+        "playtestReports": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

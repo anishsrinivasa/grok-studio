@@ -1,0 +1,23 @@
+{
+  "name": "grok-studio",
+  "displayName": "Grok Studio",
+  "version": "0.1.0",
+  "description": "One-shot a complete Roblox game from a single prompt: game design spec, typed Luau code, UI, low-poly 3D models and animations (Blender), an automated playtest-and-fix loop, plus a thumbnail and icon. Drives Roblox Studio MCP, Blender MCP, and (optionally) Figma MCP.",
+  "author": {
+    "name": "Anish Srinivasan"
+  },
+  "license": "MIT",
+  "keywords": [
+    "roblox",
+    "roblox-studio",
+    "luau",
+    "game-development",
+    "blender",
+    "3d",
+    "figma",
+    "mcp",
+    "agent-skills",
+    "one-shot"
+  ],
+  "logo": "assets/logo.svg"
+}
