@@ -38,7 +38,7 @@ try:
     from mathutils import Vector
     from roblox_export import (  # noqa: F401  (re-exported for job scripts)
         ROBLOX_TRI_LIMIT, apply_transforms, audit, export_fbx, flat_material,
-        setup_scene_for_roblox, triangle_count,
+        setup_scene_for_roblox, triangle_count, split_by_material, split_all_by_material,
     )
 except ImportError:  # plain Python: checkpoint listing and rollback only
     bpy = None
@@ -207,15 +207,25 @@ def checkpoint(paths, label):
     return path
 
 
-def export_asset(paths, names=None, with_animation=False):
-    """Export the asset collection (or `names`) to exports/<id>.fbx. Returns path and size."""
+def export_asset(paths, names=None, with_animation=False, split_materials=True):
+    """Export the asset collection (or `names`) to exports/<id>.fbx. Returns path, size, and manifest.
+    
+    If split_materials=True (default), multi-material meshes are split and a manifest is created.
+    """
     _require_bpy()
     names = names or [n for n in asset_object_names(paths)
                       if bpy.data.objects[n].type in {"MESH", "ARMATURE", "EMPTY"}]
     if not names:
         raise SystemExit(f"nothing to export: collection {paths['collection']} is empty")
-    export_fbx(paths["fbx"], names, with_animation=with_animation)
-    return {"fbx": paths["fbx"], "bytes": os.path.getsize(paths["fbx"]), "objects": names}
+    
+    result = export_fbx(paths["fbx"], names, with_animation=with_animation, split_materials=split_materials)
+    result["bytes"] = os.path.getsize(paths["fbx"])
+    
+    # Store manifest path in the result
+    if result.get("manifest"):
+        paths["manifest"] = result["manifest"]
+    
+    return result
 
 
 # --------------------------------------------------------------------------- review sheet

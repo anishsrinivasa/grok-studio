@@ -99,6 +99,14 @@ props, PreciseConvexDecomposition only when needed). Turn `CastShadow` off on ti
 and add the tags. Put templates in `ReplicatedStorage.Assets.Models` and instances in
 `Workspace.Map`.
 
+**Apply the manifest** (if one exists next to the exported FBX): Blender exports now split
+multi-material meshes and write a `*_manifest.json` mapping each piece to its parent limb
+and color. Use the Luau helper in `skills/blender-assets/reference/studio/manifest_importer.lua`
+to set each MeshPart's Color and weld split pieces to their limbs. Run the post-import
+validation check to confirm all manifest meshes exist, have correct colors, are welded
+properly, and no non-hitbox overlay Parts were added. Never fake missing colors with
+stacked box Parts.
+
 ## Verify
 
 - `search_game_tree` under `Workspace.Map` (shallow, filtered) to confirm names.

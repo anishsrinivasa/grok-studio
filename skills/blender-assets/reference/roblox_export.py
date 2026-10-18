@@ -55,10 +55,12 @@ def _non_manifold_edges(obj) -> int:
         bm.free()
 
 
-def audit(budget_by_name=None, names=None):
+def audit(budget_by_name=None, names=None, check_single_material=True, check_flat_materials=True):
     """Report triangles, size in studs, scale, n-gons and holes for every mesh. Use before export.
-
+    
     budget_by_name: {object name: max triangles}; names: only audit these objects.
+    check_single_material: fail if any mesh has more than one material (pre-export check).
+    check_flat_materials: fail if any material is not flat (has textures or complex nodes).
     Returns text; every line ends in OK or lists the issues. Lines with issues must be fixed
     (or the issue accepted on purpose) before export.
     """
@@ -84,6 +86,22 @@ def audit(budget_by_name=None, names=None):
             issues.append(f"{holes} non-manifold edges (not watertight)")
         if not obj.data.materials:
             issues.append("no material")
+        elif check_single_material and len(obj.data.materials) > 1:
+            issues.append(f"MULTIPLE MATERIALS ({len(obj.data.materials)}); must split before export")
+        
+        # Check for flat materials (only Principled BSDF with base color, no textures)
+        if check_flat_materials:
+            for mat in obj.data.materials:
+                if not mat or not mat.node_tree:
+                    continue
+                bsdf = next((n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
+                if bsdf:
+                    # Check if Base Color input has a texture/node connected
+                    base_input = bsdf.inputs["Base Color"]
+                    if base_input.is_linked:
+                        issues.append(f"material {mat.name} has texture/nodes (not flat color)")
+                        break
+        
         dims = tuple(round(d, 2) for d in obj.dimensions)
         report.append(f"{obj.name}: {tris} tris, dims(studs)={dims} " + ("; ".join(issues) or "OK"))
     return "\n".join(report)
@@ -125,15 +143,149 @@ def flat_material(name, hex_color, roughness=0.8, metallic=0.0):
     return mat.name
 
 
-def export_fbx(filepath, obj_names, with_animation=False):
-    """Export the named objects to a Roblox-ready FBX."""
-    bpy.ops.object.select_all(action='DESELECT')
+def split_by_material(obj):
+    """Split a mesh object into one object per material, named <Object>_<Material>.
+    
+    Returns [(new_obj_name, material_name, sRGB_hex)] for all pieces. The original object
+    is removed. Origins are kept at the parent limb's joint (the original object's origin),
+    so animation still works. Intended for export: call this right before export_fbx.
+    """
+    if obj.type != 'MESH' or len(obj.data.materials) <= 1:
+        return [(obj.name, obj.data.materials[0].name if obj.data.materials else "Material", "#808080")]
+    
+    original_name = obj.name
+    original_location = obj.location.copy()
+    original_rotation = obj.rotation_euler.copy()
+    original_scale = obj.scale.copy()
+    original_parent = obj.parent
+    original_parent_type = obj.parent_type
+    
+    pieces = []
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    eval_obj = obj.evaluated_get(depsgraph)
+    mesh = eval_obj.to_mesh()
+    
+    try:
+        for mat_idx, material in enumerate(obj.data.materials):
+            mat_name = material.name if material else f"Material{mat_idx}"
+            # Extract RGB from material
+            hex_color = "#808080"
+            if material and material.node_tree:
+                bsdf = next((n for n in material.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
+                if bsdf:
+                    base_color = bsdf.inputs["Base Color"].default_value
+                    # linear to sRGB
+                    srgb = tuple(
+                        c * 12.92 if c <= 0.0031308 else 1.055 * (c ** (1 / 2.4)) - 0.055
+                        for c in base_color[:3]
+                    )
+                    hex_color = "#{:02x}{:02x}{:02x}".format(
+                        int(srgb[0] * 255), int(srgb[1] * 255), int(srgb[2] * 255)
+                    )
+            
+            # Create a new mesh with only faces using this material
+            new_mesh = bpy.data.meshes.new(f"{original_name}_{mat_name}")
+            verts = [v.co.copy() for v in mesh.vertices]
+            edges = []
+            faces = []
+            face_to_verts = {}
+            
+            for poly in mesh.polygons:
+                if poly.material_index == mat_idx:
+                    face_to_verts[poly.index] = list(poly.vertices)
+                    faces.append(list(poly.vertices))
+            
+            if not faces:
+                continue
+            
+            new_mesh.from_pydata(verts, edges, faces)
+            new_mesh.update()
+            new_mesh.materials.append(material)
+            
+            new_obj = bpy.data.objects.new(f"{original_name}_{mat_name}", new_mesh)
+            new_obj.location = original_location
+            new_obj.rotation_euler = original_rotation
+            new_obj.scale = original_scale
+            new_obj.parent = original_parent
+            new_obj.parent_type = original_parent_type
+            
+            for coll in obj.users_collection:
+                coll.objects.link(new_obj)
+            
+            pieces.append((new_obj.name, mat_name, hex_color))
+    
+    finally:
+        eval_obj.to_mesh_clear()
+    
+    # Remove original object
+    bpy.data.objects.remove(obj, do_unlink=True)
+    
+    return pieces
+
+
+def split_all_by_material(obj_names):
+    """Split all multi-material objects in obj_names, return manifest data.
+    
+    Returns {
+        "meshes": {mesh_name: {"parentLimb": parent_name, "color": hex, "material": mat_name}},
+        "split": [(original_name, [(piece_name, mat_name, hex)])]
+    }
+    Modifies the scene: multi-material objects are replaced by single-material pieces.
+    """
+    manifest = {"meshes": {}, "split": []}
+    all_new_names = []
+    
     for name in obj_names:
-        bpy.data.objects[name].select_set(True)
+        if name not in bpy.data.objects:
+            continue
+        obj = bpy.data.objects[name]
+        if obj.type != 'MESH':
+            all_new_names.append(name)
+            continue
+        
+        parent_name = obj.parent.name if obj.parent else obj.name
+        pieces = split_by_material(obj)
+        
+        if len(pieces) > 1:
+            manifest["split"].append((name, pieces))
+        
+        for piece_name, mat_name, hex_color in pieces:
+            all_new_names.append(piece_name)
+            manifest["meshes"][piece_name] = {
+                "parentLimb": parent_name,
+                "color": hex_color,
+                "material": mat_name,
+            }
+    
+    return manifest, all_new_names
+
+
+def export_fbx(filepath, obj_names, with_animation=False, split_materials=True):
+    """Export the named objects to a Roblox-ready FBX.
+    
+    If split_materials=True (default), multi-material meshes are split into one mesh per
+    material, and a manifest JSON is written next to the FBX mapping each mesh to its color
+    and parent limb. Returns {"fbx": path, "manifest": path or None, "split": bool}.
+    """
+    manifest_data = None
+    final_names = list(obj_names)
+    
+    if split_materials:
+        manifest_data, final_names = split_all_by_material(obj_names)
+        manifest_path = filepath.rsplit(".", 1)[0] + "_manifest.json"
+        import json
+        with open(manifest_path, "w", encoding="utf-8") as f:
+            json.dump(manifest_data, f, indent=2)
+    
+    bpy.ops.object.select_all(action='DESELECT')
+    for name in final_names:
+        if name in bpy.data.objects:
+            bpy.data.objects[name].select_set(True)
+    
     bpy.ops.export_scene.fbx(
         filepath=filepath,
         use_selection=True,
-        apply_scale_options='FBX_SCALE_UNITS',  # "FBX Unit Scale"
+        apply_scale_options='FBX_SCALE_UNITS',
         axis_forward='-Z',
         axis_up='Y',
         apply_unit_scale=True,
@@ -146,4 +298,6 @@ def export_fbx(filepath, obj_names, with_animation=False):
         path_mode='COPY',
         embed_textures=True,
     )
-    return f"exported {obj_names} -> {filepath}"
+    
+    result = {"fbx": filepath, "manifest": manifest_path if split_materials else None, "split": split_materials}
+    return result
