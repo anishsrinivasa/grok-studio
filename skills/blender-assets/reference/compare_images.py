@@ -27,8 +27,9 @@ import math
 import bpy
 from mathutils import Vector
 
-# Camera direction from the target, Roblox axes (+Z = the side the Blender front view sees).
-VIEWS = {"front": (0.0, 0.0, 1.0), "three_quarter": (1.0, 0.75, 1.0)}
+# Camera direction from the target, Roblox axes. Roblox -Z = Blender -Y = the side Blender's
+# Front view sees (gs_core.roblox_vec: Roblox (x, y, z) = Blender (-x, z, y)).
+VIEWS = {"front": (0.0, 0.0, -1.0), "three_quarter": (-1.0, 0.75, -1.0)}
 BACKDROPS = ["#FF00FF", "#00FFFF", "#00FF00", "#FFFF00", "#0000FF", "#FF0000"]
 MIN_IOU = 0.80     # silhouette overlap after normalising position and scale
 MIN_COLOR = 0.70   # colour histogram intersection
@@ -37,7 +38,8 @@ HUE_NAMES = ["red", "orange", "yellow", "lime", "green", "spring", "cyan", "azur
 
 
 def _blender_vec(r):
-    return Vector((r[0], -r[2], r[1]))
+    """Roblox (x, y, z) -> Blender; same mapping as gs_core.blender_vec."""
+    return Vector((-r[0], r[2], r[1]))
 
 
 def _hex_rgb(h):

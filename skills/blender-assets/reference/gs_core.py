@@ -11,9 +11,12 @@ whole file followed by ONE call that prints its result on a marker line, e.g.
 and read the GS_RESULT line (Blender's exporters print their own lines too). Write any file
 the result describes (the manifest JSON) yourself.
 
-Coordinates: Blender is Z-up, Roblox is Y-up. The FBX export below (axis_forward -Z,
-axis_up Y) maps a Blender vector (x, y, z) to Roblox (x, z, -y) - see roblox_vec(). Manifests
-are in Roblox axes and studs (1 Blender unit = 1 stud).
+Coordinates: Blender is Z-up, Roblox is Y-up. With the FBX export below (axis_forward -Z,
+axis_up Y), Roblox's importer puts a Blender vector (x, y, z) at (-x, z, y) in the imported
+model's frame - see roblox_vec(). Measured live (Oct 2026, Open Cloud upload + insert_asset):
+a lion whose head is at Blender +Y came in with its head at +Z and +X details at -X. So
+Blender's front (-Y, the Front ortho view) becomes Roblox's front (-Z, LookVector): model
+assets facing -Y in Blender. Manifests are in Roblox axes and studs (1 Blender unit = 1 stud).
 
 Docs: https://create.roblox.com/docs/art/blender ,
 https://create.roblox.com/docs/art/modeling/export-requirements ,
@@ -42,13 +45,13 @@ def setup_scene_for_roblox():
 
 
 def roblox_vec(v, digits=4):
-    """Blender (x, y, z) -> Roblox (x, y, z) as the FBX export maps it."""
-    return [round(v[0], digits) + 0.0, round(v[2], digits) + 0.0, round(-v[1], digits) + 0.0]
+    """Blender (x, y, z) -> Roblox (-x, z, y): where Roblox's importer puts it (see top)."""
+    return [round(-v[0], digits) + 0.0, round(v[2], digits) + 0.0, round(v[1], digits) + 0.0]
 
 
 def blender_vec(r):
     """Roblox (x, y, z) -> Blender Vector (inverse of roblox_vec)."""
-    return Vector((r[0], -r[2], r[1]))
+    return Vector((-r[0], r[2], r[1]))
 
 
 def linear_from_hex(hex_color):
@@ -379,7 +382,7 @@ def asset_manifest(asset_id, names=None, anchored=True, can_collide=True, collis
         "id": asset_id,
         "fbx": asset_id + ".fbx",
         "units": "studs",
-        "axes": "Roblox: +X right, +Y up, -Z forward (Blender x, z, -y)",
+        "axes": "Roblox: +Y up, -Z forward (LookVector) = Blender -Y front; Roblox (x, y, z) = Blender (-x, z, y)",
         "size": [round(size_b.x, 4), round(size_b.z, 4), round(size_b.y, 4)],
         "pivot": {"description": "bottom centre of the asset bounds", "blender": [round(c, 4) for c in pivot]},
         "triangles": total,
