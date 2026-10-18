@@ -129,6 +129,18 @@ Result: PASS | FAIL (iterations used: x/8)
 Update `scripts[].status = "verified"` for scripts exercised without errors and
 `ui.screens[].status = "verified"` for screens checked visually.
 
+## Playtest checklist (every integration run)
+
+- [ ] `get_studio_state` is in Edit mode, nobody else is playing, and the `studio-play` lock is taken
+- [ ] Require-check clean; console noted
+- [ ] Boot: no red errors, character spawns, HUD visible
+- [ ] Every acceptance test run and marked, with evidence
+- [ ] Core loop completed once by simulated input; 2-3 captures
+- [ ] At least one exploit attempt rejected by the server
+- [ ] UI captured at desktop and phone sizes
+- [ ] No overlay Parts or floating geometry seen in captures
+- [ ] Play stopped, lock released, `PLAY OFF` sent, report written, `FIX` tasks sent
+
 ## Common Roblox failure patterns
 
 - `Infinite yield possible on ...WaitForChild` -> instance never created or wrong name;

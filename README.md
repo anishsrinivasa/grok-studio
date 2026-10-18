@@ -26,34 +26,48 @@ Also works in **Claude Code / Grok Build / Cursor**: the same roles ship as suba
 
 ## Run it on Grok Bot
 
-**On your PC (once):** Roblox Studio open with a place, and **Assistant > ... > Manage MCP
-Servers > Enable Studio as MCP server** turned on. In Grok Bot, **Settings > General > Bot >
-Execution on Local Computer** = *Ask every time*, so the Lead can start the bridge on your
-PC with your approval.
+**You do only this:**
+1. **Install the plugin.** Until it's listed on the marketplace, paste this to any Grok Bot:
+   > Run `curl -fsSL https://raw.githubusercontent.com/brain-xiang/grok-studio/multi-bot-team/scripts/bootstrap.sh | bash`
+   > and do what it prints.
 
-**In Grok Bot:**
-1. Install **grok-studio** from the plugin marketplace. Until it is listed, tell any Bot:
-   *"Install the grok-studio plugin from https://github.com/brain-xiang/grok-studio"* (branch
-   `multi-bot-team` until it is merged). If
-   it can't install unlisted plugins, ask it to clone the repo into
-   `/workspace/grok-studio/plugin` and save every `skills/*/SKILL.md` there as a skill.
-2. Type **`/setup-bridge`**. It sets up everything:
-   - creates the five Bots in a **Grok Studio** sidebar section, with their instructions
-   - installs headless Blender on the Bots' cloud computer (nothing to install on your PC)
-   - starts the bridge on your PC and connects your Studio
-     (approve its commands in that chat)
-   - checks Figma (optional, one Authorize click) and an optional Roblox Open Cloud key
-   - pings Studio from every Bot, shows a ready table, and hands your game idea to the Lead
-3. Describe the game in the same chat (it goes to **Lead GrokBot**), or in Lead GrokBot:
+   It downloads the plugin into `/workspace/grok-studio/plugin` and links the skills. If
+   they don't show up as skills, the Bot imports each one.
+2. **Roblox Studio:** install it, sign in, open or create a place, turn on **Team Create**,
+   and enable **Assistant > ... > Manage MCP Servers > Enable Studio as MCP server**. In
+   Grok Bot, set **Settings > General > Bot > Execution on Local Computer** to *Ask every
+   time*.
+3. **Type `/setup-bridge`.** Paste keys only when it opens the secret prompt:
+   - the Roblox Open Cloud key: it shows the link and the scopes
+   - an ngrok authtoken and static domain, if ngrok isn't set up yet
+4. **Approve** the first-time PC and firewall prompts, and create a **Grok Studio** sidebar
+   section if it asks (Bots can't).
+
+**`/setup-bridge` does the rest:**
+- checks the Open Cloud key's scopes and owner without printing it
+- installs Node and the bridge on your PC as a background service. The service survives
+  restarts, uses one stable key and a static URL, and the Studio connector is registered
+  once.
+- installs headless Blender on the Bots' cloud computer
+- creates the five Bots
+- runs a readiness gate:
+  - every Bot reaches the same Studio place and Blender
+  - a Blender-to-Studio model round trip (upload, insert, import checks, then the test
+    model is deleted)
+  - a 5-second Luau play test
+  - a screen capture
+
+It says **ready** only when the gate passes. Then describe the game right there (it goes
+to **Lead GrokBot**), or in Lead GrokBot:
 
 > Make a co-op tycoon where players run a volcano-powered hot sauce factory. Conveyor
 > droppers make sauce bottles, players collect cash, buy upgrades and unlock a second
 > floor. Low-poly cartoon style, mobile-friendly UI, no monetization. Save progress.
 > Make a thumbnail and icon.
 
-**Next session:** run `/setup-bridge` again (it only reconnects Studio), or just ask the Lead to build: it
-reconnects Studio itself. **Stop:** tell the Lead "disconnect Studio", or press Ctrl+C in
-the bridge window. The bridge key dies with it.
+**Afterwards:** every task starts with a health check that reconnects on its own. If
+anything is off, run `/setup-bridge` again: it only repairs what's broken. **Stop:** tell
+a grok-studio Bot "disconnect Studio".
 
 ## How it works
 
@@ -76,7 +90,7 @@ flowchart LR
 ```
 
 - **Studio** stays on your PC (it only runs on Windows/macOS). The bridge exposes it to
-  the cloud Bots behind one authenticated URL with a fresh key per session. See
+  the cloud Bots behind one authenticated, static URL (a background service with a stable key). See
   [`bridge/README.md`](bridge/README.md).
 - **Blender** runs headless on the cloud computer. Models reach Studio through an Open Cloud
   upload (automatic, if you add a key) or one **Import 3D** click per batch, with the file
@@ -100,7 +114,7 @@ skills/
   setup-bridge/              /setup-bridge: the one setup command - Studio, the Bots, Blender, Figma, smoke test (+ lead-bot.md)
   team-protocol/             workspace layout, ownership, locks, message formats
   grok-studio/               Lead playbook: preflight, spec, plan, dispatch, playtests, gate, handoff
-  connect-studio/            starts/stops the bridge on the user's PC via ExternalShell, registers the connector
+  connect-studio/            persistent bridge on the user's PC (local execution): install, status, restart, connector
   game-spec/                 prompt -> game-spec.json (+ schema.json, example)
   roblox-code/               Luau architecture, remotes, DataStores, anti-exploit (+ reference/*.luau)
   roblox-ui/                 Studio-direct ScreenGui builder, Figma path (+ reference/UiKit.luau)
@@ -110,7 +124,7 @@ skills/
   playtest-loop/             play, simulate input, read logs, route fixes, report
   thumbnail-and-icon/        512x512 icon, 1920x1080 thumbnails
 bridge/                      start-bridge.ps1 / .sh, files-server.mjs (file drop)
-scripts/                     studio-mcp.mjs, send-to-pc.py, opencloud_upload.py, validate.py
+scripts/                     bootstrap.sh, studio-mcp.mjs, send-to-pc.py, opencloud_upload.py, validate.py
 rules/roblox-luau.mdc        Luau conventions (Cursor rule)
 ```
 

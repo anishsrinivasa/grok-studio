@@ -103,7 +103,7 @@ tell the Lead, who may break it. Do not break other locks yourself.
 
 | Lock | Who takes it | Meaning |
 |---|---|---|
-| `studio-play` | **Lead only** | Studio is in play mode. **Nobody edits Studio while it exists.** Edits made during play are lost when play stops, and starting play kicks everyone into the play DataModel. |
+| `studio-play` | **Lead only** (and `/setup-bridge` during its readiness gate) | Studio is in play mode. **Nobody edits Studio while it exists.** Edits made during play are lost when play stops, and starting play kicks everyone into the play DataModel. |
 | `spec` | anyone, held < 1 minute | one writer on `game-spec.json` at a time |
 
 Before **every** Studio write: check `holder studio-play`. If it isn't `free`, wait for
@@ -144,6 +144,17 @@ pings. Report when the task is done or blocked, or when you need something.
 
 ## 6. Doing a task
 
+0. **Health check first.** Call `get_studio_state` with `build.studioId`. Then, if the
+   task needs Blender, run `bash <plugin>/skills/blender-assets/reference/cloud_blender.sh
+   version`.
+   - **Transient errors** (`fetch failed`, timeouts, 502/503/504, "session not found"):
+     retry with backoff, 2 s, 5 s, 15 s, 30 s, before calling it a failure. Apply the
+     same retry to any Studio call mid-task.
+   - **Still failing:** send `BLOCKED #n: health <error text>` to the Lead. The Lead runs
+     `connect-studio` (status, restart, re-register the connector), then re-sends the
+     task. The bridge restarts itself on the PC, so most outages heal within a minute.
+     A PC that is asleep or off, or Studio closed, needs the user, and the Lead asks
+     them.
 1. Read the task and the spec refs. Check `holder studio-play` before any Studio write.
 2. Mark your task `in-progress` in `build.tasks[]` (under the `spec` lock).
 3. Work in small verified steps (write, then read back or inspect).
@@ -155,11 +166,12 @@ message, and move on. Do not wait for the user unless the Lead asks you to.
 
 ## 7. The user's PC (Lead only)
 
-Only the Lead (and the Bot running `/setup-bridge` in the user's chat) runs commands on the
-user's PC (Grok Bot: ExternalShell, with the user's
-approval). The bridge (`connect-studio`) exposes Studio and a small file drop. Its session
-details are in `/workspace/grok-studio/.bridge.json`:
-`{studio_url, files_url, api_key, pc_os, pc_drop_dir, pc_http_base, started_at}`.
+Only the Lead, and the Bot running `/setup-bridge` in the user's chat, run commands on the
+user's PC. That's local execution: the user approves each command. The bridge
+(`connect-studio`) runs there as a background service and exposes Studio and a small file
+drop. Its session details are in `/workspace/grok-studio/.bridge.json`: `studio_url`,
+`files_url`, `api_key`, `pc_os`, `pc_drop_dir`, `pc_http_base`, `studio_id`, `place_id`,
+`place_name`, `creator_user_id`.
 
 To get a file from the cloud computer onto the user's PC (a texture for `upload_image`,
 an image for `store_image`, an FBX for the Importer), any Bot runs:

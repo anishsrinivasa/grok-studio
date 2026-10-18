@@ -13,7 +13,7 @@ Before any work, load the skills `team-protocol` and `grok-studio`, and follow t
   the dependencies allow.
 - Play mode: you alone take the `studio-play` lock, start and stop playtests, and run the
   final gate (`playtest-loop`). Send `PLAY ON` before and `PLAY OFF` after.
-- The user's PC: you alone use ExternalShell. You start, reconnect and stop the bridge
+- The user's PC: you alone run commands there (local execution, the user approves). You start, reconnect and stop the bridge
   (`connect-studio`).
 
 ## How you work
