@@ -1,11 +1,11 @@
 ---
 name: team-protocol
-description: Shared operating rules for the grok-studio bot team (Lead, Designer, Animator, Builder, Coding) building one Roblox game together - workspace layout, who may edit which part of the Studio place and of game-spec.json, locks for play mode and spec writes, the handoff/report message format, and how files reach the user's PC. Load it before doing any grok-studio work as a team member, and whenever you are unsure whether you may touch something.
+description: Shared operating rules for the grok-studio bot team (Lead, Coding, Designer, Builder, Animator, VFX, SFX, Marketing) building one Roblox game together - workspace layout, who may edit which part of the Studio place and of game-spec.json, locks for play mode and spec writes, the handoff/report message format, and how files reach the user's PC. Load it before doing any grok-studio work as a team member, and whenever you are unsure whether you may touch something.
 ---
 
 # Team protocol
 
-Five specialists share **one Roblox Studio** (on the user's PC, behind the bridge), **one
+Eight specialists share **one Roblox Studio** (on the user's PC, behind the bridge), **one
 cloud computer** (`/workspace`), and **one `game-spec.json`**. These rules keep them from
 breaking each other's work. They apply to Grok Bots (each role is its own Bot) and to
 subagents (Claude Code / Cursor / Grok Build), where "message" means "your final report".
@@ -14,9 +14,12 @@ subagents (Claude Code / Cursor / Grok Build), where "message" means "your final
 |---|---|---|---|
 | Lead | Lead GrokBot | the spec, scheduling, play mode, the final gate, the user's PC | `grok-studio`, `game-spec`, `playtest-loop`, `connect-studio` |
 | Coding | Coding GrokBot | all scripts | `roblox-code` |
-| Designer | Designer GrokBot | all UI, icon and thumbnails | `roblox-ui`, `thumbnail-and-icon` |
+| Designer | Designer GrokBot | UI (HUD, menus, shops) | `roblox-ui` |
 | Builder | Builder GrokBot | the world and every 3D model (Studio and Blender) | `roblox-building`, `blender-assets` |
 | Animator | Animator GrokBot | rigs and animations | `roblox-animations` (+ `blender-assets` for rigs) |
+| VFX | VFX GrokBot | particle effects, beams, trails, explosions, screen effects | `roblox-vfx` |
+| SFX | SFX GrokBot | sound design, Creator Store sourcing, mixing, spatial audio | `roblox-audio` |
+| Marketing | Marketing GrokBot | icons, thumbnails, X (Twitter) marketing drafts | `thumbnail-and-icon`, `marketing-social` |
 
 ## 1. Workspace layout (cloud computer)
 
@@ -56,6 +59,9 @@ Everyone may **read** anything. You **write** (create, edit, destroy, reparent) 
 | Designer | `StarterGui`, `ReplicatedStorage.Assets.UI` |
 | Builder | `Workspace` (map, spawn, tagged gameplay parts), `Lighting`, `Terrain`, `ReplicatedStorage.Assets.Models`, `ServerStorage.Templates` |
 | Animator | `ReplicatedStorage.Shared.AnimationIds` (ModuleScript: name -> `rbxassetid://`), `ReplicatedStorage.Assets.Rigs`, `ServerStorage.RBX_ANIMSAVES` |
+| VFX | `ReplicatedStorage.Assets.VFX` (ParticleEmitters, Beams, Trails as templates) |
+| SFX | `SoundService` (sounds, SoundGroups), `ReplicatedStorage.Assets.Audio` |
+| Marketing | (no Studio ownership; works in external tools and files) |
 | Lead | `ServerStorage.GameSpec` (spec mirror), play mode, nothing else |
 
 Need a change in someone else's subtree (a new tag on a part, a new remote, a new UI hook)?
@@ -79,11 +85,14 @@ Never pick a different place on your own.
 
 | Owner | Writes these parts of `game-spec.json` |
 |---|---|
-| Lead | `meta`, `pitch`, `coreLoop`, `mechanics`, `progression`, `monetization`, `world`, `audio`, `acceptanceTests`, `build` (except your own task entries), `marketing.description` |
+| Lead | `meta`, `pitch`, `coreLoop`, `mechanics`, `progression`, `monetization`, `world`, `acceptanceTests`, `build` (except your own task entries) |
 | Coding | `scripts[]`, `remotes[]`, `dataModel` |
-| Designer | `ui`, `marketing.icon`, `marketing.thumbnails` |
+| Designer | `ui` |
 | Builder | `assets` |
 | Animator | `animations[]` |
+| VFX | `vfx[]` |
+| SFX | `audio[]` |
+| Marketing | `marketing` (icon, thumbnails, socialMedia) |
 
 Anyone may update **their own** entry in `build.tasks[]` (status, notes). If you think
 something outside your parts is wrong, `ASK` the Lead. Never rewrite the whole file from
