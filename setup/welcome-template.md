@@ -2,40 +2,13 @@
 
 Your team is ready to build. Here's who's on it:
 
-{{#activeRoles}}
-## {{name}}
-*{{description}}*
-
-**What {{name}} can do:**
-{{#keyCapabilities}}
-- {{.}}
-{{/keyCapabilities}}
-
-**Using:** {{integration}}
+(Active roles will be inserted here by the setup resolver)
 
 ---
-{{/activeRoles}}
 
-{{#disabledRoles}}
-## {{name}} (Disabled)
-*{{description}}*
-
-**What it needs:** {{requirements}}
-
----
-{{/disabledRoles}}
-
-{{#setupSummary}}
 **Your setup:**
 - **Studio:** {{studioConnection}} ({{placeInfo}})
 - **Blender:** {{blenderPath}}
-{{#figmaStatus}}
-- **Figma:** {{figmaStatus}}
-{{/figmaStatus}}
-{{#openCloudKey}}
-- **Open Cloud:** {{openCloudKey}}
-{{/openCloudKey}}
-{{/setupSummary}}
 
 **Next steps:**
 1. Describe your game idea here or message **Lead GrokBot** directly

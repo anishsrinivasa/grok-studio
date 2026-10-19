@@ -17,7 +17,7 @@ one `game-spec.json`. They follow a team protocol, so five agents in one Studio 
 break each other's work.
 
 Also works in **Claude Code / Grok Build / Cursor**: the same roles ship as subagents in
-`agents/`, and the main session plays the Lead.
+`agents/` (redirect files; canonical source is `roles/`), and the main session plays the Lead.
 
 > Status: **v0.2.0, early.** The bridge was run end to end against a live Studio on
 > Windows. The multi-bot flow has not yet done a full build. See [Limitations](#limitations).

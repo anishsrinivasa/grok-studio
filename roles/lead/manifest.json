@@ -61,30 +61,13 @@
     }
   ],
   "capabilities": {
-    "required": [
-      {
-        "id": "studio_connection",
-        "name": "Roblox Studio Connection",
-        "options": [
-          {
-            "value": "bridge",
-            "label": "Bridge (persistent service on user's PC)",
-            "requirements": {
-              "connectors": ["roblox-studio"],
-              "secrets": ["GROK_STUDIO_BRIDGE_KEY"],
-              "checks": ["bridge-check.py"]
-            }
-          }
-        ]
-      }
-    ],
+    "required": [],
     "optional": [
       {
         "id": "open_cloud_upload",
         "name": "Automatic model uploads",
         "requirements": {
-          "secrets": ["ROBLOX_OPEN_CLOUD_API_KEY"],
-          "checks": ["opencloud_upload.py introspect"]
+          "secrets": ["ROBLOX_OPEN_CLOUD_API_KEY"]
         },
         "benefit": "Models upload automatically; otherwise needs one Import 3D click per batch"
       }
