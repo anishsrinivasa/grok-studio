@@ -11,7 +11,7 @@
 ### 1. Install Plugin (5 min)
 ```
 # In any Grok Bot:
-Run curl -fsSL https://raw.githubusercontent.com/anishsrinivasa/grok-studio/cursor/extensible-roles-setup-df5f/scripts/bootstrap.sh | bash and do what it prints.
+Run curl -fsSL https://raw.githubusercontent.com/anishsrinivasa/grok-studio/cursor/extensible-roles-setup-df5f/scripts/bootstrap.sh | GROK_STUDIO_REF=cursor/extensible-roles-setup-df5f bash and do what it prints.
 ```
 
 **Expected:** Plugin downloads to `/workspace/grok-studio/plugin`, skills linked.

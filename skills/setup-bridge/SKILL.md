@@ -194,7 +194,7 @@ it up with `list_roblox_studios` and the place id.
 
 1. **Sidebar section:** if no section named **Grok Studio** exists, ask the user to
    create one (Bots can't), and wait.
-2. **Bots.** A Bot's instructions are its **description** field. For each row below:
+2. **Bots.** A Bot's instructions are its **description** field. For each row of `setup_state.py bot-list`:
    - **Missing:** create it with `CreateAgent`: name = the Name column, description = the
      output of `python3 <plugin>/scripts/setup_state.py bot-text <role>` (the file without
      its frontmatter), copied exactly. CreateAgent has no title field.
@@ -207,13 +207,9 @@ it up with `list_roblox_studios` and the place id.
      `bot-text`. Run `bot-diff` again: it must say `same`.
    - Never delete or rename a Bot.
 
-| Name | role | Instructions file |
-|---|---|---|
-| Lead GrokBot | `lead` | `<plugin>/skills/setup-bridge/lead-bot.md` |
-| Coding GrokBot | `coder` | `<plugin>/agents/coder.md` |
-| Designer GrokBot | `designer` | `<plugin>/agents/designer.md` |
-| Builder GrokBot | `builder` | `<plugin>/agents/builder.md` |
-| Animator GrokBot | `animator` | `<plugin>/agents/animator.md` |
+The rows come from `python3 <plugin>/scripts/setup_state.py bot-list`: one Bot per folder in
+`roles/` (name from its manifest, so contributor-added roles such as VFX, SFX and Marketing are
+included automatically). Never hardcode this list.
 
 3. Message only the Bots you created or updated in this run: `[GS] HELLO from setup. Load
    team-protocol and your role skills, then reply "READY <role>".` Collect the replies while
