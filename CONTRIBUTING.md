@@ -214,3 +214,49 @@ VFX was added in v0.3.0 without touching any core files.
 
 Open an issue or read the team-protocol skill (`skills/team-protocol/SKILL.md`) for
 ownership, locks, and message formats.
+
+---
+
+## Lessons to Rules: Making Playtest Failures Impossible to Repeat
+
+When a playtest failure reveals a systemic gap — not just a one-off bug but a pattern
+that could recur in any game — we codify the fix as a **general, game-agnostic rule**
+with three components:
+
+1. **Rule (in the owning role's agent.md and skill):** A clear principle or requirement
+   that prevents the failure class.
+2. **Reusable code pattern (where applicable):** A reference implementation in
+   `skills/*/reference/*.luau` or a documented pattern that specialists can adapt.
+3. **Automated check:** A playtest-loop acceptance check (using `AcceptanceFramework.luau`)
+   that the Lead always runs, and/or a pre-DONE validator or self-check script.
+
+This approach turns debugging into lasting process improvements.
+
+### Example: 7 Fixed Failure Classes (v0.3.0)
+
+| Failure | Rule | Check | Files |
+|---------|------|-------|-------|
+| **1. Assets silently never load** | All Roblox asset loads (animations, sounds, meshes, images) must be guarded: wait for load completion with timeout, retry, fallback, warn once. | Playtest: `AcceptanceFramework` verifies every animation track reaches `Length > 0`, sounds are `IsLoaded`, meshes preload successfully. | `skills/roblox-code/SKILL.md` (asset loading section), `skills/roblox-code/reference/GuardedAnimationLoader.luau`, `skills/playtest-loop/reference/AcceptanceFramework.luau` |
+| **2. Weak points / hit zones occluded** | Every interactive element (hit zones, weak points, pickups, prompts) must be a separate, unoccluded part. Decorative geometry: `CanQuery=false` or simplified collision. Builder self-check: raycast from typical player positions. | Playtest: `AcceptanceFramework` verifies clear raycast path to every declared interactive part. | `skills/roblox-building/SKILL.md` (interaction reachability section), `roles/builder/agent.md` |
+| **3. Tool.Grip / rig attachment wrong** | Every tool and accessory on an R15 rig must be oriented along character LookVector and anchored at the correct attachment point. Builder self-check: equip on dummy, verify orientation, screenshot. | Playtest: `AcceptanceFramework` verifies every tool/accessory on test rig. | `skills/roblox-building/SKILL.md` (rig attachments section), `roles/builder/agent.md` |
+| **4. Missing asset gate records** | Every terminal DONE status (`placed`, `published`, `verified`) must be backed by machine-checkable artifacts: `reports/<id>_import.json` for assets, `assetId` for animations, `config` for VFX. Import scripts write them automatically. | Pre-DONE: `scripts/validate-spec-gates.py` fails if artifacts are missing. | `scripts/validate-spec-gates.py`, `skills/blender-assets/SKILL.md` |
+| **5. Spawn-killing / spec tunables unmeasured** | Spec declares tunable targets with tolerance (e.g., "spawn protection ≥3s", "NPC hit rate ≤35% ±10%"). Coding implements measured checks. Default 3 s spawn protection and NPC aggro grace unless gameplay requires instant danger. | Playtest: `AcceptanceFramework` verifies idle survival time and measured rates against spec. | `skills/game-spec/SKILL.md`, `skills/roblox-code/SKILL.md` (tunable measurement section) |
+| **6. Stale MCP sessions after tunnel blip** | Before declaring `BLOCKED` on any Studio tool failure, always run `bash /workspace/scripts/heal-mcp-session.sh`. Kills only the caller's exec-daemon children (never other bots). Mandatory step. | Any bot self-check: heal before escalating Studio errors. | `scripts/heal-mcp-session.sh`, `skills/connect-studio/SKILL.md` (Heal section), `skills/team-protocol/SKILL.md` (section 7a) |
+| **7. Playtest helpers delegated PLAY ON/OFF** | The Lead itself always sends `[GS] PLAY ON` and `[GS] PLAY OFF` (even on failure), never delegates to helpers without messaging tools. | Lead self-check: never delegate play-mode coordination. | `skills/playtest-loop/SKILL.md` (team mode section), `skills/grok-studio/SKILL.md` |
+
+### How to Apply This Pattern
+
+When you encounter a playtest failure:
+
+1. **Generalize:** Is this a one-off bug (fix the code) or a pattern (e.g., "any asset can
+   fail to load")? If it's a pattern, it needs a rule.
+2. **Write the rule** in the owning role's `agent.md` and skill (e.g., Builder owns
+   geometry, Coding owns scripts, Lead owns coordination).
+3. **Provide a reusable pattern** (reference implementation, documented snippet, or guard
+   function) so future work doesn't reinvent the solution.
+4. **Add an automated check** (playtest acceptance check, validator script, or self-check
+   step) so the failure cannot silently recur.
+5. **Update this table** with the new failure class, rule, check, and files.
+
+This discipline scales: as the plugin matures, the automated checks grow denser and entire
+classes of bugs become impossible.
