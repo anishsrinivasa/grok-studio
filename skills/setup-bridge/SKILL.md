@@ -87,8 +87,10 @@ for each missing key, with these exact instructions:
 
   Then check it without printing it: `python3 <plugin>/scripts/opencloud_upload.py
   introspect`. It reports the scopes, the expiry and the owner's user id. If it says
-  `asset:write` is missing, tell the user exactly that. Save the owner id as the secret or
-  setting `ROBLOX_CREATOR_USER_ID`, or `ROBLOX_CREATOR_GROUP_ID` for group keys. If the
+  `asset:write` is missing, tell the user exactly that. Nothing has to be saved: uploads
+  go to the place's owner (user or group), which Step 3 records in `.bridge.json`. Run
+  `introspect` again after Step 3: `problems` then also says if the key's Assets scope
+  doesn't cover that owner (a group game needs the group in the key's scope). If the
   user declines the key, continue: model imports then need one Import 3D click per batch,
   and gate check G2 is marked *skipped*.
 - **`NGROK_AUTHTOKEN`**: only if ngrok on the PC isn't set up yet (`connect-studio`
@@ -124,13 +126,16 @@ return game:GetService("HttpService"):JSONEncode({
     placeId = game.PlaceId, name = game.Name,
     published = game.PlaceId ~= 0,
     teamCreate = game:FindService("NetworkClient") ~= nil, -- heuristic: Team Create edit sessions are network clients
+    creatorType = game.CreatorType.Name, creatorId = game.CreatorId, -- who owns the place (User or Group)
 })
 ```
 
 If `published` is false or `teamCreate` looks false, ask the user to turn on Team Create
 (it publishes the place), then check again. If the heuristic is wrong, the user can just
-confirm. Add `studio_id`, `place_id`, `place_name` and `creator_user_id` to
-`.bridge.json`.
+confirm. Add `studio_id`, `place_id`, `place_name`, `place_creator_type` (`User` or
+`Group`) and `place_creator_id` to `.bridge.json` (read-modify-write, keep mode 600).
+`opencloud_upload.py` uploads every asset to that owner, so a group game gets group-owned
+assets without anyone setting `ROBLOX_CREATOR_*` (those secrets, if set, still win).
 
 `--pc-blender`: if the user also has Blender open on the PC with the MCP add-on, ask
 `connect-studio` to expose it as the `blender` connector too. Otherwise Blender stays in

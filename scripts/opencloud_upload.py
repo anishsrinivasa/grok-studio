@@ -2,8 +2,8 @@
 """Roblox Open Cloud helper for grok-studio: check the API key, upload assets, poll uploads.
 
     python3 opencloud_upload.py introspect [--dry-run]
-        Checks ROBLOX_OPEN_CLOUD_API_KEY: enabled, expiry, scopes, and the owner's user id
-        (authorizedUserId) - setup saves that as ROBLOX_CREATOR_USER_ID.
+        Checks ROBLOX_OPEN_CLOUD_API_KEY: enabled, expiry, scopes, the owner's user id, and
+        whether the key may upload for the place owner (from .bridge.json).
     python3 opencloud_upload.py upload <file> --name "Lava Rock" [--type Model]
                                 [--description "..."] [--wait | --no-wait] [--timeout 600] [--dry-run]
         Uploads one file; with --wait (default) polls until processed and prints the assetId.
@@ -18,7 +18,10 @@ Environment (Grok Bot: secrets exposed as environment variables on the cloud com
 never put the key in a file under /workspace, a message, or a log):
     ROBLOX_OPEN_CLOUD_API_KEY   API key with the Assets API: Read + Write
     ROBLOX_CREATOR_USER_ID      or ROBLOX_CREATOR_GROUP_ID: who owns new assets (the game's
-                                owner, or the game can't use them)
+                                owner, or the game can't use them). Optional: without them the
+                                place owner that /setup-bridge saved in .bridge.json
+                                (place_creator_type / place_creator_id) is used, so no secret
+                                has to be created by hand.
 
 The key is sent only in the x-api-key header (or the introspect body, as Roblox documents)
 and is never printed, also not in error messages. --dry-run shows the request with the key
@@ -73,6 +76,37 @@ ALLOWED = {
     "Image": {".png", ".jpg", ".jpeg", ".bmp", ".tga"},
     "Audio": {".mp3", ".ogg", ".wav", ".flac"},
 }
+
+
+BRIDGE_JSON = os.environ.get("GROK_STUDIO_BRIDGE_JSON", "/workspace/grok-studio/.bridge.json")
+
+
+def place_owner():
+    """The Studio place's owner as setup recorded it: ("Group"|"User", "<id>") or (None, None)."""
+    try:
+        with open(BRIDGE_JSON, encoding="utf-8-sig") as f:
+            b = json.load(f)
+    except (OSError, ValueError):
+        return None, None
+    kind, cid = str(b.get("place_creator_type") or ""), str(b.get("place_creator_id") or "")
+    kind = "Group" if "group" in kind.lower() else "User" if "user" in kind.lower() else None
+    return (kind, cid) if kind and cid.isdigit() else (None, None)
+
+
+def resolve_creator():
+    """(creator dict, source). Env secrets win, then the place owner from .bridge.json."""
+    group_id = os.environ.get("ROBLOX_CREATOR_GROUP_ID", "").strip()
+    user_id = os.environ.get("ROBLOX_CREATOR_USER_ID", "").strip()
+    if group_id:
+        return {"groupId": group_id}, "ROBLOX_CREATOR_GROUP_ID"
+    if user_id:
+        return {"userId": user_id}, "ROBLOX_CREATOR_USER_ID"
+    kind, cid = place_owner()
+    if kind == "Group":
+        return {"groupId": cid}, "place owner (.bridge.json)"
+    if kind == "User":
+        return {"userId": cid}, "place owner (.bridge.json)"
+    return None, None
 
 
 def env_key():
@@ -183,6 +217,16 @@ def cmd_introspect(a):
     if not assets["read"]:
         problems.append("no Assets API read permission (needed to poll uploads)")
     owner = info.get("authorizedUserId")
+    creator, source = resolve_creator()
+    kind, cid = place_owner()
+    covers = None
+    if creator:
+        ids = assets["groupIds"] if "groupId" in creator else assets["userIds"]
+        want = creator.get("groupId") or creator.get("userId")
+        covers = "*" in ids or want in ids or ("userId" in creator and not ids and str(owner) == want)
+        if not covers:
+            problems.append(f"the key's Assets scope does not include {('group ' + want) if 'groupId' in creator else ('user ' + want)} "
+                            "(Creator Dashboard > Credentials > the key > Assets API: add it)")
     print(json.dumps({
         "name": info.get("name"),
         "authorizedUserId": owner,
@@ -194,9 +238,13 @@ def cmd_introspect(a):
         "scopes": [{"name": s.get("name"), "operations": s.get("operations")} for s in info.get("scopes", [])],
         "usable": not problems,
         "problems": problems,
-        "save": {"ROBLOX_CREATOR_USER_ID": str(owner)} if owner is not None else {},
-        "note": "Keys unused or unchanged for 60 days auto-expire. For a group-owned game set "
-                "ROBLOX_CREATOR_GROUP_ID instead (the key needs that group in its asset scope).",
+        "placeOwner": {"type": kind, "id": cid} if kind else None,
+        "uploadCreator": creator, "uploadCreatorSource": source,
+        "note": ("Uploads go to the place owner recorded in .bridge.json; nothing to save."
+                 if source and "place owner" in source else
+                 "Uploads use the creator from the environment." if creator else
+                 "No creator yet: /setup-bridge Step 3 records the place owner in .bridge.json. Keys unused "
+                 "or unchanged for 60 days auto-expire."),
     }))
     if problems:
         sys.exit(5)
@@ -241,9 +289,7 @@ def cmd_upload(a):
     if size > MAX_BYTES:
         fail(f"{a.file} is {size} bytes; Open Cloud accepts at most {MAX_BYTES}", 2)
 
-    user_id = os.environ.get("ROBLOX_CREATOR_USER_ID", "").strip()
-    group_id = os.environ.get("ROBLOX_CREATOR_GROUP_ID", "").strip()
-    creator = {"groupId": group_id} if group_id else ({"userId": user_id} if user_id else None)
+    creator, creator_source = resolve_creator()
     request = {
         "assetType": a.type,
         "displayName": a.name[:50],
@@ -259,13 +305,15 @@ def cmd_upload(a):
                           "fileContent": {"filename": os.path.basename(a.file),
                                           "contentType": CONTENT_TYPES[ext], "bytes": size}},
             "then": f"GET {ASSETS_API}/operations/<operationId> until done" if a.wait else "print operationId",
+            "creatorSource": creator_source,
             "ready": bool(key and creator),
         }, indent=2))
         return
     if not key:
         fail("ROBLOX_OPEN_CLOUD_API_KEY is not set (ask the Lead / the user for an Open Cloud key)", 2)
     if not creator:
-        fail("set ROBLOX_CREATOR_USER_ID or ROBLOX_CREATOR_GROUP_ID (the game's owner; `introspect` prints it)", 2)
+        fail("no creator: run /setup-bridge Step 3 (it saves the place owner in .bridge.json), or set "
+             "ROBLOX_CREATOR_GROUP_ID / ROBLOX_CREATOR_USER_ID to the game's owner", 2)
 
     with open(a.file, "rb") as f:
         data = f.read()

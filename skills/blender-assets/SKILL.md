@@ -64,9 +64,10 @@ python3 <plugin>/scripts/opencloud_upload.py introspect               # if the k
 the missing libraries and the `apt-get` line that fixes them, then re-run `install` (it
 reuses the unpacked files). `BLENDER_VERSION=5.0.1` selects the other pinned build. The smoke
 test builds a 2-material block, splits it, audits, exports FBX + manifest and renders, in
-about 5 s (exit code 1 if anything fails). `introspect` prints the key's owner
-(`authorizedUserId`): save it as `ROBLOX_CREATOR_USER_ID` (or set `ROBLOX_CREATOR_GROUP_ID`
-for a group-owned game). It needs Assets **read + write**.
+about 5 s (exit code 1 if anything fails). `introspect` checks the key (Assets **read +
+write**) and whether it may upload for the place owner that setup saved in `.bridge.json`.
+Uploads go to that owner (user or group) automatically; `ROBLOX_CREATOR_USER_ID` /
+`ROBLOX_CREATOR_GROUP_ID` only override it.
 
 ## Jobs
 
@@ -172,8 +173,8 @@ python3 <plugin>/scripts/opencloud_upload.py upload /workspace/grok-studio/games
 ```
 
 It waits until Roblox has processed the upload (`--no-wait` + `status <operationId> --wait`
-for long ones; `--dry-run` shows the request). The creator must be the game's owner, or the
-game can't use the asset.
+for long ones; `--dry-run` shows the request and `creatorSource`). The creator is the game's
+owner from `.bridge.json` (setup Step 3), or the `ROBLOX_CREATOR_*` override.
 
 **No key:** `python3 <plugin>/scripts/send-to-pc.py <fbx> exports/<id>.fbx`, then send the Lead
 an `ASK` with the printed `localPath`: the user does **File > Import 3D** with that file

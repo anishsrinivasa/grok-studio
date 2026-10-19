@@ -39,8 +39,9 @@ subagents (Claude Code / Cursor / Grok Build), where "message" means "your final
 
 `/workspace` is durable and every Bot can read it; temp dirs are not. Never write secrets
 (API keys) into it, except the short-lived bridge session file (section 7). Secrets the
-user saves in Grok Bot reach the shell as environment variables:
-`ROBLOX_OPEN_CLOUD_API_KEY`, `ROBLOX_CREATOR_USER_ID` or `ROBLOX_CREATOR_GROUP_ID`.
+user saves in Grok Bot reach the shell as environment variables: `ROBLOX_OPEN_CLOUD_API_KEY`
+(plus the optional `ROBLOX_CREATOR_USER_ID` / `ROBLOX_CREATOR_GROUP_ID` overrides and
+`GROK_STUDIO_BRIDGE_KEY`). Uploads default to the place owner saved in `.bridge.json`.
 
 Read the slug from `current-game`, then always use absolute paths. Subagents running on
 the user's own PC use `<project>/grok-studio/games/<slug>/` with the same layout.
@@ -184,7 +185,8 @@ drop. Its session details are in `/workspace/grok-studio/.bridge.json`, written 
 `connect-studio`:
 - bridge fields: `api_key`, `studio_url`, `files_url`, `pc_drop_dir`, `pc_http_base`,
   `tunnel`, `tunnel_stable`, `pc_os`
-- added by `/setup-bridge`: `studio_id`, `place_id`, `place_name`, `creator_user_id`
+- added by `/setup-bridge`: `studio_id`, `place_id`, `place_name`, `place_creator_type`,
+  `place_creator_id` (the place owner; Open Cloud uploads go to it)
 
 A gateway restart drops open MCP sessions. If a Studio call suddenly fails with "session
 not found" or a 404, that is a transient error: retry it.
