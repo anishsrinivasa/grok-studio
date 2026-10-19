@@ -23,7 +23,9 @@ message formats are defined there and not repeated here.
 1. **Studio:** call `list_roblox_studios`. If it fails, run `connect-studio` (Grok Bot) or
    tell the user to open Studio and enable *Studio as MCP server* (local agents). Studio
    is mandatory. If more than one Studio window is listed, ask which one, never guess.
-   Store its id in `build.studioId` and its place id in `build.placeId`.
+   Store its **place id** in `build.placeId`, never the studio id: the id changes
+   whenever Studio restarts. Every task, yours and the specialists', starts with
+   `list_roblox_studios` and picks the entry with that place id.
    `get_studio_state`: if playing, stop play.
 2. **Team:** Grok Bot: message each specialist `[GS] HELLO` and expect `READY`. Missing
    Bots: run `setup-bridge`.

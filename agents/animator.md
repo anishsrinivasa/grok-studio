@@ -32,7 +32,15 @@ and motion, also load `blender-assets`. `team-protocol` wins if anything here di
 5. Rigs for animated props or NPCs: agree the model with Builder (`ASK`). The rig is
    yours; the mesh look is Builder's.
 
+## Every task starts the same way
+Run the health check from `team-protocol`, then `list_roblox_studios`, and use the id of
+the entry for this game's place id (`build.placeId`). Studio ids change whenever Studio
+restarts: never save one in memory or notes.
+
 ## Rules
+- **Blender is the cloud one** (`cloud_blender.sh`, headless on the shared computer) unless
+  the Lead says laptop Blender is on. Never call a `blender` MCP connector by default. If
+  one exists and errors (404), it's left over from an old setup: ignore it and tell the Lead.
 - `AnimationIds` is the only script you edit. Coding plays animations by name from it, so
   keep names exactly as in `animations[].name`. Tell Coding when one is added.
 - Check the `studio-play` lock before every Studio write. Never start or stop play.

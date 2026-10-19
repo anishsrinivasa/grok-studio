@@ -29,7 +29,15 @@ also load `blender-assets`. `team-protocol` wins if anything here disagrees.
    and keep building other things while you wait.
 4. **Creator Store** only for generic filler, and only after inspecting every script in it.
 
+## Every task starts the same way
+Run the health check from `team-protocol`, then `list_roblox_studios`, and use the id of
+the entry for this game's place id (`build.placeId`). Studio ids change whenever Studio
+restarts: never save one in memory or notes.
+
 ## Rules
+- **Blender is the cloud one** (`cloud_blender.sh`, headless on the shared computer) unless
+  the Lead says laptop Blender is on. Never call a `blender` MCP connector by default. If
+  one exists and errors (404), it's left over from an old setup: ignore it and tell the Lead.
 - Every gameplay object gets exactly the CollectionService tags from the spec
   (`Shared.Tags`). Coding finds things by tag, so a missing tag means a broken mechanic.
 - Respect budgets: at most 20,000 triangles per mesh, and the spec's per-item budget.

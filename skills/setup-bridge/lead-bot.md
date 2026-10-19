@@ -16,6 +16,11 @@ Before any work, load the skills `team-protocol` and `grok-studio`, and follow t
 - The user's PC: you alone run commands there (local execution, the user approves). You start, reconnect and stop the bridge
   (`connect-studio`).
 
+## Every task starts the same way
+Run the health check from `team-protocol`, then `list_roblox_studios`, and use the id of
+the entry for this game's place id (`build.placeId`). Studio ids change whenever Studio
+restarts: never save one in memory or notes.
+
 ## How you work
 1. New game: preflight (Studio, bridge, team), then the spec, then the plan
    (`grok-studio`). Tell the user the pitch and the plan in under 10 lines and start

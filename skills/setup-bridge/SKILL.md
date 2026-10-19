@@ -147,7 +147,7 @@ return game:GetService("HttpService"):JSONEncode({
 
 If `published` is false or `teamCreate` looks false, ask the user to turn on Team Create
 (it publishes the place), then check again. If the heuristic is wrong, the user can just
-confirm. Add `studio_id`, `place_id`, `place_name`, `place_creator_type` (`User` or
+confirm. Add `place_id`, `place_name`, `place_creator_type` (`User` or
 `Group`) and `place_creator_id` to `.bridge.json` (read-modify-write, keep mode 600).
 `opencloud_upload.py` uploads every asset to that owner, so a group game gets group-owned
 assets without anyone setting `ROBLOX_CREATOR_*` (those secrets, if set, still win).
@@ -155,6 +155,10 @@ assets without anyone setting `ROBLOX_CREATOR_*` (those secrets, if set, still w
 `--pc-blender`: if the user also has Blender open on the PC with the MCP add-on, ask
 `connect-studio` to expose it as the `blender` connector too. Otherwise Blender stays in
 the cloud.
+Without `--pc-blender`, remove any `blender` connector left over from an older setup.
+It points at an address that no longer exists, and Builder's checks would hit 404s.
+Never store the studio id: it changes whenever Studio restarts. Store the place id; every
+task looks the id up with `list_roblox_studios`.
 
 ## Step 4 - The team
 
@@ -191,7 +195,7 @@ only then mark it failed.
 
 | # | Check | Who | How |
 |---|---|---|---|
-| G1 | Every Bot reaches the same Studio place and Blender | all five | `[GS] TASK ping`: `get_studio_state` with `studio_id` from `.bridge.json`, and `cloud_blender.sh version`. Reply `DONE ping <place> <state> <blender version>`. All replies must name the same place. |
+| G1 | Every Bot reaches the same Studio place and Blender | all five | `[GS] TASK ping`: `list_roblox_studios`, then `get_studio_state` with the id of the entry for `place_id` from `.bridge.json`, and `cloud_blender.sh version`. Reply `DONE ping <place> <state> <blender version>`. All replies must name the same place. |
 | G2 | Blender -> Studio round trip | Builder | `[GS] TASK smoke-model`, `R=<plugin>/skills/blender-assets/reference`, files in `GS/.smoke/`: (1) `cloud_blender.sh run $R/smoke_test.py` (2-material mesh: split by colour, audit, FBX + manifest, plus the three-quarter compare render; its result has `compare.camera_json` and `compare.backdrop`). (2) `python3 <plugin>/scripts/opencloud_upload.py upload GS/.smoke/gs_smoke.fbx --name GrokStudioSmoke` (goes to the place owner, waits, prints `assetId`). (3) `insert_asset` (`assetName` `gs_smoke`). (4) `python3 $R/fill_luau.py` fills `apply_manifest.luau` and `post_import_check.luau` (`MANIFEST_JSON@=GS/.smoke/gs_smoke.manifest.json`, `MODEL_PATH=...`) and `capture_booth.luau` (`CAMERA_JSON@=<camera_json>`, `BACKDROP`, `MODE`); run each with `execute_luau` (`"$file:<out>"`). Apply must say `ok`, the check must `pass` (no overlay Parts; save it to `reports/smoke_import.json`). (5) Booth `setup`, `capture_pixels.luau` (filled with the booth's `camera_position` / `look_at_position`, MCP `write_to_file`), `decode_capture.py`, then `cloud_blender.sh run $R/smoke_test.py -- --capture <png>` must `pass`; look at both images too. Booth `cleanup` always. Then **delete the test model from the place**. *Skipped* without an Open Cloud key. Live, Oct 18 2026: silhouette 0.977, palette 0.993. |
 | G3 | UI builds and passes its check | Designer | `[GS] TASK smoke-ui`: build the test screen with `<plugin>/converters/penpot-to-roblox/PenpotUIBuilder.luau` from `<plugin>/converters/penpot-to-roblox/fixtures/smoke-ui.spec.json`, with `{ parent = StarterGui, name = "GrokStudioSmokeUI" }`. Then `PenpotUIVerifier.verify` must return PASS, followed by an Edit-mode `screen_capture` (title + Play/Shop/Quit). Generate the call instead of wrapping by hand: `python3 <plugin>/converters/penpot-to-roblox/scripts/studio_payload.py <plugin>/converters/penpot-to-roblox/fixtures/smoke-ui.spec.json /workspace/grok-studio/.smoke/smoke_ui.luau --name GrokStudioSmokeUI` writes one `execute_luau` body that builds and verifies (returns `"status": "PASS"`); the same with `--delete` writes the cleanup, which deletes `StarterGui.GrokStudioSmokeUI` only if it has the `PenpotBoardId` attribute. If Penpot is connected, Designer may build from a Penpot board instead (`penpot-ui` loop). Live result, Oct 2026: 9 elements, PASS with 123 checks. |
 | G4 | Luau + 5 s play, clean console | Coding writes, setup plays | Coding creates `ServerScriptService.GrokStudioSmoke` (a Script with attribute `BuiltBy = "grok-studio-setup"` that prints `GROK_STUDIO_SMOKE_OK`). Check `get_studio_state` first: never start play while the user is playing. Then take the `studio-play` lock, tell the user "running a 5-second test play", start play, and wait 5 s (`execute_luau` Server: `task.wait(5)`). Read `get_console_output` (MCP `write_to_file`), stop play, release the lock, then classify it: `python3 <plugin>/scripts/console_classify.py <file> --marker GROK_STUDIO_SMOKE_OK` (rules below; exit 0 = pass). Coding deletes the script, only if the attribute matches. |

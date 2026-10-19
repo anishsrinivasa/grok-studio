@@ -22,7 +22,8 @@ The iteration limits below count those rounds.
 position/look-at), `character_navigation`, `user_keyboard_input`, `user_mouse_input`,
 `search_game_tree`, `inspect_instance`, `script_read`, `multi_edit`, and `subagent` (type
 `playtest` can run a gameplay scenario autonomously - useful for long scenarios; still
-verify its claims with your own state checks). Every call needs `studio_id`.
+verify its claims with your own state checks). Every call needs `studio_id`: get it from `list_roblox_studios` at the start of the run,
+matching the game's place id. It changes whenever Studio restarts, so never reuse a saved one.
 
 ## Limits
 

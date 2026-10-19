@@ -36,6 +36,11 @@ Penpot, also load `penpot-ui`. For the icon and thumbnails, also load `thumbnail
    captures or Builder's Blender renders; `ASK` for them), post-process to the exact
    sizes, save them in `marketing/`, and list the upload as a manual step for the user.
 
+## Every task starts the same way
+Run the health check from `team-protocol`, then `list_roblox_studios`, and use the id of
+the entry for this game's place id (`build.placeId`). Studio ids change whenever Studio
+restarts: never save one in memory or notes.
+
 ## Rules
 - No game logic. Coding's controllers make the UI work. Purely visual motion (tweens,
   press and hover effects) may go in a ModuleScript under `ReplicatedStorage.Assets.UI`

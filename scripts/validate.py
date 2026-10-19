@@ -37,7 +37,7 @@ def frontmatter(path):
 
 # 1. JSON files
 for p in sorted(ROOT.rglob("*.json")):
-    if ".git" in p.parts:
+    if ".git" in p.parts or "node_modules" in p.parts:
         continue
     try:
         json.loads(p.read_text(encoding="utf-8"))

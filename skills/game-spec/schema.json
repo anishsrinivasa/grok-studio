@@ -252,7 +252,7 @@
       "required": ["stage", "checkpoints"],
       "properties": {
         "stage": { "enum": ["spec", "code", "ui", "assets", "animations", "playtest", "marketing", "done"] },
-        "studioId": { "type": "string" },
+        "studioId": { "type": "string", "description": "Deprecated: Studio ids change on every restart. Use placeId and list_roblox_studios each task." },
         "placeId": { "type": ["string", "null"] },
         "connectors": { "type": "object", "properties": { "studio": { "type": "boolean" }, "blender": { "type": "boolean" }, "figma": { "type": "boolean" } } },
         "checkpoints": { "type": "array", "items": { "type": "object", "required": ["stage", "at", "summary"], "properties": { "stage": { "type": "string" }, "at": { "type": "string" }, "summary": { "type": "string" }, "openIssues": { "type": "array", "items": { "type": "string" } } } } },

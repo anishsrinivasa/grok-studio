@@ -78,7 +78,8 @@ Any Bot may run this one repair. Everything else on the PC stays with the Lead.
 3. If that line's `api_key` or `studio_url` differs from `/workspace/grok-studio/.bridge.json`
    (key rotated, or a Cloudflare URL), write the line to `.bridge.json` (mode 600) and update
    the `roblox-studio` connector in place (Step 3). With ngrok's static domain, normally
-   nothing changes.
+   nothing changes. Same for the `blender` connector: re-register it if the line has
+   `blender_url`, and remove it if it doesn't.
 4. Re-check: `python3 <plugin>/scripts/bridge-check.py --studio --wait 30`.
 5. Still failing: stop. Message the Lead with bridge-check's `error` and `fix`, plus the
    `error` from step 2. Don't retry in a loop.
@@ -150,15 +151,21 @@ Connectors are account-wide: every Bot uses the same `roblox-studio` connector.
   normal case with a static domain). Different (key rotated, domain changed, or Cloudflare
   gave a new URL): **update it in place** under the same name. If the platform can't
   update one, remove it and add it again with the same name. Never add a second one.
-- `--blender`: the same for a `blender` connector with `BLENDER_URL`.
+- **`blender` connector.** Laptop Blender is on only when the session has `blender_url`
+  (`-Blender`). Then register or update a `blender` connector at
+  `<public_url>/blender/mcp`, with the key from the `GROK_STUDIO_BRIDGE_KEY` secret, exactly
+  like the Studio one. Off (the default; Blender runs in the cloud): if a `blender`
+  connector exists from an older setup, **remove it**. Its address is dead and every call
+  404s.
 - The file drop needs no connector.
 
 ## Step 4 - Verify
 
 1. Call `list_roblox_studios` through `roblox-studio`. On an error such as "fetch failed",
    a timeout or HTTP 502/503/530, retry after 2 s, 5 s, then 10 s; tunnels blip. Then:
-   - places listed: if more than one, ask the user which place to build in. The Lead stores
-     its id as `build.studioId`.
+   - places listed: if more than one, ask the user which place to build in. Save its
+     **place id** (`place_id` in `.bridge.json`, `build.placeId`), never the studio id:
+     that changes every time Studio restarts.
    - empty list: "Studio is connected, but no place is open. Open it, then tell me."
    - still failing after the retries: run Step 1 again and use **Fixes**.
 2. `python3 <plugin>/scripts/bridge-check.py --studio` should say `up` / `ok`.

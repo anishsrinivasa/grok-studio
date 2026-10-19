@@ -68,9 +68,12 @@ duplicate) and must touch only your subtree. Never `Destroy()` or `ClearAllChild
 on a container you do not own. Never call `ChangeHistoryService` undo/redo, and never
 ask the user to press Ctrl+Z: undo history is shared by all Bots and by the user.
 
-Every Studio tool call takes `studio_id`: use `build.studioId` from the spec. Never pick
-a different Studio window on your own. If the id stops working (Studio restarted), tell
-the Lead.
+Every Studio tool call takes a `studio_id`. **Studio ids change.** Studio gets a new id every time it restarts. At the start of
+every task, call `list_roblox_studios` and use the id of the entry whose name has
+`(placeId: <place_id>)`, with `place_id` from `.bridge.json` or `build.placeId`. Never
+save a studio id in memory, notes, the spec or messages. No match means Studio is closed
+or on another place: `BLOCKED`. Several matches: `ASK` the Lead.
+Never pick a different place on your own.
 
 ## 3. Spec ownership
 
@@ -149,9 +152,12 @@ pings. Report when the task is done or blocked, or when you need something.
    - `python3 <plugin>/scripts/bridge-check.py` checks the bridge from the cloud computer
      in about 1 s. It runs no PC command, so no approval is needed. It already retries
      transient errors, and prints `{"bridge": "up"|"down", ..., "fix": ...}`.
-   - Then call `get_studio_state` with `build.studioId`.
+   - Then `list_roblox_studios`. Pick this game's place (section 2) and call
+     `get_studio_state` with that id. Use the id for this task only.
    - If the task needs Blender, also run
-     `bash <plugin>/skills/blender-assets/reference/cloud_blender.sh version`.
+     `bash <plugin>/skills/blender-assets/reference/cloud_blender.sh version`. Blender is
+     the cloud one. Ignore any `blender` MCP connector unless the Lead says laptop
+     Blender is on.
    - **Transient errors** (`fetch failed`, timeouts, 502/503/504, "session not found"):
      retry with backoff, 2 s, 5 s, 15 s, 30 s, before calling it a failure. Apply the
      same retry to any Studio call mid-task.
@@ -163,6 +169,9 @@ pings. Report when the task is done or blocked, or when you need something.
         - macOS/Linux: `bash ~/grok-studio/bridge/start-bridge.sh restart --json-output`
      3. If the printed line's `api_key` or `studio_url` differs from `.bridge.json`, write
         the line there (mode 600) and update the `roblox-studio` connector in place.
+        The key is the Grok Bot secret `GROK_STUDIO_BRIDGE_KEY`. Laptop Blender on
+        (`blender_url` in the line): update the `blender` connector the same way. Off:
+        remove any old `blender` connector.
      4. Re-check: `python3 <plugin>/scripts/bridge-check.py --studio --wait 30`.
      5. Still failing: send `BLOCKED #n: health <error> <fix>` to the Lead, and don't loop.
         A PC that is asleep or off, or Studio closed, needs the user, and the Lead asks
@@ -185,7 +194,7 @@ drop. Its session details are in `/workspace/grok-studio/.bridge.json`, written 
 `connect-studio`:
 - bridge fields: `api_key`, `studio_url`, `files_url`, `pc_drop_dir`, `pc_http_base`,
   `tunnel`, `tunnel_stable`, `pc_os`
-- added by `/setup-bridge`: `studio_id`, `place_id`, `place_name`, `place_creator_type`,
+- added by `/setup-bridge`: `place_id`, `place_name`, `place_creator_type`,
   `place_creator_id` (the place owner; Open Cloud uploads go to it)
 
 A gateway restart drops open MCP sessions. If a Studio call suddenly fails with "session

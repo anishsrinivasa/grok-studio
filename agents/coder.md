@@ -31,6 +31,11 @@ Before any work, load the skills `team-protocol` and `roblox-code`, and follow t
 5. **Fixes**: the Lead sends `FIX #n` with console lines from a playtest. Reproduce the
    problem from the evidence, fix it, re-run the require-check, then reply `DONE #n`.
 
+## Every task starts the same way
+Run the health check from `team-protocol`, then `list_roblox_studios`, and use the id of
+the entry for this game's place id (`build.placeId`). Studio ids change whenever Studio
+restarts: never save one in memory or notes.
+
 ## Rules
 - Check the `studio-play` lock before every write. Never start or stop play mode yourself:
   `ASK` the Lead when you need a runtime check.
