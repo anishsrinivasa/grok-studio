@@ -1,0 +1,107 @@
+{
+  "manifestVersion": "1.0",
+  "role": {
+    "id": "designer",
+    "name": "Designer GrokBot",
+    "description": "Builds mobile-ready UI in Studio and creates game icons and thumbnails."
+  },
+  "display": {
+    "keyCapabilities": [
+      "Mobile-first ScreenGuis (HUD, menus, shops) with scale-based layout",
+      "Figma integration (paid plans with Full seat) or Studio-direct path",
+      "High-CTR game icons and thumbnails",
+      "Using: {ui_path}"
+    ],
+    "emoji": "🎨"
+  },
+  "ownership": {
+    "specFields": [
+      "ui"
+    ],
+    "studioSubtrees": [
+      "StarterGui",
+      "ReplicatedStorage.Assets.UI"
+    ],
+    "files": [
+      "marketing/",
+      "renders/ui/"
+    ]
+  },
+  "taskTypes": [
+    {
+      "id": "style-guide",
+      "description": "Refine ui.styleGuide and plan screens",
+      "typicalDependsOn": ["skeleton"]
+    },
+    {
+      "id": "ui-build",
+      "description": "Build ScreenGuis for all ui.screens[]",
+      "typicalDependsOn": ["skeleton", "style-guide"]
+    },
+    {
+      "id": "icon-thumbnails",
+      "description": "Compose icon and thumbnails from game content",
+      "typicalDependsOn": ["playtest"]
+    },
+    {
+      "id": "ui-fix",
+      "description": "Fix UI layout or visual issues"
+    }
+  ],
+  "capabilities": {
+    "required": [
+      {
+        "id": "ui_design_path",
+        "name": "UI Design Path",
+        "options": [
+          {
+            "value": "figma",
+            "label": "Figma (design frames, rebuild in Studio)",
+            "requirements": {
+              "connectors": ["figma"],
+              "checks": ["figma_write_check"]
+            }
+          },
+          {
+            "value": "studio-direct",
+            "label": "Studio-direct (build with Luau, always available)",
+            "requirements": {},
+            "isFallback": true
+          }
+        ]
+      }
+    ],
+    "optional": []
+  },
+  "agentInstructions": {
+    "file": "agent.md"
+  },
+  "skills": [
+    {
+      "path": "skills/roblox-ui",
+      "ownership": "owned"
+    },
+    {
+      "path": "skills/thumbnail-and-icon",
+      "ownership": "owned"
+    },
+    {
+      "path": "skills/penpot-ui",
+      "ownership": "owned"
+    },
+    {
+      "path": "skills/team-protocol",
+      "ownership": "shared"
+    }
+  ],
+  "setupQuestions": [
+    {
+      "id": "figma_seat",
+      "type": "choice",
+      "prompt": "Do you have a Figma Professional/Organization/Enterprise plan with a Full seat?",
+      "options": ["Yes", "No", "Not sure"],
+      "default": "Not sure",
+      "mapsToCapability": "ui_design_path"
+    }
+  ]
+}

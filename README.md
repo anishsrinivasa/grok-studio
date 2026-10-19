@@ -49,9 +49,9 @@ Also works in **Claude Code / Grok Build / Cursor**: the same roles ship as suba
   restarts, uses one stable key and a static URL, and the Studio connector is registered
   once.
 - installs headless Blender on the Bots' cloud computer
-- creates the five Bots
+- creates the team Bots
 - runs a readiness gate:
-  - every Bot reaches the same Studio place and Blender
+  - the team reaches the same Studio place and Blender
   - a Blender-to-Studio model round trip (upload, insert, import checks, then the test
     model is deleted)
   - a 5-second Luau play test
@@ -73,20 +73,20 @@ a grok-studio Bot "disconnect Studio".
 
 ```mermaid
 flowchart LR
-    U([You]) <--> L[Lead GrokBot]
-    L -- TASK / FIX --> C[Coding] & D[Designer] & B[Builder] & A[Animator]
-    C & D & B & A -- DONE / BLOCKED / ASK --> L
+   U([You]) <--> L[Lead GrokBot]
+    L -- TASK / FIX --> C[Coding] & D[Designer] & B[Builder] & A[Animator] & V[VFX] & S[SFX] & M[Marketing]
+    C & D & B & A & V & S & M -- DONE / BLOCKED / ASK --> L
     subgraph Cloud computer shared by all Bots
       SPEC[(/workspace/grok-studio/games/slug/<br/>game-spec.json, locks, .blend files, exports)]
       BL[headless Blender]
     end
-    C & D & B & A & L --- SPEC
+    C & D & B & A & V & S & M & L --- SPEC
     B & A --- BL
     subgraph Your PC
       BR[bridge: supergateway + tunnel] --> ST[Roblox Studio MCP] --> RS[Roblox Studio]
       BR --> FD[file drop<br/>~/grok-studio/drop]
     end
-    C & D & B & A & L -- one shared roblox-studio connector --> BR
+    C & D & B & A & V & S & M & L -- one shared roblox-studio connector --> BR
 ```
 
 - **Studio** stays on your PC (it only runs on Windows/macOS). The bridge exposes it to
@@ -112,9 +112,14 @@ flowchart LR
 .cursor-plugin/plugin.json   Cursor / Grok Bot plugin manifest
 .claude-plugin/plugin.json   Claude Code plugin manifest
 mcp.json, .mcp.json          MCP servers (local agents; Grok Bot uses the bridge)
-agents/                      coder, designer, builder, animator (subagents + Grok Bot instructions)
+roles/                       Role manifests and agent instructions (8 roles: lead, coder, designer, builder, animator, vfx, sfx, marketing)
+  <role-id>/
+    manifest.json            Machine-readable role definition
+    agent.md                 Agent instructions
+    example-*.md             Example task or artifact
+agents/                      Legacy agent files (kept for compatibility; roles/ is canonical)
 skills/
-  setup-bridge/              /setup-bridge: the one setup command - Studio, the Bots, Blender, Figma, smoke test (+ lead-bot.md)
+  setup-bridge/              /setup-bridge: the one setup command - Studio, the Bots, Blender, smoke test
   team-protocol/             workspace layout, ownership, locks, message formats
   grok-studio/               Lead playbook: preflight, spec, plan, dispatch, playtests, gate, handoff
   connect-studio/            persistent bridge on the user's PC (local execution): install, status, restart, connector
@@ -122,13 +127,18 @@ skills/
   roblox-code/               Luau architecture, remotes, DataStores, anti-exploit (+ reference/*.luau)
   roblox-ui/                 Studio-direct ScreenGui builder, Figma path (+ reference/UiKit.luau)
   roblox-building/           maps, terrain, lighting, tagged parts, Studio generation tools
+  roblox-vfx/                particle effects, beams, trails, explosions, screen effects
+  roblox-audio/              sound sourcing from Creator Store, SoundGroups, mixing, 3D spatial audio
   blender-assets/            headless cloud Blender, checkpoints, review renders, FBX export, upload
   roblox-animations/         R15 keyframes in Luau or Blender, ids, publishing
   playtest-loop/             play, simulate input, read logs, route fixes, report
   thumbnail-and-icon/        512x512 icon, 1920x1080 thumbnails
+  marketing-social/          X (Twitter) marketing drafts and posting (post-ship)
 bridge/                      start-bridge.ps1 / .sh, files-server.mjs (file drop)
-scripts/                     bootstrap.sh, studio-mcp.mjs, send-to-pc.py, opencloud_upload.py, validate.py
+scripts/                     bootstrap.sh, roles.py (role discovery/validation), opencloud_upload.py, validate.py
+setup/                       Declarative setup flow definitions, welcome template
 rules/roblox-luau.mdc        Luau conventions (Cursor rule)
+CONTRIBUTING.md              Add your own GrokBot role
 ```
 
 ## Local agents (Claude Code, Cursor, Grok Build)
@@ -211,51 +221,4 @@ docs don't promise substitution inside `command`. Zero-config wins.
   Work in a scratch place, or rely on Team Create's version history.
 - **Free models:** the skills inspect inserted Creator Store assets for suspicious scripts
   (`require(` by ID, `loadstring`, `getfenv`) - still review them.
-- **API keys:** Open Cloud keys are only used from outside Roblox and never written into the
-  place or this repo.
-- The agent is instructed **not** to publish, change game settings, create products, or
-  spend Robux without explicit permission.
-
-## Limitations
-
-- **The full multi-bot build hasn't been run yet.** The bridge has been run against a live
-  Studio on Windows, and the skills follow the documented Studio MCP tools. What a Grok
-  Bot can set when it creates another Bot was confirmed by Grok Bot: name, instructions
-  and sidebar section. Skills are shared by all of an account's Bots.
-- One Studio serves every Bot. Play mode is global, so playtests pause the other Bots'
-  Studio edits.
-- Some steps still need you: **Import 3D** for Blender models without an Open Cloud key,
-  importing Blender animations into the Animation Editor, publishing animations and the
-  place, enabling Studio API access for DataStores, and uploading the icon and thumbnails
-  (no API-key endpoint for game media).
-- Figma's free plan is read-only and limited to about 20 calls a month, so Designer builds
-  UI directly in Studio.
-- "One-shot" scope is deliberately small (3-5 core mechanics). Bigger games need iteration.
-
-## Roadmap
-
-- [ ] End-to-end team build on Grok Bot (Windows + macOS); record a demo.
-- [ ] Publish to the Cursor Marketplace (so Grok Bot lists it).
-- [ ] Public Grok Bot template for the team (instructions + skills in one link).
-- [ ] Hooks: auto require-check after script edits; block publish calls.
-- [ ] Automated animation upload (Studio SerializationService -> .rbxm -> Open Cloud).
-- [ ] Genre presets (obby, tycoon, simulator, round-based PvP) with tested spec templates.
-
-## Validate locally
-
-```bash
-python3 scripts/validate.py    # JSON + frontmatter checks (PyYAML optional)
-uv run --with jsonschema python -c "import json,jsonschema;jsonschema.validate(json.load(open('skills/game-spec/example.game-spec.json')),json.load(open('skills/game-spec/schema.json')));print('ok')"
-```
-
-## Renaming
-
-The working name `grok-studio` appears in `.cursor-plugin/plugin.json`,
-`.claude-plugin/plugin.json`, the orchestrator skill folder/name, and this README. Search
-and replace all four (keep it kebab-case).
-
-## License
-
-[MIT](LICENSE) (c) 2026 Anish Srinivasan. Not affiliated with or endorsed by Roblox
-Corporation, the Blender Foundation, Figma, Cursor, Anthropic, or xAI. Roblox and Roblox
-Studio are trademarks of Roblox Corporation.
+- **API keys:** Open Cloud keys are only used from outside Ro

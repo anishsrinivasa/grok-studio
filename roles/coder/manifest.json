@@ -1,0 +1,73 @@
+{
+  "manifestVersion": "1.0",
+  "role": {
+    "id": "coder",
+    "name": "Coding GrokBot",
+    "description": "Writes all Luau scripts: server services, remotes with validation, DataStores, and client controllers."
+  },
+  "display": {
+    "keyCapabilities": [
+      "Server-authoritative mechanics and DataStore persistence",
+      "Validated remotes with rate limiting and anti-exploit",
+      "Client controllers that wire UI and animations",
+      "Studio-direct path (always available)"
+    ],
+    "emoji": "💻"
+  },
+  "ownership": {
+    "specFields": [
+      "scripts",
+      "remotes",
+      "dataModel"
+    ],
+    "studioSubtrees": [
+      "ServerScriptService",
+      "ReplicatedStorage.Shared",
+      "StarterPlayer"
+    ],
+    "files": []
+  },
+  "taskTypes": [
+    {
+      "id": "skeleton",
+      "description": "Folder layout, Config, Remotes, Tags, Main, ClientMain, AnimationIds placeholder"
+    },
+    {
+      "id": "mechanics",
+      "description": "Server services for game mechanics",
+      "typicalDependsOn": ["skeleton"]
+    },
+    {
+      "id": "ui-wiring",
+      "description": "Client controllers for UI interaction",
+      "typicalDependsOn": ["skeleton", "ui-build", "mechanics"]
+    },
+    {
+      "id": "animation-wiring",
+      "description": "Play animations through AnimationIds with correct timing",
+      "typicalDependsOn": ["skeleton", "animations"]
+    },
+    {
+      "id": "code-fix",
+      "description": "Fix console errors and playtest failures"
+    }
+  ],
+  "capabilities": {
+    "required": [],
+    "optional": []
+  },
+  "agentInstructions": {
+    "file": "agent.md"
+  },
+  "skills": [
+    {
+      "path": "skills/roblox-code",
+      "ownership": "owned"
+    },
+    {
+      "path": "skills/team-protocol",
+      "ownership": "shared"
+    }
+  ],
+  "setupQuestions": []
+}

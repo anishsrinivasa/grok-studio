@@ -1,0 +1,91 @@
+{
+  "manifestVersion": "1.0",
+  "role": {
+    "id": "marketing",
+    "name": "Marketing GrokBot",
+    "description": "Creates high-CTR game icons, thumbnails, and sponsor/ad images. After ship, drafts X (Twitter) marketing posts for user approval."
+  },
+  "display": {
+    "keyCapabilities": [
+      "High-CTR game icons (512x512) and thumbnails (1920x1080)",
+      "Sponsor and ad images composed from game content",
+      "X (Twitter) marketing: drafts posts and threads for user approval",
+      "Using: {marketing_posting_route}"
+    ],
+    "emoji": "📱"
+  },
+  "ownership": {
+    "specFields": [
+      "marketing.icon",
+      "marketing.thumbnails",
+      "marketing.socialMedia"
+    ],
+    "studioSubtrees": [],
+    "files": [
+      "marketing/"
+    ]
+  },
+  "taskTypes": [
+    {
+      "id": "icon-thumbnails",
+      "description": "Compose icon and thumbnails from game content",
+      "typicalDependsOn": ["playtest"]
+    },
+    {
+      "id": "ad-images",
+      "description": "Create sponsor/ad images for external promotion"
+    },
+    {
+      "id": "social-drafts",
+      "description": "Draft X posts and threads for user approval (post-ship)"
+    }
+  ],
+  "capabilities": {
+    "required": [],
+    "optional": [
+      {
+        "id": "x_posting",
+        "name": "X (Twitter) posting",
+        "requirements": {
+          "connectors": ["buffer", "postiz", "bulkpublish"],
+          "secrets": ["X_API_KEY"]
+        },
+        "benefit": "Approved posts can be scheduled/posted automatically; otherwise handed to user"
+      }
+    ]
+  },
+  "agentInstructions": {
+    "file": "agent.md"
+  },
+  "skills": [
+    {
+      "path": "skills/thumbnail-and-icon",
+      "ownership": "shared"
+    },
+    {
+      "path": "skills/marketing-social",
+      "ownership": "owned"
+    },
+    {
+      "path": "skills/team-protocol",
+      "ownership": "shared"
+    }
+  ],
+  "setupQuestions": [
+    {
+      "id": "x_posting_route",
+      "type": "choice",
+      "prompt": "X (Twitter) posting for Marketing (after game ships)",
+      "options": [
+        "Link a scheduling service (Buffer, Postiz, BulkPublish)",
+        "X API ($0.015/post, $0.20 with link)",
+        "Drafts-only (I'll post manually)"
+      ],
+      "default": "Drafts-only (I'll post manually)",
+      "mapsToCapability": "x_posting"
+    }
+  ],
+  "example": {
+    "file": "example-icon-brief.md"
+  }
+}

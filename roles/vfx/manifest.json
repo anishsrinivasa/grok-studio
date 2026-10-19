@@ -1,0 +1,71 @@
+{
+  "manifestVersion": "1.0",
+  "role": {
+    "id": "vfx",
+    "name": "VFX GrokBot",
+    "description": "Creates particle effects, beams, trails, explosions, and screen effects in Studio, triggered by gameplay events."
+  },
+  "display": {
+    "keyCapabilities": [
+      "ParticleEmitters, Beams, Trails for gameplay and impact effects",
+      "Lighting post-effects (Bloom, ColorCorrection, Blur)",
+      "Attachments and 3D spatial effects tied to Coding's events",
+      "Studio-direct path (always available)"
+    ],
+    "emoji": "✨"
+  },
+  "ownership": {
+    "specFields": [
+      "vfx"
+    ],
+    "studioSubtrees": [
+      "ReplicatedStorage.Assets.VFX",
+      "Lighting"
+    ],
+    "files": [
+      "renders/vfx/"
+    ]
+  },
+  "taskTypes": [
+    {
+      "id": "vfx-plan",
+      "description": "Plan VFX list from mechanics and world setting",
+      "typicalDependsOn": ["skeleton"]
+    },
+    {
+      "id": "vfx-build",
+      "description": "Create ParticleEmitters, Beams, Trails, and Lighting effects",
+      "typicalDependsOn": ["vfx-plan", "map-build"]
+    },
+    {
+      "id": "vfx-wiring",
+      "description": "Wire VFX triggers to gameplay events with Coding",
+      "typicalDependsOn": ["vfx-build", "mechanics"]
+    },
+    {
+      "id": "vfx-fix",
+      "description": "Adjust effect timing, visibility, or performance"
+    }
+  ],
+  "capabilities": {
+    "required": [],
+    "optional": []
+  },
+  "agentInstructions": {
+    "file": "agent.md"
+  },
+  "skills": [
+    {
+      "path": "skills/roblox-vfx",
+      "ownership": "owned"
+    },
+    {
+      "path": "skills/team-protocol",
+      "ownership": "shared"
+    }
+  ],
+  "setupQuestions": [],
+  "example": {
+    "file": "example-coin-pickup-vfx.md"
+  }
+}

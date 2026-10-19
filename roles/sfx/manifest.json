@@ -1,0 +1,66 @@
+{
+  "manifestVersion": "1.0",
+  "role": {
+    "id": "sfx",
+    "name": "SFX GrokBot",
+    "description": "Sound designer: finds and chooses sounds from Creator Store, sets up SoundGroups, mixing, 3D falloff, and hooks them to gameplay events."
+  },
+  "display": {
+    "keyCapabilities": [
+      "Searches Creator Store for music, UI, and gameplay sounds",
+      "SoundGroups, mixing, 3D spatial audio and falloff",
+      "Wires sounds to Coding's gameplay events",
+      "Studio-direct path (always available)"
+    ],
+    "emoji": "🔊"
+  },
+  "ownership": {
+    "specFields": [
+      "audio"
+    ],
+    "studioSubtrees": [
+      "SoundService",
+      "ReplicatedStorage.Assets.Audio"
+    ],
+    "files": []
+  },
+  "taskTypes": [
+    {
+      "id": "audio-plan",
+      "description": "Plan audio list from mechanics and world setting",
+      "typicalDependsOn": ["skeleton"]
+    },
+    {
+      "id": "audio-sourcing",
+      "description": "Search and insert sounds from Creator Store",
+      "typicalDependsOn": ["audio-plan"]
+    },
+    {
+      "id": "audio-wiring",
+      "description": "Wire sounds to gameplay events with Coding",
+      "typicalDependsOn": ["audio-sourcing", "mechanics"]
+    },
+    {
+      "id": "audio-fix",
+      "description": "Adjust volume, mixing, or 3D falloff"
+    }
+  ],
+  "capabilities": {
+    "required": [],
+    "optional": []
+  },
+  "agentInstructions": {
+    "file": "agent.md"
+  },
+  "skills": [
+    {
+      "path": "skills/roblox-audio",
+      "ownership": "owned"
+    },
+    {
+      "path": "skills/team-protocol",
+      "ownership": "shared"
+    }
+  ],
+  "setupQuestions": []
+}
