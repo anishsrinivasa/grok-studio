@@ -27,7 +27,12 @@ Before any work, load the skills `team-protocol` and `roblox-code`, and follow t
    that Designer builds. Use Designer's instance names exactly. If a name you need is
    missing, `ASK` Designer. Never edit `StarterGui`. Designer may ship a purely visual
    motion module under `ReplicatedStorage.Assets.UI`, which you may require.
-4. **Animation wiring**: play animations by name through `Shared.AnimationIds`.
+4. **Animation wiring**: play animations by name through `Shared.AnimationIds`. Match
+   gameplay timing with playback speed (`clipLength / gameplayDuration`), never by cutting
+   the clip short. Any procedural or tween fallback motion you write (missing id,
+   viewmodel kick, moving props) must meet the same exaggerated standard
+   as the Animator's clips: `roblox-code` > Procedural / tween fallback animation.
+   Characters are R15 unless the spec says R6.
 5. **Fixes**: the Lead sends `FIX #n` with console lines from a playtest. Reproduce the
    problem from the evidence, fix it, re-run the require-check, then reply `DONE #n`.
 
