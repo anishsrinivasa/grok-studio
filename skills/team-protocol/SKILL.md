@@ -200,8 +200,17 @@ drop. Its session details are in `/workspace/grok-studio/.bridge.json`, written 
 - added by `/setup-bridge`: `place_id`, `place_name`, `place_creator_type`,
   `place_creator_id` (the place owner; Open Cloud uploads go to it)
 
-A gateway restart drops open MCP sessions. If a Studio call suddenly fails with "session
-not found" or a 404, that is a transient error: retry it.
+## 7a. MCP session healing
+
+**⚠️ MANDATORY: Before declaring `BLOCKED` on any Studio tool failure, ALWAYS run
+`bash /workspace/scripts/heal-mcp-session.sh`.** A gateway restart, tunnel blip, or auth
+token refresh drops open MCP sessions. If a Studio call suddenly fails with "session not
+found", "No valid session ID", or a 404, this is a transient error. The heal script
+restarts **only the calling bot's own MCP sessions** (kills only the caller's exec-daemon
+children, never other bots' processes). Then retry the Studio call.
+
+`RestartMcpServers` does NOT fix this because it restarts the server but not stale client
+sessions.
 
 To get a file from the cloud computer onto the user's PC (a texture for `upload_image`,
 an image for `store_image`, an FBX for the Importer), any Bot runs:

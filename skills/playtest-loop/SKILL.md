@@ -9,10 +9,14 @@ Prove the game works. Run the acceptance tests from `game-spec.json`, fix what f
 stop with a report. This is the orchestrator's **definition-of-done gate**.
 
 **Team mode (`team-protocol`): only the Lead runs this skill.** Before starting play, take
-the `studio-play` lock and send `[GS] PLAY ON` to every specialist. After stopping, release
-it and send `[GS] PLAY OFF`. In step 3 you don't fix other owners' work: send each failure
-as `[GS] FIX #n` to its owner (scripts to Coding, UI to Designer, world and models to
-Builder, animations to Animator) with the evidence, wait for their `DONE`, then replay.
+the `studio-play` lock and send `[GS] PLAY ON` to every specialist. After stopping
+(success, failure, or error), release it and send `[GS] PLAY OFF`. **The Lead itself
+always sends both messages**, even if delegating diagnosis or fixes to helpers, because
+only the Lead has messaging tools and the authority to coordinate state.
+
+In step 3 you don't fix other owners' work: send each failure as `[GS] FIX #n` to its
+owner (scripts to Coding, UI to Designer, world and models to Builder, animations to
+Animator, VFX to VFX, audio to SFX) with the evidence, wait for their `DONE`, then replay.
 The iteration limits below count those rounds.
 
 ## Tools (Studio MCP, https://create.roblox.com/docs/studio/mcp)
@@ -86,6 +90,26 @@ For each `acceptanceTests[]` item, in order:
 3. Use `screen_capture` when the expected result is visual (UI shows, animation plays,
    asset placed). Look at the image; describe what you see in the report.
 4. Mark `status` = `pass` / `fail` with a one-line reason.
+
+**Automated checks (always run):** Before writing the report, run the
+`AcceptanceFramework` checks (`reference/AcceptanceFramework.luau`) via `execute_luau`
+(`Server`). These verify:
+- **Asset loading:** Every animation clip in `animations[]` has `track.Length > 0` and
+  visibly moves at least one Motor6D (Transform changes during Play). Every declared sound
+  is `IsLoaded`. Every critical mesh/image passed ContentProvider preload.
+- **Interaction reachability:** Every declared weak point, hit zone, pickup, prompt, or
+  button has a clear raycast path from typical player positions (not occluded by
+  decorative geometry).
+- **Rig attachments / tool grip:** Every tool or held object on an R15 rig is oriented
+  along the character's LookVector and anchored at the correct attachment point (right
+  hand for tools, head for hats, etc.).
+- **Tunable conformance:** Probabilistic stats (spawn rates, hit rates, cooldowns) match
+  the spec within tolerance (±10% or spec-declared margin).
+- **New-player grace:** An idle player survives the grace period (default 3 seconds)
+  without NPC aggro or environmental damage.
+
+Pass all framework results to `analyze_checks` (built-in) and report failures. If a check
+fails, treat it as a test failure and fix it in step 3.
 
 ### 3. Diagnose and fix
 For each failure:

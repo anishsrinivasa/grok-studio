@@ -12,6 +12,7 @@ Implement every entry in `game-spec.json` -> `scripts[]` inside Studio, honoring
 | File | Put it at | Class |
 |------|-----------|-------|
 | `reference/Remotes.luau` | `ReplicatedStorage.Shared.Remotes` | ModuleScript |
+| `reference/GuardedAnimationLoader.luau` | `ReplicatedStorage.Shared.GuardedAnimationLoader` | ModuleScript |
 | `reference/RateLimiter.luau` | `ServerScriptService.Server.Util.RateLimiter` | ModuleScript |
 | `reference/DataService.luau` | `ServerScriptService.Server.Services.DataService` | ModuleScript |
 | `reference/Main.server.luau` | `ServerScriptService.Server.Main` | Script |
@@ -48,6 +49,82 @@ pickup, a door, a camera shake), it must meet the **same exaggerated standard** 
 - **Per-frame (`RenderStepped`/`BindToRenderStep`) motion:** use a spring or a
   frame-rate-independent lerp (`1 - math.exp(-k * dt)`) that overshoots and settles, and
   sum the offsets (recoil + sway + bob) onto the base CFrame, so they don't fight each other.
+
+## Asset loading (REQUIRED - applies to animations, sounds, meshes, images)
+
+**Never assume a load succeeded.** All Roblox asset loads (animations, sounds, meshes, images)
+are asynchronous and can fail silently. Every asset used in gameplay must be verified, with
+timeout, fallback, and warning.
+
+### Animations: Use GuardedAnimationLoader
+
+**Problem:** `Animator:LoadAnimation` returns immediately but the track's `Length` stays 0
+until the asset loads from Roblox. Calling `Play()` on a zero-length track does nothing,
+silently. This affects TEMP KeyframeSequenceProvider ids, freshly-published animations, and
+slow networks.
+
+**Solution:** Always use `GuardedAnimationLoader` (`reference/GuardedAnimationLoader.luau`).
+It waits for `track.Length > 0` with timeout, retries on failure, warns once per clip, and
+returns `nil` if loading fails. Check for `nil` and use the tween/procedural fallback.
+
+**Usage:**
+```lua
+local GuardedAnimationLoader = require(ReplicatedStorage.Shared.GuardedAnimationLoader)
+local AnimationIds = require(ReplicatedStorage.Shared.AnimationIds)
+
+-- At init
+local loader = GuardedAnimationLoader.new(character.Humanoid.Animator)
+loader:PreloadAnimations(AnimationIds)  -- Optional: preload all
+
+-- When playing
+local track = loader:LoadAnimationSafe(AnimationIds.BlasterFire, "BlasterFire")
+if track then
+    track:Play()
+    track:GetMarkerReachedSignal("Hit"):Connect(onHit)
+else
+    -- Fallback: tween or procedural (REQUIRED)
+    applyRecoilFallback(blaster, 22, 0.45)  -- 22 deg, 0.45 studs
+end
+```
+
+### Sounds: Verify IsLoaded
+
+```lua
+local sound = Instance.new("Sound")
+sound.SoundId = assetId
+sound.Parent = SoundService
+
+-- Wait for load with timeout
+local timeout = 3
+local startTime = os.clock()
+while not sound.IsLoaded and (os.clock() - startTime) < timeout do
+    task.wait(0.1)
+end
+
+if not sound.IsLoaded then
+    warn(string.format("[Audio] Failed to load '%s' - using fallback or skipping", soundName))
+    sound:Destroy()
+    return nil
+end
+```
+
+### Meshes and Images: Verify ContentProvider
+
+```lua
+local ContentProvider = game:GetService("ContentProvider")
+
+-- Preload with callback
+local assets = {assetId1, assetId2, ...}
+ContentProvider:PreloadAsync(assets, function(assetId, status)
+    if status ~= Enum.AssetFetchStatus.Success then
+        warn(string.format("[Assets] Failed to preload %s - %s", assetId, status.Name))
+    end
+end)
+```
+
+**Playtest check:** The Lead verifies every declared asset (animations, sounds, meshes,
+images) loads successfully and takes effect (animations move the rig, sounds play, meshes
+render).
 - **Timing:** if gameplay needs the action faster or slower, scale the whole sequence's time
   by `clipLength / gameplayDuration`; don't cut amplitude or skip the overshoot/settle.
 - **Characters are R15** unless the spec says R6: address R15 joints (`UpperTorso`,
