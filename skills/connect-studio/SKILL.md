@@ -66,8 +66,15 @@ It prints one JSON line, and transient failures are already retried with backoff
 
 Any Bot may run this one repair. Everything else on the PC stays with the Lead.
 
-1. Re-run Step 0 once: `python3 <plugin>/scripts/bridge-check.py --studio`.
-2. Still `down`: restart the bridge on the PC. This is local execution, so the user approves
+**⚠️ MANDATORY: Before declaring `BLOCKED` on any Studio tool failure, ALWAYS run
+`bash /workspace/scripts/heal-mcp-session.sh`.** This restarts only this bot's own MCP
+sessions (kills only the caller's exec-daemon children, never other bots' processes).
+Tunnel blips and auth token refreshes leave dead session IDs; RestartMcpServers doesn't
+fix it because that restarts the server but not stale client sessions.
+
+1. Run `bash /workspace/scripts/heal-mcp-session.sh`.
+2. Re-run Step 0: `python3 <plugin>/scripts/bridge-check.py --studio`.
+3. Still `down`: restart the bridge on the PC. This is local execution, so the user approves
    it like any PC command.
    - Windows:
      `powershell -NoProfile -ExecutionPolicy Bypass -File "%USERPROFILE%\grok-studio\bridge\start-bridge.ps1" restart -JsonOutput`
@@ -75,14 +82,14 @@ Any Bot may run this one repair. Everything else on the PC stays with the Lead.
      `bash ~/grok-studio/bridge/start-bridge.sh restart --json-output`
    - It prints ONE JSON line: the session, with the same fields as `.bridge.json`. With
      `"status": "error"` it has an `error` field instead.
-3. If that line's `api_key` or `studio_url` differs from `/workspace/grok-studio/.bridge.json`
+4. If that line's `api_key` or `studio_url` differs from `/workspace/grok-studio/.bridge.json`
    (key rotated, or a Cloudflare URL), write the line to `.bridge.json` (mode 600) and update
    the `roblox-studio` connector in place (Step 3). With ngrok's static domain, normally
    nothing changes. Same for the `blender` connector: re-register it if the line has
    `blender_url`, and remove it if it doesn't.
-4. Re-check: `python3 <plugin>/scripts/bridge-check.py --studio --wait 30`.
-5. Still failing: stop. Message the Lead with bridge-check's `error` and `fix`, plus the
-   `error` from step 2. Don't retry in a loop.
+5. Re-check: `python3 <plugin>/scripts/bridge-check.py --studio --wait 30`.
+6. Still failing: stop. Message the Lead with bridge-check's `error` and `fix`, plus the
+   `error` from step 3. Don't retry in a loop.
 
 ## Step 1 - Status on the PC
 

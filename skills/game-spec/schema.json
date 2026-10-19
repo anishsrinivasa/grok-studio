@@ -4,7 +4,7 @@
   "title": "grok-studio game-spec.json",
   "description": "Single source of truth for a one-shot Roblox game build. Every later stage reads from and writes status back to this file.",
   "type": "object",
-  "required": ["specVersion", "meta", "pitch", "coreLoop", "mechanics", "progression", "monetization", "world", "scripts", "remotes", "dataModel", "ui", "assets", "animations", "audio", "marketing", "acceptanceTests", "build"],
+  "required": ["specVersion", "meta", "pitch", "coreLoop", "mechanics", "progression", "monetization", "world", "scripts", "remotes", "dataModel", "ui", "assets", "animations", "vfx", "audio", "marketing", "acceptanceTests", "build"],
   "additionalProperties": false,
   "properties": {
     "specVersion": { "const": "1.0" },
@@ -219,9 +219,26 @@
         }
       }
     },
+    "vfx": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "type", "trigger", "authority", "status"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "type": { "enum": ["particle", "beam", "trail", "screen-effect", "lighting"] },
+          "trigger": { "type": "string" },
+          "location": { "type": "string" },
+          "duration": { "type": "number" },
+          "authority": { "enum": ["client", "server", "shared"] },
+          "status": { "enum": ["planned", "built", "verified"] }
+        }
+      }
+    },
     "audio": {
       "type": "array",
-      "items": { "type": "object", "required": ["id", "purpose", "source"], "properties": { "id": { "type": "string" }, "purpose": { "type": "string" }, "source": { "enum": ["creator-store", "none"] }, "assetId": { "type": "string" } } }
+      "items": { "type": "object", "required": ["id", "purpose", "source"], "properties": { "id": { "type": "string" }, "purpose": { "type": "string" }, "source": { "enum": ["creator-store", "none"] }, "assetId": { "type": "string" }, "status": { "enum": ["planned", "sourced", "verified"] } } }
     },
     "marketing": {
       "type": "object",
@@ -229,7 +246,14 @@
       "properties": {
         "icon": { "type": "object", "required": ["brief", "sizePx"], "properties": { "brief": { "type": "string" }, "sizePx": { "const": 512 }, "file": { "type": "string" } } },
         "thumbnails": { "type": "array", "items": { "type": "object", "required": ["brief"], "properties": { "brief": { "type": "string" }, "widthPx": { "const": 1920 }, "heightPx": { "const": 1080 }, "file": { "type": "string" } } }, "minItems": 1, "maxItems": 10 },
-        "description": { "type": "string", "maxLength": 1000 }
+        "description": { "type": "string", "maxLength": 1000 },
+        "socialMedia": {
+          "type": "object",
+          "properties": {
+            "xPostingRoute": { "enum": ["scheduling-connector", "x-api", "drafts-only"] },
+            "drafts": { "type": "array", "items": { "type": "object" } }
+          }
+        }
       }
     },
     "acceptanceTests": {

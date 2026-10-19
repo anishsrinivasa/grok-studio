@@ -7,6 +7,7 @@ Runs on the Grok Bot cloud computer. Every command prints one JSON line.
                                `studio` from .bridge.json, `build.studioId` from every
                                games/*/game-spec.json. Studio ids change on every Studio
                                restart; only the place id is kept.
+  bot-list                     List every Bot to create (one per roles/<id>/, name from its manifest).
   bot-text <role>              Print the instructions a Bot should have (its file without the
                                --- frontmatter). role: lead | coder | designer | builder | animator
   bot-diff <role> <file>       Compare a Bot's current instructions (its description, saved to
@@ -39,13 +40,23 @@ PLUGIN = os.path.join(GS, "plugin") if os.path.isdir(os.path.join(GS, "plugin", 
 STATE = os.path.join(GS, ".setup-state.json")
 BRIDGE = os.path.join(GS, ".bridge.json")
 
-ROLE_FILES = {
-    "lead": "skills/setup-bridge/lead-bot.md",
-    "coder": "agents/coder.md",
-    "designer": "agents/designer.md",
-    "builder": "agents/builder.md",
-    "animator": "agents/animator.md",
-}
+def _discover_roles():
+    """Every role folder under roles/ becomes a Bot. Lead keeps its bot prompt file."""
+    files, names = {}, {}
+    rdir = os.path.join(PLUGIN, "roles")
+    for rid in sorted(os.listdir(rdir)) if os.path.isdir(rdir) else []:
+        man = os.path.join(rdir, rid, "manifest.json")
+        if not os.path.isfile(man):
+            continue
+        try:
+            names[rid] = json.load(open(man, encoding="utf-8"))["role"]["name"]
+        except Exception:
+            names[rid] = rid
+        files[rid] = "skills/setup-bridge/lead-bot.md" if rid == "lead" else f"roles/{rid}/agent.md"
+    return files, names
+
+
+ROLE_FILES, ROLE_NAMES = _discover_roles()
 
 
 def out(obj, code=0):
@@ -135,6 +146,10 @@ def cmd_migrate():
     out({"migrated": bool(removed), "removed": removed})
 
 
+def cmd_bot_list():
+    out([{"role": r, "name": ROLE_NAMES[r], "file": ROLE_FILES[r]} for r in ROLE_FILES])
+
+
 def cmd_bot_text(role):
     sys.stdout.write(expected_text(role))
 
@@ -183,6 +198,8 @@ def main(argv):
     cmd, rest = argv[0], argv[1:]
     if cmd == "migrate":
         cmd_migrate()
+    elif cmd == "bot-list":
+        cmd_bot_list()
     elif cmd == "bot-text" and len(rest) == 1:
         cmd_bot_text(rest[0])
     elif cmd == "bot-diff" and len(rest) == 2:

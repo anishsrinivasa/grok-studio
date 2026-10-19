@@ -9,10 +9,14 @@ Prove the game works. Run the acceptance tests from `game-spec.json`, fix what f
 stop with a report. This is the orchestrator's **definition-of-done gate**.
 
 **Team mode (`team-protocol`): only the Lead runs this skill.** Before starting play, take
-the `studio-play` lock and send `[GS] PLAY ON` to every specialist. After stopping, release
-it and send `[GS] PLAY OFF`. In step 3 you don't fix other owners' work: send each failure
-as `[GS] FIX #n` to its owner (scripts to Coding, UI to Designer, world and models to
-Builder, animations to Animator) with the evidence, wait for their `DONE`, then replay.
+the `studio-play` lock and send `[GS] PLAY ON` to every specialist. After stopping
+(success, failure, or error), release it and send `[GS] PLAY OFF`. **The Lead itself
+always sends both messages**, even if delegating diagnosis or fixes to helpers, because
+only the Lead has messaging tools and the authority to coordinate state.
+
+In step 3 you don't fix other owners' work: send each failure as `[GS] FIX #n` to its
+owner (scripts to Coding, UI to Designer, world and models to Builder, animations to
+Animator, VFX to VFX, audio to SFX) with the evidence, wait for their `DONE`, then replay.
 The iteration limits below count those rounds.
 
 ## Tools (Studio MCP, https://create.roblox.com/docs/studio/mcp)
@@ -86,6 +90,36 @@ For each `acceptanceTests[]` item, in order:
 3. Use `screen_capture` when the expected result is visual (UI shows, animation plays,
    asset placed). Look at the image; describe what you see in the report.
 4. Mark `status` = `pass` / `fail` with a one-line reason.
+
+**Automated checks (always run):** Before writing the report, run the
+`AcceptanceFramework` checks (`reference/AcceptanceFramework.luau`) via `execute_luau`
+(`Server`). The framework is **generic and extensible**, driven by `game-spec.json`, so
+new roles and genres plug in their own checks. Core checks:
+
+- **Asset loading:** Every animation clip in `animations[]` has `track.Length > 0` and
+  visibly moves at least one Motor6D (Transform changes during Play). Every declared sound
+  is `IsLoaded`. Every critical mesh/image passed ContentProvider preload.
+  
+- **Interaction via real input paths:** Every declared interactive or targetable element
+  (hit zones in `mechanics[]`, buttons/prompts in `ui[]`, pickups/triggers in `world[]`,
+  doors, UI buttons) is exercised **through its real input path** (camera raycast,
+  character touch, ProximityPrompt trigger, UI click), **never by calling server functions
+  directly**. Fails any element that doesn't respond.
+  
+- **Rig attachments and held objects:** Every tool, accessory, and attached object
+  (declared in `assets.items[]` or `mechanics[]`) is checked against an R15 rig:
+  orientation along character LookVector (tools), anchor at correct attachment
+  (accessories), appropriate scale and position (welded props, mounts).
+  
+- **Tunable conformance:** Measured values for every gameplay tunable (rates, chances,
+  damage, cooldowns, timers, economy rates) match spec targets within declared tolerance.
+  
+- **New-player fairness:** A freshly joined player, idle and acting normally, survives the
+  spec-defined grace window and can reach the core loop (not killed, stuck, softlocked, or
+  overwhelmed).
+
+Pass all framework results to `analyze_checks` (built-in) and report failures. If a check
+fails, treat it as a test failure and fix it in step 3.
 
 ### 3. Diagnose and fix
 For each failure:

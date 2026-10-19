@@ -1,0 +1,115 @@
+{
+  "manifestVersion": "1.0",
+  "role": {
+    "id": "animator",
+    "name": "Animator GrokBot",
+    "description": "Creates custom R15 animations (Studio keyframes or Blender motion) and maintains AnimationIds."
+  },
+  "display": {
+    "keyCapabilities": [
+      "Exaggerated, fluid R15 animations (keyframes in Studio or Blender)",
+      "Maintains AnimationIds module for code playback",
+      "Custom rigs for props and creatures"
+    ],
+    "emoji": "\ud83c\udfad"
+  },
+  "ownership": {
+    "specFields": [
+      "animations"
+    ],
+    "studioSubtrees": [
+      "ReplicatedStorage.Shared.AnimationIds",
+      "ReplicatedStorage.Assets.Rigs",
+      "ServerStorage.RBX_ANIMSAVES"
+    ],
+    "files": [
+      "blender/anim_*.blend",
+      "blender/rig_*.blend",
+      "exports/*_anim.fbx"
+    ]
+  },
+  "taskTypes": [
+    {
+      "id": "animations",
+      "description": "Author all spec animations with exaggerated motion",
+      "typicalDependsOn": [
+        "skeleton"
+      ]
+    },
+    {
+      "id": "animation-publish",
+      "description": "Publish animations to Roblox (gated, Lead executes)"
+    },
+    {
+      "id": "animation-fix",
+      "description": "Fix animation timing, amplitude, or triggers"
+    }
+  ],
+  "capabilities": {
+    "required": [
+      {
+        "id": "animation_path",
+        "name": "Animation Path",
+        "options": [
+          {
+            "value": "studio-keyframes",
+            "label": "Studio KeyframeSequences (Luau, always available)",
+            "requirements": {},
+            "isFallback": true
+          },
+          {
+            "value": "blender",
+            "label": "Blender (complex motion and custom rigs)",
+            "requirements": {
+              "checks": [
+                "cloud_blender.sh version"
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "optional": [
+      {
+        "id": "animation_publish",
+        "name": "Automatic animation publishing",
+        "requirements": {
+          "secrets": [
+            "ROBLOX_OPEN_CLOUD_API_KEY"
+          ]
+        },
+        "benefit": "Animations publish automatically; otherwise needs Animation Editor import"
+      }
+    ]
+  },
+  "agentInstructions": {
+    "file": "agent.md"
+  },
+  "skills": [
+    {
+      "path": "skills/roblox-animations",
+      "ownership": "owned"
+    },
+    {
+      "path": "skills/blender-assets",
+      "ownership": "shared"
+    },
+    {
+      "path": "skills/team-protocol",
+      "ownership": "shared"
+    }
+  ],
+  "setupQuestions": [
+    {
+      "id": "specific_animations",
+      "type": "choice",
+      "prompt": "Animation planning preference",
+      "options": [
+        "Decide for me (plan a rich animation set)",
+        "I'll specify animations I want"
+      ],
+      "default": "Decide for me (plan a rich animation set)",
+      "mapsToCapability": null
+    }
+  ]
+}

@@ -12,6 +12,7 @@ Implement every entry in `game-spec.json` -> `scripts[]` inside Studio, honoring
 | File | Put it at | Class |
 |------|-----------|-------|
 | `reference/Remotes.luau` | `ReplicatedStorage.Shared.Remotes` | ModuleScript |
+| `reference/GuardedAnimationLoader.luau` | `ReplicatedStorage.Shared.GuardedAnimationLoader` | ModuleScript |
 | `reference/RateLimiter.luau` | `ServerScriptService.Server.Util.RateLimiter` | ModuleScript |
 | `reference/DataService.luau` | `ServerScriptService.Server.Services.DataService` | ModuleScript |
 | `reference/Main.server.luau` | `ServerScriptService.Server.Main` | Script |
@@ -48,6 +49,82 @@ pickup, a door, a camera shake), it must meet the **same exaggerated standard** 
 - **Per-frame (`RenderStepped`/`BindToRenderStep`) motion:** use a spring or a
   frame-rate-independent lerp (`1 - math.exp(-k * dt)`) that overshoots and settles, and
   sum the offsets (recoil + sway + bob) onto the base CFrame, so they don't fight each other.
+
+## Asset loading (REQUIRED - applies to animations, sounds, meshes, images)
+
+**Never assume a load succeeded.** All Roblox asset loads (animations, sounds, meshes, images)
+are asynchronous and can fail silently. Every asset used in gameplay must be verified, with
+timeout, fallback, and warning.
+
+### Animations: Use GuardedAnimationLoader
+
+**Problem:** `Animator:LoadAnimation` returns immediately but the track's `Length` stays 0
+until the asset loads from Roblox. Calling `Play()` on a zero-length track does nothing,
+silently. This affects TEMP KeyframeSequenceProvider ids, freshly-published animations, and
+slow networks.
+
+**Solution:** Always use `GuardedAnimationLoader` (`reference/GuardedAnimationLoader.luau`).
+It waits for `track.Length > 0` with timeout, retries on failure, warns once per clip, and
+returns `nil` if loading fails. Check for `nil` and use the tween/procedural fallback.
+
+**Usage:**
+```lua
+local GuardedAnimationLoader = require(ReplicatedStorage.Shared.GuardedAnimationLoader)
+local AnimationIds = require(ReplicatedStorage.Shared.AnimationIds)
+
+-- At init
+local loader = GuardedAnimationLoader.new(character.Humanoid.Animator)
+loader:PreloadAnimations(AnimationIds)  -- Optional: preload all
+
+-- When playing
+local track = loader:LoadAnimationSafe(AnimationIds.BlasterFire, "BlasterFire")
+if track then
+    track:Play()
+    track:GetMarkerReachedSignal("Hit"):Connect(onHit)
+else
+    -- Fallback: tween or procedural (REQUIRED)
+    applyRecoilFallback(blaster, 22, 0.45)  -- 22 deg, 0.45 studs
+end
+```
+
+### Sounds: Verify IsLoaded
+
+```lua
+local sound = Instance.new("Sound")
+sound.SoundId = assetId
+sound.Parent = SoundService
+
+-- Wait for load with timeout
+local timeout = 3
+local startTime = os.clock()
+while not sound.IsLoaded and (os.clock() - startTime) < timeout do
+    task.wait(0.1)
+end
+
+if not sound.IsLoaded then
+    warn(string.format("[Audio] Failed to load '%s' - using fallback or skipping", soundName))
+    sound:Destroy()
+    return nil
+end
+```
+
+### Meshes and Images: Verify ContentProvider
+
+```lua
+local ContentProvider = game:GetService("ContentProvider")
+
+-- Preload with callback
+local assets = {assetId1, assetId2, ...}
+ContentProvider:PreloadAsync(assets, function(assetId, status)
+    if status ~= Enum.AssetFetchStatus.Success then
+        warn(string.format("[Assets] Failed to preload %s - %s", assetId, status.Name))
+    end
+end)
+```
+
+**Playtest check:** The Lead verifies every declared asset (animations, sounds, meshes,
+images) loads successfully and takes effect (animations move the rig, sounds play, meshes
+render).
 - **Timing:** if gameplay needs the action faster or slower, scale the whole sequence's time
   by `clipLength / gameplayDuration`; don't cut amplitude or skip the overshoot/settle.
 - **Characters are R15** unless the spec says R6: address R15 joints (`UpperTorso`,
@@ -189,6 +266,74 @@ The client is hostile. Assume every RemoteEvent argument is attacker-controlled.
   all of it). Server-only code lives in ServerScriptService/ServerStorage.
 - Physics: keep important parts anchored or server-owned (`SetNetworkOwner(nil)`) when
   clients shouldn't be able to move them.
+
+## Tunable measurement and new-player fairness (REQUIRED)
+
+**Spec numbers must match runtime, and the game must be fair to a new player.**
+
+**Problem 1 (Tunable drift):** A spec says "coin spawn rate 1.2/s" but the implemented
+rate is 0.8/s because a timer was set to 1.25 instead of 0.83. A spec says "door cooldown
+3.0s" but the measured cooldown is 4.1s. Players experience a different game than designed.
+
+**Problem 2 (New-player unfairness):** A freshly joined player is immediately killed by
+NPCs, stuck behind a locked door with no visible path, or softlocked in a tutorial. The
+game is unplayable for new players.
+
+**Solution:**
+
+### 1. Measurable Tunable Targets
+The spec declares measurable targets for **every gameplay tunable** (rates, chances,
+damage, cooldowns, timers, economy rates) with tolerance. Examples:
+- "Coin spawn rate: 1.2/s ±10%"
+- "Door cooldown: 3.0s ±0.2s"
+- "Enemy damage: 15 HP ±2"
+- "Unlock cost: 100 coins (exact)"
+
+Coding implements **measurement code** that samples outcomes over a window and compares with
+the spec target:
+```lua
+-- Example: Coin spawn rate measurement
+local spawnCount = 0
+local measureWindow = 10  -- seconds
+local startTime = os.clock()
+
+-- ... on each coin spawn
+spawnCount += 1
+
+-- After measure window
+local elapsed = os.clock() - startTime
+if elapsed >= measureWindow then
+    local measuredRate = spawnCount / elapsed
+    local targetRate = 1.2  -- from spec
+    local tolerance = 0.12  -- ±10%
+    
+    if math.abs(measuredRate - targetRate) > tolerance then
+        warn(string.format("[Tunables] Coin spawn rate %.2f/s outside spec %.2f ±%.2f",
+            measuredRate, targetRate, tolerance))
+    end
+    
+    -- Reset for next window
+    spawnCount, startTime = 0, os.clock()
+end
+```
+
+### 2. New-Player Fairness Check
+The spec includes a **genre-neutral new-player-experience check** in `acceptanceTests[]`:
+- A freshly joined player, **idle and acting normally** (not exploiting, not AFK), isn't
+  killed, stuck, softlocked, or overwhelmed within a **spec-defined grace window**.
+- The grace window depends on genre (examples only, not defaults):
+  - Action games: 5-10 seconds (time to orient and see the core loop)
+  - Puzzle games: 30-60 seconds (time to read instructions and try the first puzzle)
+  - Exploration games: 15-30 seconds (time to look around and find the first objective)
+- The player can **reach the core loop** after the grace window (not blocked by locked
+  doors, missing tutorials, or overwhelming difficulty).
+
+**No hardcoded defaults.** The spec declares the grace window and fairness criteria
+explicitly for each game.
+
+**Playtest check:** AcceptanceFramework verifies:
+- **Tunable conformance:** Measured values match spec targets within tolerance.
+- **New-player fairness:** Idle player survives grace window, can reach core loop.
 
 ## Persistence (DataStoreService)
 

@@ -1,0 +1,109 @@
+{
+  "manifestVersion": "1.0",
+  "role": {
+    "id": "lead",
+    "name": "Lead GrokBot",
+    "description": "Producer and orchestrator: writes the spec, plans tasks, dispatches work, runs playtests, and talks to the user."
+  },
+  "display": {
+    "keyCapabilities": [
+      "Translates your prompt into a complete game-spec.json",
+      "Plans and dispatches tasks to specialists in parallel",
+      "Runs integration playtests and routes fixes",
+      "Collects approvals and executes gated actions (uploads, publishes)"
+    ],
+    "emoji": "🎬"
+  },
+  "ownership": {
+    "specFields": [
+      "meta",
+      "pitch",
+      "coreLoop",
+      "mechanics",
+      "progression",
+      "monetization",
+      "world",
+      "acceptanceTests",
+      "build",
+      "marketing.description"
+    ],
+    "studioSubtrees": [
+      "ServerStorage.GameSpec"
+    ],
+    "files": [
+      "current-game",
+      ".bridge.json",
+      "reports/",
+      "locks/"
+    ]
+  },
+  "taskTypes": [
+    {
+      "id": "preflight",
+      "description": "Studio readiness, team creation, connector checks, approval collection"
+    },
+    {
+      "id": "spec-write",
+      "description": "Write or refine game-spec.json from the user's prompt"
+    },
+    {
+      "id": "plan",
+      "description": "Create build.tasks[] from the spec"
+    },
+    {
+      "id": "playtest",
+      "description": "Integration playtest with acceptance tests",
+      "typicalDependsOn": ["skeleton", "mechanics", "ui-build", "map-build"]
+    },
+    {
+      "id": "final-gate",
+      "description": "Definition-of-done verification"
+    }
+  ],
+  "capabilities": {
+    "required": [],
+    "optional": [
+      {
+        "id": "open_cloud_upload",
+        "name": "Automatic model uploads",
+        "requirements": {
+          "secrets": ["ROBLOX_OPEN_CLOUD_API_KEY"]
+        },
+        "benefit": "Models upload automatically; otherwise needs one Import 3D click per batch"
+      }
+    ]
+  },
+  "agentInstructions": {
+    "file": "agent.md"
+  },
+  "skills": [
+    {
+      "path": "skills/setup-bridge",
+      "ownership": "owned"
+    },
+    {
+      "path": "skills/grok-studio",
+      "ownership": "owned"
+    },
+    {
+      "path": "skills/game-spec",
+      "ownership": "owned"
+    },
+    {
+      "path": "skills/playtest-loop",
+      "ownership": "owned"
+    },
+    {
+      "path": "skills/connect-studio",
+      "ownership": "owned"
+    },
+    {
+      "path": "skills/team-protocol",
+      "ownership": "shared"
+    }
+  ],
+  "setupQuestions": [],
+  "example": {
+    "file": "example-preflight.md"
+  }
+}

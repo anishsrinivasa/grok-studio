@@ -79,10 +79,16 @@
     ]
   },
   "animations": [
-    { "id": "victoryCheer", "name": "Victory cheer", "rig": "R15", "source": "blender", "looped": false, "priority": "Action", "durationSeconds": 1.5, "trigger": "Unlocking a stage", "status": "planned" }
+    { "id": "victoryCheer", "name": "Victory cheer", "rig": "R15", "source": "blender", "looped": false, "priority": "Action", "durationSeconds": 1.5, "trigger": "Unlocking a stage", "status": "planned" },
+    { "id": "coinPickupReach", "name": "Coin pickup reach", "rig": "R15", "source": "studio-keyframes", "looped": false, "priority": "Action2", "durationSeconds": 0.3, "trigger": "Collecting a coin mid-air", "status": "planned" }
+  ],
+  "vfx": [
+    { "id": "coinBurst", "name": "Coin pickup burst", "type": "particle", "trigger": "Client event CoinPickup", "location": "Coin position", "duration": 0.4, "authority": "client", "status": "planned" },
+    { "id": "lavaGlow", "name": "Lava surface glow", "type": "particle", "trigger": "Continuous at Y=0", "location": "Lava plane edges", "authority": "client", "status": "planned" }
   ],
   "audio": [
-    { "id": "coinSfx", "purpose": "Coin pickup", "source": "creator-store" }
+    { "id": "coinSfx", "purpose": "Coin pickup", "source": "creator-store", "status": "planned" },
+    { "id": "unlockFanfare", "purpose": "Stage unlock", "source": "creator-store", "status": "planned" }
   ],
   "marketing": {
     "icon": { "brief": "Single chunky gold coin mid-air above glowing lava, bold rim light, no text.", "sizePx": 512 },

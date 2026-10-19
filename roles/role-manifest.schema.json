@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:grok-studio:role-manifest:1.0",
+  "title": "grok-studio role manifest",
+  "description": "Machine-readable definition of a GrokBot role in the grok-studio plugin, enabling dynamic role discovery and setup.",
+  "type": "object",
+  "required": ["manifestVersion", "role", "display", "ownership", "capabilities", "taskTypes"],
+  "additionalProperties": false,
+  "properties": {
+    "manifestVersion": {
+      "const": "1.0"
+    },
+    "role": {
+      "type": "object",
+      "required": ["id", "name", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "Unique kebab-case role identifier, e.g. 'lead', 'vfx', 'marketing'."
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name for the bot, e.g. 'Lead GrokBot', 'VFX GrokBot'."
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "One-sentence role summary for the welcome message."
+        }
+      }
+    },
+    "display": {
+      "type": "object",
+      "required": ["keyCapabilities"],
+      "additionalProperties": false,
+      "properties": {
+        "keyCapabilities": {
+          "type": "array",
+          "items": { "type": "string", "maxLength": 80 },
+          "minItems": 2,
+          "maxItems": 4,
+          "description": "2-4 concise capability statements for the welcome message."
+        },
+        "emoji": {
+          "type": "string",
+          "maxLength": 4,
+          "description": "Optional emoji identifier (only used if the user enables emojis)."
+        }
+      }
+    },
+    "ownership": {
+      "type": "object",
+      "required": ["specFields", "studioSubtrees"],
+      "additionalProperties": false,
+      "properties": {
+        "specFields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of game-spec.json top-level or nested fields this role writes, e.g. ['ui', 'marketing.icon']."
+        },
+        "studioSubtrees": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Studio instance paths this role owns, e.g. ['StarterGui', 'ReplicatedStorage.Assets.UI']."
+        },
+        "files": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "File paths under games/<slug>/ this role owns, e.g. ['marketing/', 'renders/ui/']."
+        }
+      }
+    },
+    "taskTypes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "description"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9-]*$" },
+          "description": { "type": "string" },
+          "typicalDependsOn": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Typical task type ids this usually depends on."
+          }
+        }
+      },
+      "description": "Task types this role handles, for automatic task planning and routing."
+    },
+    "capabilities": {
+      "type": "object",
+      "required": ["required", "optional"],
+      "additionalProperties": false,
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "options"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9_-]*$" },
+              "name": { "type": "string", "description": "Human-readable name." },
+              "options": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["value", "label", "requirements"],
+                  "properties": {
+                    "value": { "type": "string" },
+                    "label": { "type": "string" },
+                    "requirements": {
+                      "type": "object",
+                      "properties": {
+                        "connectors": { "type": "array", "items": { "type": "string" } },
+                        "secrets": { "type": "array", "items": { "type": "string" } },
+                        "checks": { "type": "array", "items": { "type": "string" } }
+                      }
+                    },
+                    "isFallback": { "type": "boolean", "description": "True if this is the free/fallback option." }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "optional": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "requirements"],
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "requirements": {
+                "type": "object",
+                "properties": {
+                  "connectors": { "type": "array", "items": { "type": "string" } },
+                  "secrets": { "type": "array", "items": { "type": "string" } },
+                  "checks": { "type": "array", "items": { "type": "string" } }
+                }
+              },
+              "benefit": { "type": "string", "description": "What this capability enables." }
+            }
+          }
+        }
+      }
+    },
+    "agentInstructions": {
+      "type": "object",
+      "required": ["file"],
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string",
+          "description": "Relative path to the agent instructions markdown file, e.g. 'agent.md'."
+        }
+      }
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "ownership"],
+        "properties": {
+          "path": { "type": "string", "description": "Relative path from plugin root, e.g. 'skills/roblox-ui'." },
+          "ownership": { "enum": ["owned", "shared"], "description": "'owned' means this role owns and maintains the skill; 'shared' means it uses but doesn't own it." }
+        }
+      },
+      "description": "Skills this role uses, with ownership markers."
+    },
+    "setupQuestions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "prompt"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "enum": ["choice", "yes-no", "multi-select"] },
+          "prompt": { "type": "string" },
+          "options": { "type": "array", "items": { "type": "string" } },
+          "default": {},
+          "mapsToCapability": { "type": ["string", "null"], "description": "Capability id this question resolves, or null if it doesn't map to a capability." }
+        }
+      },
+      "description": "Setup questions this role contributes, processed during the guided setup."
+    },
+    "example": {
+      "type": "object",
+      "properties": {
+        "file": { "type": "string", "description": "Relative path to an example task or artifact, e.g. 'example-task.md'." }
+      }
+    }
+  }
+}

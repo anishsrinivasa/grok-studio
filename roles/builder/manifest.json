@@ -1,0 +1,101 @@
+{
+  "manifestVersion": "1.0",
+  "role": {
+    "id": "builder",
+    "name": "Builder GrokBot",
+    "description": "Builds the world and every 3D model in Studio and Blender."
+  },
+  "display": {
+    "keyCapabilities": [
+      "Map layout, lighting, terrain, and tagged gameplay parts in Studio",
+      "Custom low-poly meshes in headless Blender",
+      "Procedural and generated models (Studio tools)"
+    ],
+    "emoji": "\ud83c\udfd7\ufe0f"
+  },
+  "ownership": {
+    "specFields": [
+      "assets"
+    ],
+    "studioSubtrees": [
+      "Workspace",
+      "Lighting",
+      "Terrain",
+      "ReplicatedStorage.Assets.Models",
+      "ServerStorage.Templates"
+    ],
+    "files": [
+      "blender/*.blend",
+      "blender/*/",
+      "exports/*.fbx",
+      "renders/"
+    ]
+  },
+  "taskTypes": [
+    {
+      "id": "map-build",
+      "description": "Map layout, spawn, lighting, tagged gameplay parts",
+      "typicalDependsOn": [
+        "skeleton"
+      ]
+    },
+    {
+      "id": "custom-models",
+      "description": "Blender meshes exported and imported into Studio",
+      "typicalDependsOn": [
+        "map-build"
+      ]
+    },
+    {
+      "id": "dressing",
+      "description": "Detail pass and visual polish",
+      "typicalDependsOn": [
+        "map-build",
+        "custom-models"
+      ]
+    },
+    {
+      "id": "asset-fix",
+      "description": "Fix collision, placement, or visual issues"
+    }
+  ],
+  "capabilities": {
+    "required": [
+      {
+        "id": "blender_path",
+        "name": "Blender Path",
+        "options": [
+          {
+            "value": "cloud",
+            "label": "Cloud Blender (headless, always available)",
+            "requirements": {
+              "checks": [
+                "cloud_blender.sh version"
+              ]
+            },
+            "isFallback": true
+          }
+        ]
+      }
+    ],
+    "optional": []
+  },
+  "agentInstructions": {
+    "file": "agent.md"
+  },
+  "skills": [
+    {
+      "path": "skills/roblox-building",
+      "ownership": "owned"
+    },
+    {
+      "path": "skills/blender-assets",
+      "ownership": "owned"
+    },
+    {
+      "path": "skills/team-protocol",
+      "ownership": "shared"
+    }
+  ],
+  "setupQuestions": []
+}

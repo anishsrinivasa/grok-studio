@@ -21,6 +21,38 @@ Ownership and locks: `team-protocol` (Builder owns `Workspace`, `Lighting`, `Ter
    then props and dressing.
 3. **Custom models** from Blender or `generate_mesh` replace blockout pieces last.
 
+## Interaction reachability (REQUIRED - general rule)
+
+**Every interaction must work through real player input.** Every interactive or targetable
+element the spec declares (hit zones, buttons, ProximityPrompts, ClickDetectors, pickups,
+touch triggers, doors, UI buttons) must be reachable the way a player would reach it.
+
+**Problem:** Decorative or visual geometry blocks interaction. A ProximityPrompt inside a
+decorative hull never triggers. A touch part with `CanTouch=true` sits behind a wall with
+`CanTouch=true`. A UI button is under another transparent frame that eats clicks.
+
+**Solution:**
+1. **Separation of concerns:** Interactive parts (hit zones, prompts, triggers, buttons)
+   are distinct instances with deliberate collision and query settings.
+2. **Decorative geometry** sets `CanQuery=false`, `CanTouch=false`, or simplified
+   collision (`CollisionFidelity=Box`) so it never interferes with interaction paths.
+3. **Coding resolves interactions explicitly:** Hit detection uses specific parts (by name
+   or tag), never relies on `Mouse.Target` or broad raycasts that might hit decoration.
+4. **UI layering:** Interactive buttons have higher `ZIndex` than decorative frames, or
+   decorative frames set `Active=false`.
+
+**Builder self-check (before `DONE`):** For every declared interactive element:
+- **Camera raycast targets (hit zones, ClickDetectors):** Place dummy R15 at typical
+  player positions, raycast toward the element, verify the intended part is hit (not
+  decoration).
+- **Touch/proximity triggers (pickups, ProximityPrompts, doors):** Verify character can
+  reach the part (walkable path, not occluded by walls/collision).
+- **UI buttons:** Click each button in a test UI scene, verify it fires.
+
+**Playtest check:** AcceptanceFramework exercises **every declared interaction through real
+input paths** (camera raycast, character touch, prompt trigger, UI click), **never by
+calling server functions directly**, and fails any element that doesn't respond.
+
 ## Structure
 
 ```
@@ -98,6 +130,52 @@ with `Model:ScaleTo(model:GetScale() * f)` (ScaleTo is absolute, so multiply), p
 props, PreciseConvexDecomposition only when needed). Turn `CastShadow` off on tiny props,
 and add the tags. Put templates in `ReplicatedStorage.Assets.Models` and instances in
 `Workspace.Map`.
+
+## Rig attachments and held objects (REQUIRED - Builder self-check)
+
+**Everything attached to or held by a character must be checked against the rig.** Tools,
+accessories, welded props, mounts, and vehicles must have the correct orientation, anchor
+point, and scale on an R15 rig.
+
+**Problem:** A `Tool` with default `Grip` (zero rotation, zero offset) points the wrong
+direction. An `Accessory` parented to the wrong attachment floats or clips. A welded prop
+(shield, jetpack, mount) has wrong orientation or scale.
+
+**Solution:**
+1. **Tools (weapons, items held in hand):**
+   - `Tool.Grip` CFrame must orient the tool's forward axis along the character's
+     LookVector (the direction they face).
+   - Test on a dummy R15: the tool should point forward when equipped, not up/sideways.
+   - `Tool.GripPos` anchors at the right hand attachment.
+
+2. **Accessories (hats, backpacks, shoulder items):**
+   - Parent to the correct `Attachment` in the character rig:
+     - Hats: `HatAttachment` (in Head)
+     - Backpacks: `BodyBackAttachment` (in UpperTorso)
+     - Shoulder items: `LeftShoulderAttachment` or `RightShoulderAttachment`
+   - Use an `Accessory` instance with `Handle` and correct `AttachmentPoint` CFrame.
+
+3. **Welded props, mounts, vehicles:**
+   - WeldConstraint or Motor6D between character part and prop must have correct `C0`/`C1`
+     offsets for orientation and position.
+   - Scale: model must fit the R15 rig (e.g., a mount's seat at hip height, a shield
+     sized for the arm).
+
+**Builder self-check (before `DONE` on any attached/held object):**
+1. Spawn a dummy R15 character in Studio (or use a test rig).
+2. Attach the object:
+   - Tools: `character.Humanoid:EquipTool(toolInstance)`
+   - Accessories: parent and call `Humanoid:BuildRigFromAttachments()`
+   - Welded props: create WeldConstraint, set `C0`/`C1`
+3. Set `HumanoidRootPart.CFrame` to face a known direction (e.g., +Z).
+4. Verify:
+   - **Tools:** forward axis aligns with `LookVector` (within ~15°)
+   - **Accessories:** sit at expected body part (head, back, shoulder), no float/clip
+   - **Welded props:** correct position relative to body, appropriate scale
+5. Take a screenshot, include in `DONE` message.
+
+**Playtest check:** AcceptanceFramework verifies every declared tool, accessory, and
+attached object on a test rig automatically.
 
 ## Quality gates (a failed gate blocks `placed`)
 

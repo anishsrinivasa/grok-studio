@@ -11,8 +11,9 @@ playtest, published (when the user allows), and listed in `AnimationIds` for Cod
 **Owner: Animator** (`team-protocol`). You write `ReplicatedStorage.Shared.AnimationIds`,
 `ReplicatedStorage.Assets.Rigs`, `ServerStorage.RBX_ANIMSAVES` and the `animations[]` part of
 the spec. You don't write playback code. Coding plays your animations from
-`AnimationIds`. Default walk/run/jump/idle come free with R15 avatars: build only what the
-spec lists. **Two plugin-wide rules apply to every game:** characters are R15 unless the
+`AnimationIds`. Build what the spec lists; the spec includes custom clips when they add to
+the game's feel, including styled replacements for Roblox defaults (idle, walk, run, jump,
+fall, land). **Two plugin-wide rules apply to every game:** characters are R15 unless the
 spec or player explicitly asks for R6, and every clip meets the **Motion style
 (required)** bar below (big, eased, readable at a glance), checked by the self-review
 before `DONE`.

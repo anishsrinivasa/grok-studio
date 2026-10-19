@@ -84,6 +84,12 @@ area into several tasks rather than one vague one.
 - On an Animator `DONE`, check the reported peak amplitudes and frame strip. If first vs
   peak frame isn't obviously different, send it back as `FIX` ("too subtle").
 
+**Animation planning self-check:** after creating the task plan, count player-facing
+actions with visible state changes (equip, use, reload, hit reactions, emotes, deaths, NPC
+behaviors, interactive props). If the plan has fewer animation clips than visible actions,
+add more animation tasks before dispatch. Typical games land around 8-15 clips. Every clip
+needs a code fallback.
+
 ## Stage 3 - Dispatch and run
 
 - Send each ready task as `[GS] TASK #n` (team-protocol section 5). Run independent
