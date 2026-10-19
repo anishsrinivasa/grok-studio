@@ -99,9 +99,12 @@ flowchart LR
   - every Bot writes only its own part of the place and of the spec
   - only the Lead plays the game (a `studio-play` lock, so nobody edits while play mode
     is on)
+  - specialists never message the user; only the Lead talks to the user
+  - the Lead collects gated approvals (uploads, publishes) from the user at preflight and
+    executes the gated actions when specialists report exports are ready
   - spec writes take a lock
   - one `.blend` file per asset
-  - fixed `TASK` / `DONE` / `BLOCKED` / `ASK` / `FIX` message formats
+  - fixed `TASK` / `DONE` / `BLOCKED` / `ASK` / `READY-UPLOAD` / `UPLOADED` / `FIX` message formats
 
 ## What's inside
 

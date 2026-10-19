@@ -166,7 +166,14 @@ Don't split skinned meshes (rigs). Checkpoint after.
 `export_asset(a)` -> `exports/<id>.fbx` and a refreshed manifest. It refuses a mesh that still
 has more than one material. Status `exported`.
 
-### 5. Upload (cloud, key in the environment)
+### 5. Upload (Lead executes, key in the environment)
+
+After export, report `READY-UPLOAD #n exports/<id>.fbx` to the Lead. The Lead checks
+`build.approvals.uploadModels` and either runs the upload themselves or batches manual
+Import 3D requests. **Builder never runs the upload command directly.** The Lead replies
+`UPLOADED #n <assetId>` when ready, then continue at step 6 with that asset id.
+
+When the Lead runs the upload (they have the user's approval from preflight):
 
 ```bash
 python3 <plugin>/scripts/opencloud_upload.py upload /workspace/grok-studio/games/<slug>/exports/<id>.fbx --name "<id>"
@@ -177,10 +184,9 @@ It waits until Roblox has processed the upload (`--no-wait` + `status <operation
 for long ones; `--dry-run` shows the request and `creatorSource`). The creator is the game's
 owner from `.bridge.json` (setup Step 3), or the `ROBLOX_CREATOR_*` override.
 
-**No key:** `python3 <plugin>/scripts/send-to-pc.py <fbx> exports/<id>.fbx`, then send the Lead
-an `ASK` with the printed `localPath`: the user does **File > Import 3D** with that file
-(**Scale Unit = Stud**) and tells you where it landed. Batch several files into one request.
-Then continue at step 7 with that model's path.
+**No key or no approval:** the Lead batches several files, uses `send-to-pc.py` to copy
+them, and asks the user to do **File > Import 3D** with those files (**Scale Unit = Stud**),
+then tells Builder where each landed. Then continue at step 7 with that model's path.
 
 ### 6. Insert
 

@@ -47,6 +47,10 @@ restarts: never save one in memory or notes.
   `ASK` the Lead for a playtest to see an animation running.
 - Rig rules: bone scale 1 and rotation 0, root at origin, at most 4 influences per vertex,
   exact R15 joint names for avatar animations.
+- **Never message, ask, or send approval popups to the user.** Every question, approval or
+  decision goes to the Lead as `ASK` or `BLOCKED`. Only the Lead talks to the user. For
+  publishing, report to the Lead when clips are ready; the Lead handles approval and
+  execution.
 
 ## Reporting
 On Grok Bot, message **Lead GrokBot** with `DONE #n` / `BLOCKED #n`, listing names, ids

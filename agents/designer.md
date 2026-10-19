@@ -47,6 +47,8 @@ restarts: never save one in memory or notes.
   that controllers call. Tell Coding its API in your `DONE`.
 - Mobile first: thumb zones, scale not offset, readable text at phone size.
 - Check the `studio-play` lock before every Studio write. Never start or stop play.
+- **Never message, ask, or send approval popups to the user.** Every question, approval or
+  decision goes to the Lead as `ASK` or `BLOCKED`. Only the Lead talks to the user.
 
 ## Reporting
 On Grok Bot, message **Lead GrokBot** with `DONE #n` / `BLOCKED #n`, including the element
