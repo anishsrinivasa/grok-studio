@@ -54,6 +54,18 @@ if [ ! -f "$GS/plugin/skills/setup-bridge/lead-bot.md" ]; then
     rm -rf "$GS/plugin" && mv "$GS/plugin.tmp" "$GS/plugin"
   fi
 fi
+# Re-run: refresh a downloaded copy that is behind the branch (a symlinked or marketplace
+# install is managed elsewhere and left alone; offline = skip).
+REF="${GROK_STUDIO_REF:-multi-bot-team}"; REPO=https://github.com/anishsrinivasa/grok-studio
+if [ -d "$GS/plugin" ] && [ ! -L "$GS/plugin" ]; then
+  REMOTE=$(timeout 20 git ls-remote "$REPO.git" "refs/heads/$REF" 2>/dev/null | cut -f1)
+  LOCAL=$(git -C "$GS/plugin" rev-parse HEAD 2>/dev/null || cat "$GS/plugin/.gs-commit" 2>/dev/null)
+  if [ -n "$REMOTE" ] && [ "$REMOTE" != "$LOCAL" ]; then
+    echo "plugin ${LOCAL:-(unknown version)} -> $REMOTE"
+    curl -fsSL "https://raw.githubusercontent.com/anishsrinivasa/grok-studio/$REF/scripts/bootstrap.sh" |
+      GROK_STUDIO_REF="$REF" bash >/dev/null
+  fi
+fi
 ls "$GS/plugin/skills"
 ```
 
@@ -74,8 +86,11 @@ bash "$B" version >/dev/null 2>&1 || nohup bash "$B" install > "$GS/.tools/blend
 ## Step 2 - Keys (secret prompt only)
 
 Check what's already there: `for k in ROBLOX_OPEN_CLOUD_API_KEY NGROK_AUTHTOKEN; do
-test -n "${!k}" && echo "$k set" || echo "$k missing"; done`. Then open the secret prompt
-for each missing key, with these exact instructions:
+test -n "${!k}" && echo "$k set" || echo "$k missing"; done`, and
+`python3 <plugin>/scripts/bridge-check.py --studio`. If that says `"studio": "ok"` the
+bridge already runs (ngrok is set up on the PC): don't ask for `NGROK_AUTHTOKEN` or a
+domain. Then open the secret prompt for each key that is still needed, with these exact
+instructions:
 
 - **`ROBLOX_OPEN_CLOUD_API_KEY`**: needed for automatic model uploads.
   1. Go to https://create.roblox.com/dashboard/credentials > **Create API key**.
@@ -93,8 +108,8 @@ for each missing key, with these exact instructions:
   doesn't cover that owner (a group game needs the group in the key's scope). If the
   user declines the key, continue: model imports then need one Import 3D click per batch,
   and gate check G2 is marked *skipped*.
-- **`NGROK_AUTHTOKEN`**: only if ngrok on the PC isn't set up yet (`connect-studio`
-  checks this in Step 4). Get it at https://dashboard.ngrok.com/get-started/your-authtoken.
+- **`NGROK_AUTHTOKEN`**: only if the bridge isn't up and ngrok on the PC isn't set up yet
+  (`connect-studio` Install step 5 checks this, run from Step 3 here). Get it at https://dashboard.ngrok.com/get-started/your-authtoken.
   Also ask for the free **static domain** from https://dashboard.ngrok.com/domains (it
   looks like `xxx.ngrok-free.dev`). That isn't secret and can go in chat. It keeps the
   Studio connector's URL the same forever.

@@ -27,6 +27,10 @@ else
   curl -fsSL "$REPO/archive/refs/$kind/$REF.tar.gz" | tar -xz -C "$tmp/src" --strip-components=1
 fi
 [ -f "$tmp/src/skills/setup-bridge/SKILL.md" ] || { echo "[grok-studio] ERROR: download incomplete" >&2; exit 1; }
+# Record the commit for /setup-bridge's refresh check (tarball installs have no .git).
+if [ ! -d "$tmp/src/.git" ]; then
+  git ls-remote "$REPO.git" "refs/heads/$REF" 2>/dev/null | cut -f1 > "$tmp/src/.gs-commit" || true
+fi
 
 # Replace the plugin copy (never a symlink target the user owns).
 [ -L "$GS/plugin" ] && rm -f "$GS/plugin"
