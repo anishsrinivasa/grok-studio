@@ -100,7 +100,7 @@ grep "^\*\*[0-9]\." CONTRIBUTING.md | grep -E "(Assets|Interactions|Attachments|
 ls -1 scripts/validate-spec-gates.py scripts/heal-mcp-session.sh skills/roblox-code/reference/GuardedAnimationLoader.luau skills/playtest-loop/reference/AcceptanceFramework.luau
 
 # 5. Test framework extensibility
-python3 scripts/selftest.py --scenario has-figma
+uv run scripts/selftest.py --scenario has-figma
 ```
 
 ---

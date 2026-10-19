@@ -47,8 +47,8 @@ Hi! Let's set up grok-studio.
 ```
 # On cloud computer or locally:
 cd /workspace
-python3 scripts/roles.py validate
-python3 scripts/roles.py list
+uv run scripts/roles.py validate
+uv run scripts/roles.py list
 ```
 
 **Expected:** All 8 roles valid, no conflicts.
@@ -56,8 +56,8 @@ python3 scripts/roles.py list
 ### 5. Test Setup Resolver Headless (2 min)
 ```
 cd /workspace
-python3 scripts/selftest.py --scenario has-figma
-python3 scripts/selftest.py --scenario no-figma
+uv run scripts/selftest.py --scenario has-figma
+uv run scripts/selftest.py --scenario no-figma
 ```
 
 **Expected:** Both scenarios pass, welcome messages generated.
@@ -77,10 +77,10 @@ Make a simple coin collection game: player walks around and collects 10 gold coi
 cd /workspace
 
 # Validate all 8 roles
-python3 scripts/roles.py validate
+uv run scripts/roles.py validate
 
 # Test setup resolver with fixtures
-python3 scripts/setup.py --self-check
+uv run scripts/setup.py --self-check
 
 # Validate example spec
 python3 -c "import json,jsonschema; jsonschema.validate(json.load(open('skills/game-spec/example.game-spec.json')), json.load(open('skills/game-spec/schema.json'))); print('✓ valid')"
@@ -92,7 +92,7 @@ python3 scripts/validate-spec-gates.py <slug>
 bash scripts/heal-mcp-session.sh
 
 # Run complete selftest
-python3 scripts/selftest.py
+uv run scripts/selftest.py
 ```
 
 ## Known Gaps & Limitations
@@ -143,7 +143,7 @@ python3 scripts/selftest.py
 **Welcome message missing bots:**
 - Check detection fixture matches your environment
 - Verify all role manifests have valid capabilities
-- Run `python3 scripts/setup.py --self-check` to see resolution
+- Run `uv run scripts/setup.py --self-check` to see resolution
 
 ## Report Issues
 If something doesn't work:

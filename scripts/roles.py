@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.9"
+# dependencies = ["pyyaml", "jsonschema"]
+# ///
 """
 Role discovery and validation for grok-studio.
 Discovers roles from manifests, validates them, and generates setup data.

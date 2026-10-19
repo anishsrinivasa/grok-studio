@@ -19,7 +19,7 @@ roles/<role-id>/
 Pick a short, kebab-case identifier (e.g. `vfx`, `qa`, `monetization`). It must:
 - Start with a lowercase letter
 - Contain only lowercase letters, digits, and hyphens
-- Be unique (check `python3 scripts/roles.py list`)
+- Be unique (check `uv run scripts/roles.py list`)
 
 ### Step 2: Write the Manifest
 
@@ -154,7 +154,7 @@ If your role writes to new spec fields:
 ### Step 7: Validate
 
 ```bash
-python3 scripts/roles.py validate
+uv run scripts/roles.py validate
 ```
 
 This checks:
@@ -177,13 +177,13 @@ Fix any errors before committing.
 
 ```bash
 # List all roles
-python3 scripts/roles.py list
+uv run scripts/roles.py list
 
 # Validate all manifests
-python3 scripts/roles.py validate
+uv run scripts/roles.py validate
 
 # Generate setup questions from all roles
-python3 scripts/roles.py setup-questions
+uv run scripts/roles.py setup-questions
 ```
 
 ## Worked Example: VFX GrokBot

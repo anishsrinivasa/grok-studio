@@ -136,12 +136,12 @@ You are **My Role GrokBot**...
 
 ### 4. Validate
 ```bash
-python3 scripts/roles.py validate
+uv run scripts/roles.py validate
 ```
 
 ### 5. Test Integration
 ```bash
-python3 scripts/setup.py --self-check
+uv run scripts/setup.py --self-check
 ```
 
 ---
@@ -151,13 +151,13 @@ python3 scripts/setup.py --self-check
 ### Running Validators
 ```bash
 # Validate all roles
-python3 scripts/roles.py validate
+uv run scripts/roles.py validate
 
 # Test setup resolver
-python3 scripts/setup.py --self-check
+uv run scripts/setup.py --self-check
 
 # Run complete selftest (has-figma, no-figma)
-python3 scripts/selftest.py
+uv run scripts/selftest.py
 
 # Validate example spec
 python3 -c "import json,jsonschema; jsonschema.validate(json.load(open('skills/game-spec/example.game-spec.json')), json.load(open('skills/game-spec/schema.json'))); print('✓ valid')"
@@ -288,8 +288,8 @@ See **[docs/GROKBOT-PLATFORM.md](docs/GROKBOT-PLATFORM.md)** for complete list.
 ### Extend Setup Flow
 1. Edit `setup/steps.yaml` (add check, step, or question)
 2. Update role manifest if adding capability
-3. Test: `python3 scripts/setup.py --self-check`
-4. Run: `python3 scripts/selftest.py`
+3. Test: `uv run scripts/setup.py --self-check`
+4. Run: `uv run scripts/selftest.py`
 
 ### Add Acceptance Check
 1. Add check function to `AcceptanceFramework.luau`
@@ -300,7 +300,7 @@ See **[docs/GROKBOT-PLATFORM.md](docs/GROKBOT-PLATFORM.md)** for complete list.
 ### Fix a Validation Error
 ```bash
 # See which role failed
-python3 scripts/roles.py validate
+uv run scripts/roles.py validate
 
 # Check JSON syntax
 python3 -m json.tool roles/<role>/manifest.json
@@ -316,13 +316,13 @@ python3 -c "import json,jsonschema; jsonschema.validate(json.load(open('roles/<r
 ### Before Committing
 ```bash
 # 1. Validate all roles
-python3 scripts/roles.py validate
+uv run scripts/roles.py validate
 
 # 2. Test setup resolver
-python3 scripts/setup.py --self-check
+uv run scripts/setup.py --self-check
 
 # 3. Run selftest (both scenarios)
-python3 scripts/selftest.py
+uv run scripts/selftest.py
 
 # 4. Validate example spec
 python3 -c "import json,jsonschema; jsonschema.validate(json.load(open('skills/game-spec/example.game-spec.json')), json.load(open('skills/game-spec/schema.json'))); print('✓')"
@@ -372,9 +372,9 @@ Look at existing roles (`roles/vfx/`, `roles/sfx/`, `roles/marketing/`) for exam
 
 ### Commands You'll Run Most
 ```bash
-python3 scripts/roles.py validate     # After role changes
-python3 scripts/setup.py --self-check # After setup changes
-python3 scripts/selftest.py           # Full integration test
+uv run scripts/roles.py validate     # After role changes
+uv run scripts/setup.py --self-check # After setup changes
+uv run scripts/selftest.py           # Full integration test
 ```
 
 ### Files You'll Read Most

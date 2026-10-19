@@ -5,13 +5,13 @@
 ### 1. Role Discovery and Validation
 ```bash
 # List all discovered roles
-python3 scripts/roles.py list
+uv run scripts/roles.py list
 
 # Validate all role manifests
-python3 scripts/roles.py validate
+uv run scripts/roles.py validate
 
 # Generate setup questions from all roles
-python3 scripts/roles.py setup-questions
+uv run scripts/roles.py setup-questions
 ```
 
 **Output:** 8 roles discovered (lead, coder, designer, builder, animator, vfx, sfx, marketing), all validate successfully.
@@ -19,10 +19,10 @@ python3 scripts/roles.py setup-questions
 ### 2. Setup Resolver
 ```bash
 # Run self-check with test data
-python3 scripts/setup.py --self-check
+uv run scripts/setup.py --self-check
 
 # Run with real detection results and answers
-python3 scripts/setup.py \
+uv run scripts/setup.py \
   --detection-results detection.json \
   --answers answers.json \
   --output resolution.json \
@@ -150,7 +150,7 @@ The Lead needs to execute this flow in `skills/setup-bridge/SKILL.md` or a new s
    write_json("answers.json", answers)
    
    # Run resolver
-   run_command("python3 scripts/setup.py --detection-results detection.json --answers answers.json --output resolution.json --welcome-output welcome.md")
+   run_command("uv run scripts/setup.py --detection-results detection.json --answers answers.json --output resolution.json --welcome-output welcome.md")
    
    # Load outputs
    resolution = read_json("resolution.json")
@@ -211,13 +211,13 @@ skills/setup-bridge/SKILL.md    # Lead executor (needs rewrite to use setup/)
 
 1. **Role system:**
    ```bash
-   python3 scripts/roles.py validate
+   uv run scripts/roles.py validate
    # Output: ✓ All roles valid
    ```
 
 2. **Resolver:**
    ```bash
-   python3 scripts/setup.py --self-check
+   uv run scripts/setup.py --self-check
    # Output: ✓ Self-check passed, 8 roles active
    ```
 

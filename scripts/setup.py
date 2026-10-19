@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.9"
+# dependencies = ["pyyaml", "jsonschema"]
+# ///
 """
 Setup resolver: loads definitions + manifests, takes detection results and answers,
 outputs per-role capability resolution, spec patch, and filled welcome message.

@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.9"
+# dependencies = ["pyyaml", "jsonschema"]
+# ///
 """
 Headless selftest for grok-studio setup flow.
 Simulates full setup with fixtures (has-Figma, no-Figma scenarios).

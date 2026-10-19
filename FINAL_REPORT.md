@@ -67,11 +67,11 @@ local results = framework:RunAll(context)
 cd /workspace
 
 # 1. Validate role system
-python3 scripts/roles.py validate
+uv run scripts/roles.py validate
 # ✓ All 8 roles valid
 
 # 2. Test setup resolver
-python3 scripts/setup.py --self-check
+uv run scripts/setup.py --self-check
 # ✓ Self-check passed, all 8 roles active
 
 # 3. Validate example spec
