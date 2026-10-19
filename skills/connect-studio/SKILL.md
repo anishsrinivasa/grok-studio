@@ -135,6 +135,11 @@ EOF
 ```
 (`send-to-pc.py` and `bridge-check.py` also accept the raw `KEY=...` lines as the file.)
 
+If the Grok Bot secret `GROK_STUDIO_BRIDGE_KEY` exists (optional; never ask for it), both
+scripts fall back to it when the file's key gets a 401, and `bridge-check.py --studio`
+writes it back into `.bridge.json` (`"healed"` in its output). A stale session file then
+heals without a PC command.
+
 ## Step 3 - The connector (one, shared by every Bot)
 
 Connectors are account-wide: every Bot uses the same `roblox-studio` connector.

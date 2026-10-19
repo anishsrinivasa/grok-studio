@@ -17,6 +17,7 @@ Prints one JSON line on success:
   localPath is valid on the PC (Studio's store_image, the 3D Importer).
   httpUrl is reachable from Roblox Studio on the PC only (Studio's upload_image).
 
+If the key in the session file is rejected, the Grok Bot secret GROK_STUDIO_BRIDGE_KEY is tried.
 The bridge session file (/workspace/grok-studio/.bridge.json, written by connect-studio: JSON or
 the bridge's KEY=... lines) holds the API key. This script never prints it. Transient failures
 (tunnel blips, "fetch failed", HTTP 502/503/504/530) are retried with backoff (1 s, 3 s, 8 s).
@@ -53,6 +54,10 @@ def load_bridge(path):
             if k.strip() in LINE_KEYS:
                 out[LINE_KEYS[k.strip()]] = v.strip()
     return out
+
+
+class Unauthorized(Exception):
+    pass
 
 
 def die(msg, code=1):
@@ -98,7 +103,7 @@ class McpHttp:
                 if e.code in TRANSIENT_HTTP and attempt < len(BACKOFF):
                     continue
                 if e.code == 401:
-                    die("the bridge rejected the API key (401): the key was rotated or the session file is stale. Run connect-studio.")
+                    raise Unauthorized()
                 if e.code == 404 and self.session_id:
                     die("the bridge session expired (404, the bridge restarted). Re-run this command.")
                 die(f"HTTP {e.code} from the bridge: {body.strip()[:300]}. Run connect-studio if it persists.")
@@ -185,7 +190,8 @@ def main():
         die(f"{args.bridge_json} not found: Studio isn't connected yet (run connect-studio).")
     except (OSError, ValueError) as e:
         die(f"cannot read {args.bridge_json}: {e}")
-    url, key = bridge.get("files_url"), bridge.get("api_key")
+    env_key = os.environ.get("GROK_STUDIO_BRIDGE_KEY", "").strip()
+    url, key = bridge.get("files_url"), bridge.get("api_key") or env_key
     if not url or not key:
         die(f"{args.bridge_json} has no files_url/api_key (bridge started without the file drop?).")
 
@@ -202,12 +208,22 @@ def main():
     dest = dest.replace("\\", "/").lstrip("/")
 
     chunk = max(16, min(args.chunk_kb, 8192)) * 1024
-    client = McpHttp(url, key)
-    init = client.request("initialize", {
-        "protocolVersion": PROTOCOL_VERSION,
-        "capabilities": {},
-        "clientInfo": {"name": "grok-studio-send-to-pc", "version": "0.2.0"},
-    })
+    # The session file's key first; if it is stale (401), the GROK_STUDIO_BRIDGE_KEY secret.
+    init = None
+    for k in [key] + ([env_key] if env_key and env_key != key else []):
+        client = McpHttp(url, k)
+        try:
+            init = client.request("initialize", {
+                "protocolVersion": PROTOCOL_VERSION,
+                "capabilities": {},
+                "clientInfo": {"name": "grok-studio-send-to-pc", "version": "0.2.0"},
+            })
+            break
+        except Unauthorized:
+            continue
+    else:
+        die("the bridge rejected the API key (401): the key was rotated or the session file is stale. "
+            "Run `bridge-check.py --studio` (it heals .bridge.json from the GROK_STUDIO_BRIDGE_KEY secret) or connect-studio.")
     client.protocol = (init or {}).get("protocolVersion", PROTOCOL_VERSION)
     client.notify("notifications/initialized")
 

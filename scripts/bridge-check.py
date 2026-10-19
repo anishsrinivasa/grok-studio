@@ -24,7 +24,12 @@ Exit code: 0 = up (and Studio answered, with --studio), 1 = down or Studio faile
 
 Reads /workspace/grok-studio/.bridge.json (written by connect-studio): JSON, or the bridge's
 KEY=... / STUDIO_URL=... lines. Never prints the key.
+
+If the Grok Bot secret GROK_STUDIO_BRIDGE_KEY is set and the file's key is rejected (401),
+the secret is tried too; when it works, .bridge.json is updated with it (mode 600) and the
+result says "healed". So a stale session file heals itself without a PC command.
 """
+import os
 import argparse
 import json
 import sys
@@ -107,10 +112,36 @@ def with_retry(fn):
     raise last
 
 
+def env_bridge_key():
+    return os.environ.get("GROK_STUDIO_BRIDGE_KEY", "").strip()
+
+
+def save_key(path, key):
+    """Write the working key into the session file (JSON only), keeping mode 600."""
+    try:
+        with open(path, encoding="utf-8-sig") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return False
+    data["api_key"] = key
+    tmp = path + ".tmp"
+    old = os.umask(0o077)
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, path)
+    finally:
+        os.umask(old)
+    return True
+
+
 def fix_for(err):
     e = str(err)
     if "401" in e:
-        return "The bridge rejected the key: its key was rotated or .bridge.json is stale. Run connect-studio (it re-reads the session and updates the connector)."
+        return ("The bridge rejected the key: its key was rotated or .bridge.json is stale. Run connect-studio "
+                "(it re-reads the session and updates the connector). If you know the current key, save it as the "
+                "secret GROK_STUDIO_BRIDGE_KEY and re-run: bridge-check then fixes .bridge.json by itself.")
     if "530" in e or "1033" in e or "ERR_NGROK_3200" in e or "404" in e and "ngrok" in e:
         return "The tunnel is down (the PC is asleep/offline, or the bridge stopped). Run connect-studio: it checks status on the PC and restarts the bridge."
     if "fetch failed" in e or "Name or service" in e or "getaddrinfo" in e:
@@ -152,7 +183,7 @@ def check(args, t0, quiet=False):
         return done(2, {"bridge": "unknown", "error": f"{args.bridge_json} not found", "fix": "Studio was never connected from here: run connect-studio."})
     except (OSError, ValueError) as e:
         return done(2, {"bridge": "unknown", "error": f"cannot read {args.bridge_json}: {e}", "fix": "Run connect-studio."})
-    url, key = b.get("studio_url") or b.get("files_url"), b.get("api_key")
+    url, key = b.get("studio_url") or b.get("files_url"), b.get("api_key") or env_bridge_key()
     if not url or not key:
         return done(2, {"bridge": "unknown", "error": "no studio_url/api_key in the session file", "fix": "Run connect-studio."})
     base = url.rsplit("/", 2)[0]   # https://host/roblox-studio/mcp -> https://host
@@ -165,35 +196,56 @@ def check(args, t0, quiet=False):
         return done(1, out)
     if args.studio:
         studio_url = b.get("studio_url")
-        try:
-            if not studio_url:
-                raise RuntimeError("the bridge was started without Studio (--no-studio)")
-            sid, msgs = with_retry(lambda: request(studio_url, key, {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
-                "protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "grok-studio-bridge-check", "version": "0.2"}}}))
-            request(studio_url, key, {"jsonrpc": "2.0", "method": "notifications/initialized"}, sid)
-            _, msgs = request(studio_url, key, {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
-                                               "params": {"name": "list_roblox_studios", "arguments": {}}}, sid, timeout=30)
-            res = next((m for m in msgs if m.get("id") == 2), {})
-            if "error" in res:
-                raise RuntimeError(res["error"].get("message"))
-            text = "".join(c.get("text", "") for c in res.get("result", {}).get("content", []))
+        keys = [key]
+        if env_bridge_key() and env_bridge_key() != key:
+            keys.append(env_bridge_key())
+        for i, k in enumerate(keys):
             try:
-                places = [s.get("name") for s in json.loads(text).get("studios", [])]
-            except ValueError:
-                places = []
-            out["places"] = places
-            out["studio"] = "ok" if places else "no-places"
-            if not places:
-                out["fix"] = "Studio is reachable but no place is open (or 'Enable Studio as MCP server' is off). Ask the user to open the place."
-            try:  # end the session so its Studio MCP process exits
-                req = urllib.request.Request(studio_url, headers={"Authorization": f"Bearer {key}", "Mcp-Session-Id": sid or ""}, method="DELETE")
-                urllib.request.urlopen(req, timeout=5).close()
-            except Exception:
-                pass
-        except Exception as e:
-            out.update(studio="error", error=str(e), fix=fix_for(e))
+                res = list_places(studio_url, k)
+                out.pop("error", None)
+                out.pop("fix", None)
+                out.update(res)
+                if i > 0:
+                    healed = save_key(args.bridge_json, k)
+                    out["healed"] = ("api_key in .bridge.json replaced by GROK_STUDIO_BRIDGE_KEY" if healed
+                                     else "GROK_STUDIO_BRIDGE_KEY works but .bridge.json could not be updated")
+                break
+            except Exception as e:
+                out.update(studio="error", error=str(e), fix=fix_for(e))
+                if "401" not in str(e):
+                    break
     out["ms"] = int((time.time() - t0) * 1000)
     return done(0 if out.get("studio", "ok") == "ok" else 1, out)
+
+
+def list_places(studio_url, key):
+    """Open an MCP session, call list_roblox_studios (read-only), close it."""
+    if not studio_url:
+        raise RuntimeError("the bridge was started without Studio (--no-studio)")
+    sid, msgs = with_retry(lambda: request(studio_url, key, {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
+        "protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "grok-studio-bridge-check", "version": "0.2"}}}))
+    try:
+        request(studio_url, key, {"jsonrpc": "2.0", "method": "notifications/initialized"}, sid)
+        _, msgs = request(studio_url, key, {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
+                                           "params": {"name": "list_roblox_studios", "arguments": {}}}, sid, timeout=30)
+    finally:
+        try:  # end the session so its Studio MCP process exits
+            req = urllib.request.Request(studio_url, headers={"Authorization": f"Bearer {key}", "Mcp-Session-Id": sid or ""}, method="DELETE")
+            urllib.request.urlopen(req, timeout=5).close()
+        except Exception:
+            pass
+    res = next((m for m in msgs if m.get("id") == 2), {})
+    if "error" in res:
+        raise RuntimeError(res["error"].get("message"))
+    text = "".join(c.get("text", "") for c in res.get("result", {}).get("content", []))
+    try:
+        places = [s.get("name") for s in json.loads(text).get("studios", [])]
+    except ValueError:
+        places = []
+    out = {"places": places, "studio": "ok" if places else "no-places"}
+    if not places:
+        out["fix"] = "Studio is reachable but no place is open (or 'Enable Studio as MCP server' is off). Ask the user to open the place."
+    return out
 
 
 if __name__ == "__main__":
