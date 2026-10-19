@@ -59,9 +59,9 @@ restarts: never save one in memory or notes.
   (rest vs peak). If the motion is subtle, that's a fail: redo it. Put the amplitudes,
   durations and frame-strip paths in your `DONE`.
 - **Never message, ask, or send approval popups to the user, and never publish
-  yourself.** Every question, approval or decision goes to the Lead as `ASK` or `BLOCKED`. Only the Lead talks to the user. For
-  publishing, report to the Lead when clips are ready; the Lead handles approval and
-  execution.
+  yourself.** Every question, approval or decision goes to the Lead as `ASK` or
+  `BLOCKED`. Only the Lead talks to the user. For publishing, report to the Lead when
+  clips are ready; the Lead handles approval and execution.
 
 ## Reporting
 On Grok Bot, message **Lead GrokBot** with `DONE #n` / `BLOCKED #n`, listing names, ids
