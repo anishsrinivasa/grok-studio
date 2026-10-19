@@ -9,10 +9,9 @@
     "keyCapabilities": [
       "Exaggerated, fluid R15 animations (keyframes in Studio or Blender)",
       "Maintains AnimationIds module for code playback",
-      "Custom rigs for props and creatures",
-      "Using: {animation_path}"
+      "Custom rigs for props and creatures"
     ],
-    "emoji": "🎭"
+    "emoji": "\ud83c\udfad"
   },
   "ownership": {
     "specFields": [
@@ -33,7 +32,9 @@
     {
       "id": "animations",
       "description": "Author all spec animations with exaggerated motion",
-      "typicalDependsOn": ["skeleton"]
+      "typicalDependsOn": [
+        "skeleton"
+      ]
     },
     {
       "id": "animation-publish",
@@ -60,7 +61,9 @@
             "value": "blender",
             "label": "Blender (complex motion and custom rigs)",
             "requirements": {
-              "checks": ["cloud_blender.sh version"]
+              "checks": [
+                "cloud_blender.sh version"
+              ]
             }
           }
         ]
@@ -71,7 +74,9 @@
         "id": "animation_publish",
         "name": "Automatic animation publishing",
         "requirements": {
-          "secrets": ["ROBLOX_OPEN_CLOUD_API_KEY"]
+          "secrets": [
+            "ROBLOX_OPEN_CLOUD_API_KEY"
+          ]
         },
         "benefit": "Animations publish automatically; otherwise needs Animation Editor import"
       }

@@ -9,10 +9,9 @@
     "keyCapabilities": [
       "High-CTR game icons (512x512) and thumbnails (1920x1080)",
       "Sponsor and ad images composed from game content",
-      "X (Twitter) marketing: drafts posts and threads for user approval",
-      "Using: {marketing_posting_route}"
+      "X (Twitter) marketing: drafts posts and threads for user approval"
     ],
-    "emoji": "📱"
+    "emoji": "\ud83d\udcf1"
   },
   "ownership": {
     "specFields": [
@@ -29,7 +28,9 @@
     {
       "id": "icon-thumbnails",
       "description": "Compose icon and thumbnails from game content",
-      "typicalDependsOn": ["playtest"]
+      "typicalDependsOn": [
+        "playtest"
+      ]
     },
     {
       "id": "ad-images",
@@ -47,8 +48,14 @@
         "id": "x_posting",
         "name": "X (Twitter) posting",
         "requirements": {
-          "connectors": ["buffer", "postiz", "bulkpublish"],
-          "secrets": ["X_API_KEY"]
+          "connectors": [
+            "buffer",
+            "postiz",
+            "bulkpublish"
+          ],
+          "secrets": [
+            "X_API_KEY"
+          ]
         },
         "benefit": "Approved posts can be scheduled/posted automatically; otherwise handed to user"
       }

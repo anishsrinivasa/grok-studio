@@ -9,10 +9,9 @@
     "keyCapabilities": [
       "Mobile-first ScreenGuis (HUD, menus, shops) with scale-based layout",
       "Figma integration (paid plans with Full seat) or Studio-direct path",
-      "High-CTR game icons and thumbnails",
-      "Using: {ui_path}"
+      "High-CTR game icons and thumbnails"
     ],
-    "emoji": "🎨"
+    "emoji": "\ud83c\udfa8"
   },
   "ownership": {
     "specFields": [
@@ -31,17 +30,24 @@
     {
       "id": "style-guide",
       "description": "Refine ui.styleGuide and plan screens",
-      "typicalDependsOn": ["skeleton"]
+      "typicalDependsOn": [
+        "skeleton"
+      ]
     },
     {
       "id": "ui-build",
       "description": "Build ScreenGuis for all ui.screens[]",
-      "typicalDependsOn": ["skeleton", "style-guide"]
+      "typicalDependsOn": [
+        "skeleton",
+        "style-guide"
+      ]
     },
     {
       "id": "icon-thumbnails",
       "description": "Compose icon and thumbnails from game content",
-      "typicalDependsOn": ["playtest"]
+      "typicalDependsOn": [
+        "playtest"
+      ]
     },
     {
       "id": "ui-fix",
@@ -58,8 +64,12 @@
             "value": "figma",
             "label": "Figma (design frames, rebuild in Studio)",
             "requirements": {
-              "connectors": ["figma"],
-              "checks": ["figma_write_check"]
+              "connectors": [
+                "figma"
+              ],
+              "checks": [
+                "figma_write_check"
+              ]
             }
           },
           {
@@ -99,7 +109,11 @@
       "id": "figma_seat",
       "type": "choice",
       "prompt": "Do you have a Figma Professional/Organization/Enterprise plan with a Full seat?",
-      "options": ["Yes", "No", "Not sure"],
+      "options": [
+        "Yes",
+        "No",
+        "Not sure"
+      ],
       "default": "Not sure",
       "mapsToCapability": "ui_design_path"
     }

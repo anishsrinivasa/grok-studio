@@ -9,10 +9,9 @@
     "keyCapabilities": [
       "Map layout, lighting, terrain, and tagged gameplay parts in Studio",
       "Custom low-poly meshes in headless Blender",
-      "Procedural and generated models (Studio tools)",
-      "Using: {blender_path}"
+      "Procedural and generated models (Studio tools)"
     ],
-    "emoji": "🏗️"
+    "emoji": "\ud83c\udfd7\ufe0f"
   },
   "ownership": {
     "specFields": [
@@ -36,17 +35,24 @@
     {
       "id": "map-build",
       "description": "Map layout, spawn, lighting, tagged gameplay parts",
-      "typicalDependsOn": ["skeleton"]
+      "typicalDependsOn": [
+        "skeleton"
+      ]
     },
     {
       "id": "custom-models",
       "description": "Blender meshes exported and imported into Studio",
-      "typicalDependsOn": ["map-build"]
+      "typicalDependsOn": [
+        "map-build"
+      ]
     },
     {
       "id": "dressing",
       "description": "Detail pass and visual polish",
-      "typicalDependsOn": ["map-build", "custom-models"]
+      "typicalDependsOn": [
+        "map-build",
+        "custom-models"
+      ]
     },
     {
       "id": "asset-fix",
@@ -63,7 +69,9 @@
             "value": "cloud",
             "label": "Cloud Blender (headless, always available)",
             "requirements": {
-              "checks": ["cloud_blender.sh version"]
+              "checks": [
+                "cloud_blender.sh version"
+              ]
             },
             "isFallback": true
           }
