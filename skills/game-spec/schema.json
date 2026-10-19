@@ -286,7 +286,7 @@
           "type": "object",
           "description": "How the build is staffed (see team-protocol).",
           "properties": {
-            "mode": { "enum": ["grok-bots", "subagents", "solo"] },
+            "mode": { "enum": ["grok-bots", "solo"] },
             "bots": { "type": "array", "items": { "type": "string" } }
           }
         },

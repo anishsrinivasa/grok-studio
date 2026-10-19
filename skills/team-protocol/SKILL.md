@@ -7,8 +7,7 @@ description: Shared operating rules for the grok-studio bot team (Lead, Coding, 
 
 Eight specialists share **one Roblox Studio** (on the user's PC, behind the bridge), **one
 cloud computer** (`/workspace`), and **one `game-spec.json`**. These rules keep them from
-breaking each other's work. They apply to Grok Bots (each role is its own Bot) and to
-subagents (Claude Code / Cursor / Grok Build), where "message" means "your final report".
+breaking each other's work. Each role is its own Grok Bot.
 
 | Bot | Grok Bot name | Owns | Main skills |
 |---|---|---|---|
@@ -46,8 +45,7 @@ user saves in Grok Bot reach the shell as environment variables: `ROBLOX_OPEN_CL
 (plus the optional `ROBLOX_CREATOR_USER_ID` / `ROBLOX_CREATOR_GROUP_ID` overrides and
 `GROK_STUDIO_BRIDGE_KEY`). Uploads default to the place owner saved in `.bridge.json`.
 
-Read the slug from `current-game`, then always use absolute paths. Subagents running on
-the user's own PC use `<project>/grok-studio/games/<slug>/` with the same layout.
+Read the slug from `current-game`, then always use absolute paths.
 
 ## 2. Studio ownership - write only your own subtree
 

@@ -60,7 +60,7 @@ Each role in `roles/<id>/manifest.json` declares:
 - Skills used
 - Examples
 
-**Source of truth:** `roles/<id>/agent.md` is canonical. `agents/<id>.md` are now redirect files pointing to the roles.
+**Source of truth:** `roles/<id>/agent.md` is canonical.
 
 ### 5. Validation
 ```bash
@@ -178,7 +178,6 @@ The Lead needs to execute this flow in `skills/setup-bridge/SKILL.md` or a new s
 
 ### Widget Availability
 - **Grok Bot:** Check for question widget, RequestUserForm, masked secret request
-- **Claude Code / Cursor:** Fallback to numbered checklists and input()
 - **Structure:** All logic is in setup/steps.yaml + role manifests, so the Lead just executes the definitions
 
 ---
@@ -199,8 +198,6 @@ roles/<id>/
   manifest.json                 # Role definition (canonical)
   agent.md                      # Agent instructions (canonical)
   example-*.md                  # Examples
-
-agents/<id>.md                  # Redirect files (for compatibility)
 
 skills/setup-bridge/SKILL.md    # Lead executor (needs rewrite to use setup/)
 ```

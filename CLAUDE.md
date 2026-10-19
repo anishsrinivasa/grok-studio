@@ -48,9 +48,6 @@ grok-studio/
 │   ├── welcome-template.md     # Dynamic welcome message
 │   └── setup-config.schema.json
 │
-├── agents/                     # Redirect files (for compatibility)
-│   └── *.md                    # Point to roles/*/agent.md
-│
 ├── bridge/                     # Roblox Studio bridge (runs on user's PC)
 ├── docs/                       # Platform documentation
 │   └── GROKBOT-PLATFORM.md     # What Grok Bot can/cannot do
@@ -257,7 +254,6 @@ framework:RunAll()
 - **Agent instructions:** `roles/<id>/agent.md` (canonical)
 - **Role definition:** `roles/<id>/manifest.json`
 - **Spec schema:** `skills/game-spec/schema.json`
-- **No duplication:** `agents/*.md` are redirects only
 
 ### 4. Team Protocol
 - **Lead** talks to user, orchestrates work

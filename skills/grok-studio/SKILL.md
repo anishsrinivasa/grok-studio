@@ -1,6 +1,6 @@
 ---
 name: grok-studio
-description: Lead playbook for building a complete, playable Roblox game from one prompt with the grok-studio team (Lead, Coding, Designer, Builder, Animator GrokBots, or subagents) - preflight, spec, task plan, parallel dispatch, integration playtests, final gate, marketing, handoff. Use when the user asks to make/build/one-shot a Roblox game or wants an end-to-end Roblox build rather than a single script or asset.
+description: Lead playbook for building a complete, playable Roblox game from one prompt with the grok-studio team (Lead, Coding, Designer, Builder, Animator GrokBots) - preflight, spec, task plan, parallel dispatch, integration playtests, final gate, marketing, handoff. Use when the user asks to make/build/one-shot a Roblox game or wants an end-to-end Roblox build rather than a single script or asset.
 ---
 
 # grok-studio (Lead playbook)
@@ -13,8 +13,6 @@ message formats are defined there and not repeated here.
 **Team modes**
 - **Grok Bot (primary):** the specialists are separate Bots (Coding, Designer, Builder,
   Animator GrokBot) that you message. If they don't exist, run `setup-bridge`.
-- **Subagents** (Claude Code, Grok Build): spawn the `coder`, `designer`, `builder` and
-  `animator` agents with the same `TASK` text. Their final answers are the `DONE` reports.
 - **Solo** (no way to delegate): do the stage skills yourself in this order: code
   skeleton, then UI, assets and animations, then the playtest gate, then marketing.
 

@@ -113,5 +113,3 @@ flowchart LR
   up to 20 calls/month; Full/Dev seats on Professional up to 200/day
   ([rate limits](https://developers.figma.com/docs/figma-mcp-server/rate-limits-access/)).
   On a Starter plan, expect to use the Studio-direct UI path.
-- Figma also ships its own Cursor/Claude plugin with Figma skills; you can use that instead
-  of this entry.
