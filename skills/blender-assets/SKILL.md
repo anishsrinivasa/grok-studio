@@ -106,8 +106,9 @@ print(audit(names=asset_object_names(a)))
 ## The pipeline - every gate must pass before `placed`
 
 A failed gate blocks the next step. Fix the cause and redo from the step that produced it.
-Write the JSON results of steps 7-10 to `reports/<id>_import.json` and summarise them in
-your `DONE` message.
+**Write the JSON results of steps 7-10 to `reports/<id>_import.json`** and summarise them in
+your `DONE` message. **This gate record is MANDATORY.** The validator
+(`scripts/validate-spec-gates.py`) will fail any asset at status `placed` without it.
 
 ### 1. Model with checkpoints and review rounds
 

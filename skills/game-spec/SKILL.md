@@ -73,6 +73,12 @@ skill folder:
 12. **Acceptance tests:** 3-8 concrete, automatable checks phrased as steps + expected
     result, covering the core loop, persistence, and at least one exploit attempt (client
     fires a remote with bad data). The playtest gate runs exactly these.
+    **Tunable targets:** For probabilistic or measurable gameplay stats (spawn rates, hit
+    rates, cooldowns, damage, timers, NPC aggro), specify target values with tolerance
+    (e.g., "NPC hit rate ≤35% ±10%", "spawn protection ≥3s"). Coding implements measured
+    checks against these targets.
+    **New-player grace:** Default 3 seconds spawn protection and NPC aggro grace on fresh
+    spawns unless gameplay explicitly requires instant danger.
 13. Initialize `build` with `stage: "spec"`, `connectors` from preflight, empty
     `checkpoints`.
 

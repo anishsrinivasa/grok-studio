@@ -267,6 +267,43 @@ The client is hostile. Assume every RemoteEvent argument is attacker-controlled.
 - Physics: keep important parts anchored or server-owned (`SetNetworkOwner(nil)`) when
   clients shouldn't be able to move them.
 
+## Tunable measurement and new-player grace (REQUIRED)
+
+**Probabilistic gameplay stats must be measured against spec targets with tolerance.**
+
+**Problem:** A spec says "NPC hit rate ≤35%" but the implemented rate is 61% because spawn
+protection was 1.5 s instead of ≥3 s. The player is spawn-killed repeatedly.
+
+**Solution:**
+1. **Spec declares tunable targets with tolerance** (e.g., "spawn protection ≥3s", "NPC
+   hit rate ≤35% ±10%"). See `game-spec` acceptance tests.
+2. **Coding implements measurement:** For probabilistic stats (hit rates, spawn rates,
+   success rates), add measurement code that samples outcomes over a window and compares
+   with the spec target. Example:
+   ```lua
+   -- In NPC attack service
+   local hitCount, totalShots = 0, 0
+   -- ... on each shot
+   totalShots += 1
+   if hit then hitCount += 1 end
+   
+   -- Measure and warn
+   local measuredRate = hitCount / totalShots
+   local targetRate = 0.35  -- from spec
+   local tolerance = 0.10   -- ±10%
+   if measuredRate > targetRate + tolerance then
+       warn(string.format("[Stats] NPC hit rate %.2f exceeds spec %.2f + %.2f tolerance",
+           measuredRate, targetRate, tolerance))
+   end
+   ```
+3. **New-player grace (default):** An idle player survives the grace period (default 3
+   seconds) without NPC aggro or environmental damage. Spawn protection and NPC aggro grace
+   are distinct tunables; both default to ≥3 s unless gameplay explicitly requires instant
+   danger.
+
+**Playtest check:** AcceptanceFramework verifies tunable conformance and idle survival
+time.
+
 ## Persistence (DataStoreService)
 
 Use `reference/DataService.luau` as the base. Requirements:
