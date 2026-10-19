@@ -72,7 +72,17 @@ Help: https://help.penpot.app/mcp/
    This uploads through `<plugin>/scripts/opencloud_upload.py` (Open Cloud secrets from
    setup), caches by content hash, and writes `images.json` (`{key: "rbxassetid://..."}`).
    Without the Open Cloud key, drop `--upload` and tell the user which files to import.
-4. **Build** with `execute_luau` (datamodel_type `Edit`):
+4. **Build** with `execute_luau` (datamodel_type `Edit`). Let the script assemble the code
+   (it embeds both .luau files, the spec and images.json, and builds + verifies in one call):
+   ```bash
+   python3 CONV/scripts/studio_payload.py games/<slug>/penpot/<Board>.spec.json games/<slug>/penpot/<Board>.build.luau \
+       [--images games/<slug>/penpot/<Board>-images/images.json] [--name <ScreenGui>]
+   ```
+   Pass that file as the `code`. On Grok Bot, `CallDynamicTool` replaces an argument whose
+   whole value is `"$file:/abs/path.luau"` with the file, so nothing is pasted by hand. It
+   returns `{"build": ..., "verify": "PASS (...)", "status": "PASS"|"FAIL", "errors": [...]}`.
+   `--verify-only` re-verifies; `--delete` removes the ScreenGui (only one the builder made).
+   What it generates, for reference:
    ```lua
    local Builder = (function()
    <contents of CONV/PenpotUIBuilder.luau>

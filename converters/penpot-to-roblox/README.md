@@ -11,6 +11,7 @@ src/ -> dist/              TypeScript converter: board JSON -> RobloxUISpec (spe
 PenpotUIBuilder.luau       spec -> ScreenGui (run in Studio via execute_luau)
 PenpotUIVerifier.luau      ScreenGui vs spec -> PASS/FAIL report
 fixtures/                  HUD, menu and shop boards in extract_board.js format
+scripts/studio_payload.py  spec (+ images.json) -> one execute_luau body: build + verify (or --delete)
 ```
 
 `dist/` is committed on purpose: the converter has no runtime dependencies, so agents run
