@@ -27,7 +27,7 @@ break each other's work.
 
 2. **Install the plugin and run setup.** Paste this to any Grok Bot:
    ```
-   Run curl -fsSL https://raw.githubusercontent.com/anishsrinivasa/grok-studio/main/scripts/bootstrap.sh | bash, then run /setup-bridge.
+   Run curl -fsSL https://raw.githubusercontent.com/anishsrinivasa/grok-studio/main/scripts/bootstrap.sh | bash and do what it prints.
    ```
 
 3. **Answer setup's few questions.** `/setup-bridge` does the rest:
