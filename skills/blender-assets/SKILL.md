@@ -29,6 +29,7 @@ through the Blender MCP is an opt-in extra (section "Opt-in: the user's Blender"
 | `apply_manifest.luau` | Studio, `execute_luau` Edit | name, colours, materials, physics, pivot, attributes |
 | `post_import_check.luau` | Studio, `execute_luau` Edit | pass/fail checks, read-only |
 | `capture_booth.luau` | Studio, `execute_luau` Edit | clean shot for the comparison |
+| `fill_luau.py` | cloud shell | fills a .luau script's settings (`MANIFEST_JSON@=<file>`, `MODEL_PATH="..."`) into a ready `execute_luau` file |
 
 `<plugin>/scripts/opencloud_upload.py` uploads, `<plugin>/scripts/send-to-pc.py` copies a file to
 the user's PC (`team-protocol` section 7). `<plugin>` = the folder that holds `skills/`.
@@ -189,7 +190,11 @@ it with `search_game_tree` if unsure. Status `imported`.
 ### 7. Apply the manifest
 
 Send `reference/apply_manifest.luau` through `execute_luau` (Edit) with `MANIFEST_JSON` = the
-manifest file's contents and `MODEL_PATH` = the model (e.g. `"Workspace.<id>"`). It renames
+manifest file's contents and `MODEL_PATH` = the model (e.g. `"Workspace.<id>"`). Don't paste
+by hand: `python3 reference/fill_luau.py reference/apply_manifest.luau /tmp/apply_<id>.luau
+MANIFEST_JSON@=exports/<id>.manifest.json 'MODEL_PATH="Workspace.<id>"'`, then pass
+`"$file:/tmp/apply_<id>.luau"` as the code (Grok Bot's `CallDynamicTool` inlines it). The
+same works for `post_import_check.luau`, `capture_booth.luau` and `capture_pixels.luau`. It renames
 the model to the id, matches each MeshPart to a manifest part (exact name, case-insensitive,
 contained name, then closest size), sets Color / Material / Anchored / CanCollide /
 CollisionFidelity, clears textures that would hide the colour, sets PrimaryPart and a
@@ -223,7 +228,11 @@ matches only with axes swapped means the import came in rotated: check the expor
    `Workspace._GS_CaptureBooth` high above the map, unrotated and shadowless, in front of a
    flat backdrop. It returns `camera_position` / `look_at_position`. If it reports
    `fovMatches: false`, re-render with `fov=<its fieldOfView>`.
-   Set `BOOTH_PARENT` to keep the booth with other test objects.
+   Set `BOOTH_PARENT` to keep the booth with other test objects. **One booth setup per
+   view:** the backdrop is placed behind the model as seen from that view's camera, so
+   for a second view (e.g. `front` after `three_quarter`) run `setup` again with that
+   view's `studio` object. Live, a front capture taken in the three-quarter booth showed
+   sky beside the backdrop and failed (silhouette 0.57); in its own booth it passed (0.98).
 3. `screen_capture` with those two positions and look at it. For the numeric compare you need
    it as a file: if the client can't save it (a Grok Bot subagent got a "Saved ... .jpg" path
    that didn't exist on the box), run `reference/capture_pixels.luau` with the same positions
