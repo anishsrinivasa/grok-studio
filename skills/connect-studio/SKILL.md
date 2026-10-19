@@ -141,6 +141,19 @@ scripts fall back to it when the file's key gets a 401, and `bridge-check.py --s
 writes it back into `.bridge.json` (`"healed"` in its output). A stale session file then
 heals without a PC command.
 
+**One key for every route.** `roblox-studio`, `blender` (if on) and the file drop all use
+the session `api_key` (`.bridge.json`). The optional secret `GROK_STUDIO_BRIDGE_KEY` is
+only the scripts' fallback, and must equal it. After `-RotateKey`:
+1. write the new line to `.bridge.json`
+2. update **both** connectors in place
+3. ask the user to update the secret. To put the key on their clipboard without it
+   appearing in chat, run this on the PC (local execution), then they paste it into the
+   secret prompt:
+   ```
+   powershell -NoProfile -Command "(Get-Content -Raw -LiteralPath (Join-Path $env:USERPROFILE 'grok-studio\bridge\bridge.key')).Trim() | Set-Clipboard"
+   ```
+   macOS: `tr -d '\n' < ~/grok-studio/bridge/bridge.key | pbcopy`
+
 ## Step 3 - The connector (one, shared by every Bot)
 
 Connectors are account-wide: every Bot uses the same `roblox-studio` connector.
@@ -153,10 +166,11 @@ Connectors are account-wide: every Bot uses the same `roblox-studio` connector.
   update one, remove it and add it again with the same name. Never add a second one.
 - **`blender` connector.** Laptop Blender is on only when the session has `blender_url`
   (`-Blender`). Then register or update a `blender` connector at
-  `<public_url>/blender/mcp`, with the key from the `GROK_STUDIO_BRIDGE_KEY` secret, exactly
-  like the Studio one. Off (the default; Blender runs in the cloud): if a `blender`
-  connector exists from an older setup, **remove it**. Its address is dead and every call
-  404s.
+  `<public_url>/blender/mcp`, with the **same key as `roblox-studio`** (the session
+  `api_key`), exactly like the Studio one. Off (the default; Blender runs in the cloud): if a `blender`
+  connector exists from an older setup, remove it. Its address is dead and every call
+  404s. Follow `setup-bridge` Step 3 for the exact match rule and the user's
+  confirmation.
 - The file drop needs no connector.
 
 ## Step 4 - Verify
@@ -274,7 +288,8 @@ whether to remove the `roblox-studio` connector too.
 | Windows: Register-ScheduledTask "Access is denied" | a policy blocks per-user tasks: use `BR start` without the service (runs until logoff) and tell the user |
 
 To rotate the key (e.g. it leaked): `BR restart -RotateKey` (macOS `--rotate-key`), then
-Step 2 and Step 3.
+Step 2 and Step 3 for both connectors, and have the user update the
+`GROK_STUDIO_BRIDGE_KEY` secret (*One key for every route*).
 
 ## Blender on the PC (opt-in)
 

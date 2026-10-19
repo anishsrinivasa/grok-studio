@@ -10,7 +10,7 @@ description: >-
   and reconnects. Use right after installing the plugin, for "setup bridge", "set up grok
   studio", "connect Studio", or when anything in the team stops working.
 user-invocable: true
-argument-hint: "[--no-figma] [--pc-blender]"
+argument-hint: "[--no-figma] [--pc-blender] [--full]"
 ---
 
 # /setup-bridge: from install to ready
@@ -21,6 +21,19 @@ they've done it. Before each step, say in one short line what you're on. Re-runn
 safe: every step checks first and only fixes what is missing.
 
 `<plugin>` = `/workspace/grok-studio/plugin`. `GS` = `/workspace/grok-studio`.
+
+## Reruns: the fast path
+
+`/setup-bridge` is safe to run again, and a rerun should be quick and side-effect free when
+nothing is broken:
+- Steps 1-5 only check, and repair what's missing or stale.
+- `HELLO` goes only to Bots that were created or updated in this run.
+- The readiness gate always runs G1 (read-only pings) and G5 (capture). It runs G2 (Open
+  Cloud upload + insert), G3 (UI build) and G4 (5 s play) only when
+  `python3 <plugin>/scripts/setup_state.py needs-full-gate [--repaired] [--full]` says
+  `"full": true`. That's the case on a first install, after a plugin update, when the last
+  full gate failed, when this run repaired anything (pass `--repaired`), or when the user
+  asked for `--full`.
 
 ## What only the user does
 
@@ -82,6 +95,12 @@ Steps 2-4 run meanwhile:
 B="$GS/plugin/skills/blender-assets/reference/cloud_blender.sh"
 bash "$B" version >/dev/null 2>&1 || nohup bash "$B" install > "$GS/.tools/blender-install.log" 2>&1 &
 ```
+
+**Old studio ids.** Earlier versions saved a studio id, which goes stale every time
+Studio restarts. Remove them on every run (idempotent):
+`python3 <plugin>/scripts/setup_state.py migrate`. It deletes `studio_id` and `studio` from
+`.bridge.json`, and `build.studioId` from every `games/*/game-spec.json`, and prints what it
+removed.
 
 ## Step 2 - Keys (secret prompt only)
 
@@ -155,31 +174,50 @@ assets without anyone setting `ROBLOX_CREATOR_*` (those secrets, if set, still w
 `--pc-blender`: if the user also has Blender open on the PC with the MCP add-on, ask
 `connect-studio` to expose it as the `blender` connector too. Otherwise Blender stays in
 the cloud.
-Without `--pc-blender`, remove any `blender` connector left over from an older setup.
-It points at an address that no longer exists, and Builder's checks would hit 404s.
-Never store the studio id: it changes whenever Studio restarts. Store the place id; every
-task looks the id up with `list_roblox_studios`.
+Without `--pc-blender`, an old `blender` connector is stale: it points at a bridge
+address that no longer exists, and every call 404s. To remove it:
+1. **Find it.** List the account's custom MCP connectors with the same connector tool you
+   use to add or update `roblox-studio` (`connect-studio` Step 3). A candidate's name is
+   `blender`, or ends in `-blender` (the UI may show `user-blender`), **and** its URL ends in
+   `/blender/mcp`. Never touch any other connector.
+2. **Ask the user.** Grok Bot removes a connector only when the user asks for it in their
+   own chat. Say: "I found an old connector `<name>` (<url>) left over from an earlier setup;
+   it no longer works. Reply **remove <name>** and I'll delete it."
+3. **Remove and verify.** After their reply, remove it, then list the connectors again. It
+   must be gone. If it's still listed, report that in the table. If the user declines, keep
+   it and note "stale blender connector kept (Bots ignore it)".
+
+The studio id is never stored (`setup_state.py migrate` removes old ones). Every task looks
+it up with `list_roblox_studios` and the place id.
 
 ## Step 4 - The team
 
 1. **Sidebar section:** if no section named **Grok Studio** exists, ask the user to
    create one (Bots can't), and wait.
-2. **Bots:** create the five below in that section, skipping any that already exist with
-   the same name. Set only the name and the instructions: the text of the listed file
-   without its `---` frontmatter block, copied exactly. If an existing Bot's instructions
-   differ (an older plugin version), ask once whether to update them all. Never delete a
-   Bot.
+2. **Bots.** A Bot's instructions are its **description** field. For each row below:
+   - **Missing:** create it with `CreateAgent`: name = the Name column, description = the
+     output of `python3 <plugin>/scripts/setup_state.py bot-text <role>` (the file without
+     its frontmatter), copied exactly. CreateAgent has no title field.
+   - **Exists:** save its current description to `/tmp/gs-<role>.txt`, then run
+     `python3 <plugin>/scripts/setup_state.py bot-diff <role> /tmp/gs-<role>.txt`.
+     `"same": true` means up to date: whitespace-only differences (line endings, indentation,
+     blank lines) don't count. Leave it alone.
+   - **Different:** collect all the different Bots, ask the user once ("update these Bots'
+     instructions to the current plugin version?"), then set each description to its
+     `bot-text`. Run `bot-diff` again: it must say `same`.
+   - Never delete or rename a Bot.
 
-| Name | Instructions file |
-|---|---|
-| Lead GrokBot | `<plugin>/skills/setup-bridge/lead-bot.md` |
-| Coding GrokBot | `<plugin>/agents/coder.md` |
-| Designer GrokBot | `<plugin>/agents/designer.md` |
-| Builder GrokBot | `<plugin>/agents/builder.md` |
-| Animator GrokBot | `<plugin>/agents/animator.md` |
+| Name | role | Instructions file |
+|---|---|---|
+| Lead GrokBot | `lead` | `<plugin>/skills/setup-bridge/lead-bot.md` |
+| Coding GrokBot | `coder` | `<plugin>/agents/coder.md` |
+| Designer GrokBot | `designer` | `<plugin>/agents/designer.md` |
+| Builder GrokBot | `builder` | `<plugin>/agents/builder.md` |
+| Animator GrokBot | `animator` | `<plugin>/agents/animator.md` |
 
-3. Message each Bot: `[GS] HELLO from setup. Load team-protocol and your role skills, then
-   reply "READY <role>".` Collect the replies while Step 5 runs.
+3. Message only the Bots you created or updated in this run: `[GS] HELLO from setup. Load
+   team-protocol and your role skills, then reply "READY <role>".` Collect the replies while
+   Step 5 runs. Up-to-date Bots are pinged by G1 anyway.
 
 ## Step 5 - Cloud Blender
 
@@ -192,6 +230,13 @@ space. Retry once.
 
 Run every check, even after a failure. For each failure, give the exact fix, retry, and
 only then mark it failed.
+
+**Fast path:** G1 and G5 always run. G2, G3 and G4 have side effects (an asset upload, a UI
+build, a play session), so they run only when `setup_state.py needs-full-gate` says
+`"full": true` (see *Reruns*). After a full gate, record it: `setup_state.py record-gate
+--ok` (or `--fail`). In the table, mark skipped rows "skipped: passed on <date>, nothing
+changed".
+
 
 | # | Check | Who | How |
 |---|---|---|---|

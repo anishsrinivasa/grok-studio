@@ -169,9 +169,10 @@ pings. Report when the task is done or blocked, or when you need something.
         - macOS/Linux: `bash ~/grok-studio/bridge/start-bridge.sh restart --json-output`
      3. If the printed line's `api_key` or `studio_url` differs from `.bridge.json`, write
         the line there (mode 600) and update the `roblox-studio` connector in place.
-        The key is the Grok Bot secret `GROK_STUDIO_BRIDGE_KEY`. Laptop Blender on
-        (`blender_url` in the line): update the `blender` connector the same way. Off:
-        remove any old `blender` connector.
+        Laptop Blender on (`blender_url` in the line): update the `blender` connector the
+        same way, with the same key. If the key changed, tell the Lead: the user must
+        update the `GROK_STUDIO_BRIDGE_KEY` secret (`connect-studio`, *One key for
+        every route*).
      4. Re-check: `python3 <plugin>/scripts/bridge-check.py --studio --wait 30`.
      5. Still failing: send `BLOCKED #n: health <error> <fix>` to the Lead, and don't loop.
         A PC that is asleep or off, or Studio closed, needs the user, and the Lead asks

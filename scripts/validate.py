@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Validate the plugin: JSON files parse, SKILL.md / rules frontmatter are valid, names match.
 
-Usage:  uv run --with pyyaml python scripts/validate.py      (or plain python3 if PyYAML is installed)
+Usage:  python3 scripts/validate.py
+Uses PyYAML when installed (e.g. `uv run --with pyyaml python scripts/validate.py`); without it,
+a small built-in parser reads the frontmatter forms this plugin uses.
 """
 import json
 import pathlib
@@ -10,8 +12,60 @@ import sys
 
 try:
     import yaml
-except ImportError:  # pragma: no cover
-    sys.exit("PyYAML missing: run `uv run --with pyyaml python scripts/validate.py`")
+except ImportError:  # no PyYAML on a clean machine: use the small parser below
+    yaml = None
+
+
+class FrontmatterError(ValueError):
+    pass
+
+
+def _scalar(v):
+    v = v.strip()
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+        return v[1:-1]
+    if v in ("true", "false"):
+        return v == "true"
+    return v
+
+
+def simple_yaml(text):
+    """The subset of YAML our frontmatter uses: `key: value`, quoted values, booleans,
+    folded/literal blocks (`>`, `>-`, `|`, `|-`), `- item` lists and one nested mapping level."""
+    lines = text.split("\n")
+    data, i = {}, 0
+    while i < len(lines):
+        line = lines[i]
+        if not line.strip() or line.lstrip().startswith("#"):
+            i += 1
+            continue
+        if line[0] in " \t":
+            raise FrontmatterError(f"unexpected indentation: {line!r}")
+        if ":" not in line:
+            raise FrontmatterError(f"expected `key: value`: {line!r}")
+        key, rest = line.split(":", 1)
+        key, rest = key.strip(), rest.strip()
+        block = []
+        i += 1
+        while i < len(lines) and (not lines[i].strip() or lines[i][0] in " \t"):
+            block.append(lines[i])
+            i += 1
+        while block and not block[-1].strip():
+            block.pop()
+        if rest in (">", ">-", "|", "|-"):
+            body = [b.strip() for b in block]
+            data[key] = (" ".join(b for b in body if b) if rest.startswith(">") else "\n".join(body))
+        elif rest:
+            if block:
+                raise FrontmatterError(f"{key}: value followed by an indented block")
+            data[key] = _scalar(rest)
+        elif block and all(b.strip().startswith("- ") for b in block if b.strip()):
+            data[key] = [_scalar(b.strip()[2:]) for b in block if b.strip()]
+        elif block:
+            data[key] = simple_yaml("\n".join(b.strip() for b in block))
+        else:
+            data[key] = None
+    return data
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 NAME_RE = re.compile(r"^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$")
@@ -25,8 +79,8 @@ def frontmatter(path):
         errors.append(f"{path}: missing YAML frontmatter")
         return None
     try:
-        data = yaml.safe_load(m.group(1))
-    except yaml.YAMLError as e:
+        data = yaml.safe_load(m.group(1)) if yaml else simple_yaml(m.group(1))
+    except (FrontmatterError, Exception) as e:  # yaml.YAMLError when PyYAML is present
         errors.append(f"{path}: invalid YAML frontmatter: {e}")
         return None
     if not isinstance(data, dict):

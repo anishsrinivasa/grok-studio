@@ -241,7 +241,7 @@ docs don't promise substitution inside `command`. Zero-config wins.
 ## Validate locally
 
 ```bash
-uv run --with pyyaml python scripts/validate.py    # JSON + frontmatter checks
+python3 scripts/validate.py    # JSON + frontmatter checks (PyYAML optional)
 uv run --with jsonschema python -c "import json,jsonschema;jsonschema.validate(json.load(open('skills/game-spec/example.game-spec.json')),json.load(open('skills/game-spec/schema.json')));print('ok')"
 ```
 
