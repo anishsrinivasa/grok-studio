@@ -207,7 +207,7 @@
         "properties": {
           "id": { "type": "string" },
           "name": { "type": "string" },
-          "rig": { "enum": ["R15", "R6", "custom"] },
+          "rig": { "enum": ["R15", "R6", "custom"], "default": "R15", "description": "R15 for characters/avatars by default; R6 only when the game spec or the player explicitly asks for it; custom for non-humanoid rigs (viewmodels, props, creatures)." },
           "source": { "enum": ["blender", "studio-keyframes", "creator-store", "default"] },
           "looped": { "type": "boolean" },
           "priority": { "enum": ["Core", "Idle", "Movement", "Action", "Action2", "Action3", "Action4"] },

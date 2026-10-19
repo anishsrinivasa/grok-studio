@@ -53,7 +53,13 @@ skill folder:
    Scale reference: 1 stud = 28 cm ([Units](https://create.roblox.com/docs/physics/units));
    a default avatar is ~5 studs tall, a door ~4x7 studs.
 10. **Animations:** only list ones the game needs beyond Roblox defaults (walk/run/jump are
-    free). Include rig, loop, priority, trigger.
+    free). Include rig, loop, priority, trigger. **Rig defaults to `"R15"`** for characters
+    and avatars; write `"R6"` only when the user explicitly asks for R6, and `"custom"` for
+    non-humanoid rigs. Set `durationSeconds` from the `roblox-animations` Motion style
+    table (e.g. fire/recoil 0.2-0.35 s, reload 1.5-2.2 s, equip 0.4-0.6 s) and describe
+    the motion as big and readable in `trigger`/`notes`. If gameplay timing differs, the
+    clip is played faster or slower (speed = clip length / gameplay duration), so don't
+    shrink the clip to fit.
 11. **Marketing brief:** icon (512x512, one bold subject, no small text) and 1+ thumbnails
     (1920x1080, 16:9, real gameplay moment) - see `thumbnail-and-icon`.
 12. **Acceptance tests:** 3-8 concrete, automatable checks phrased as steps + expected

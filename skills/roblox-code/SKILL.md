@@ -27,6 +27,34 @@ CollectionService tag in the spec, e.g. `Tags.Coin = "Coin"`), `Server.Main`,
 takes over. UI controllers use Designer's element names exactly. Animations play by name
 through `Shared.AnimationIds`. Never start or stop play yourself; `ASK` the Lead.
 
+## Procedural / tween fallback animation
+
+When you animate something in code instead of (or as a fallback for) an Animator clip
+(an `AnimationIds` entry is missing or `LoadAnimation` fails, a viewmodel kick, a bobbing
+pickup, a door, a camera shake), it must meet the **same exaggerated standard** as
+`roblox-animations` > Motion style (required). Subtle fallback motion reads as broken.
+
+- **Copy the Animator's numbers** when the clip exists (spec `animations[].trigger`/`notes`):
+  same amplitudes, timings and overshoot, so the fallback looks like the clip.
+- **Visible amplitude:** held weapon recoil **15-25 deg pitch up and 0.3-0.6 studs back**;
+  sub-parts (lever, slide, mag) >= 0.25 studs or 20 deg; character limbs move through large
+  arcs (>= 60 deg for actions). Default durations: fire 0.2-0.35 s, reload 1.5-2.2 s, equip
+  0.4-0.6 s, idle sway a 2-4 s loop.
+- **Shape it as keys, not one tween:** chain tweens/springs as anticipation (if allowed) ->
+  fast kick (0.03-0.06 s, `Enum.EasingStyle.Quint`/`Cubic` Out) -> eased return -> overshoot
+  past rest -> settle (`Back` or `Elastic` Out). Lag child parts 0.03-0.1 s behind the
+  parent (follow-through), move on arcs (offset a mid point), add secondary motion (sway,
+  wobble). **Never `Enum.EasingStyle.Linear`** for visible motion.
+- **Per-frame (`RenderStepped`/`BindToRenderStep`) motion:** use a spring or a
+  frame-rate-independent lerp (`1 - math.exp(-k * dt)`) that overshoots and settles, and
+  sum the offsets (recoil + sway + bob) onto the base CFrame, so they don't fight each other.
+- **Timing:** if gameplay needs the action faster or slower, scale the whole sequence's time
+  by `clipLength / gameplayDuration`; don't cut amplitude or skip the overshoot/settle.
+- **Characters are R15** unless the spec says R6: address R15 joints (`UpperTorso`,
+  `RightUpperArm`, ...) by name and don't assume R6 parts (`Torso`, `Right Arm`).
+- In your `DONE`, list the fallback's peak amplitudes and timings so the Lead can check them
+  against the Animator's clip.
+
 ## Canonical layout
 
 ```

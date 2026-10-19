@@ -73,6 +73,17 @@ startedAt, finishedAt, notes}`). Typical first plan:
 Keep tasks small, so one owner can finish each with a clear "done when". Split a big
 area into several tasks rather than one vague one.
 
+**Animation rules for every game (put them in the Animator's and Coding's task text):**
+- Characters/avatars are **R15**. Never plan, assume or suggest R6 unless the spec or the
+  player explicitly asks for R6 (non-humanoid rigs are `custom`).
+- Animations must be **exaggerated and readable at a glance** (`roblox-animations` >
+  Motion style (required)): visible amplitude, anticipation, overshoot and settle, eased
+  curves, follow-through. Coding's procedural/tween fallbacks meet the same bar
+  (`roblox-code` > Procedural / tween fallback animation). Gameplay timing is matched with
+  playback speed (clip length / gameplay duration), not by shrinking the motion.
+- On an Animator `DONE`, check the reported peak amplitudes and frame strip. If first vs
+  peak frame isn't obviously different, send it back as `FIX` ("too subtle").
+
 ## Stage 3 - Dispatch and run
 
 - Send each ready task as `[GS] TASK #n` (team-protocol section 5). Run independent
