@@ -212,7 +212,7 @@ install command.
 3. **Bridge files** go into `<home>`, never into an editor's plugin folder.
    - `<ref>` = the tag `v<version>` (version from `<plugin>/.cursor-plugin/plugin.json`)
      if it exists (`git ls-remote --tags https://github.com/anishsrinivasa/grok-studio.git
-     v<version>` prints a line), else the branch `multi-bot-team`, else `main`. If
+     v<version>` prints a line), else `main`. If
      `/setup-bridge` was told to use a branch, use that one.
    - If git exists (`git --version`) and `<home>` doesn't:
      `git clone --depth 1 --branch <ref> https://github.com/anishsrinivasa/grok-studio.git "<home>"`.

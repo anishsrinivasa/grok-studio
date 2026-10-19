@@ -31,7 +31,7 @@ Also works in **Claude Code / Grok Build / Cursor**: the same roles ship as suba
 
 1. **Install the plugin** - Paste this to any Grok Bot:
    ```
-   Run curl -fsSL https://raw.githubusercontent.com/anishsrinivasa/grok-studio/multi-bot-team/scripts/bootstrap.sh | bash and do what it prints.
+   Run curl -fsSL https://raw.githubusercontent.com/anishsrinivasa/grok-studio/main/scripts/bootstrap.sh | bash and do what it prints.
    ```
    Downloads the plugin into `/workspace/grok-studio/plugin` and links the skills.
 

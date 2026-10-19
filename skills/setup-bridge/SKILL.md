@@ -58,7 +58,7 @@ if [ ! -f "$GS/plugin/skills/setup-bridge/lead-bot.md" ]; then
       -not -path "$GS/*" 2>/dev/null | head -n1 | sed 's#/skills/setup-bridge/lead-bot.md##')
   if [ -n "$SRC_ROOT" ]; then ln -sfn "$SRC_ROOT" "$GS/plugin"
   else
-    for REF in tags/v0.2.0 heads/multi-bot-team heads/main; do
+    for REF in tags/v0.2.0 heads/main; do
       rm -rf "$GS/plugin.tmp" && mkdir -p "$GS/plugin.tmp"
       curl -fsSL "https://github.com/anishsrinivasa/grok-studio/archive/refs/$REF.tar.gz" |
         tar -xz -C "$GS/plugin.tmp" --strip-components=1 2>/dev/null &&
@@ -69,7 +69,7 @@ if [ ! -f "$GS/plugin/skills/setup-bridge/lead-bot.md" ]; then
 fi
 # Re-run: refresh a downloaded copy that is behind the branch (a symlinked or marketplace
 # install is managed elsewhere and left alone; offline = skip).
-REF="${GROK_STUDIO_REF:-multi-bot-team}"; REPO=https://github.com/anishsrinivasa/grok-studio
+REF="${GROK_STUDIO_REF:-main}"; REPO=https://github.com/anishsrinivasa/grok-studio
 if [ -d "$GS/plugin" ] && [ ! -L "$GS/plugin" ]; then
   REMOTE=$(timeout 20 git ls-remote "$REPO.git" "refs/heads/$REF" 2>/dev/null | cut -f1)
   LOCAL=$(git -C "$GS/plugin" rev-parse HEAD 2>/dev/null || cat "$GS/plugin/.gs-commit" 2>/dev/null)
