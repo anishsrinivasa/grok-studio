@@ -23,11 +23,10 @@ while [ "$CURRENT_PID" != "1" ]; do
 done
 
 if [ -z "$EXEC_DAEMON_PID" ]; then
-    echo "[Heal] ⚠️  Could not find exec-daemon parent. Killing all mcp-remote processes as fallback..."
-    pkill -f mcp-remote || true
-    sleep 2
-    echo "[Heal] ✓ Fallback complete. MCP will restart on next tool call."
-    exit 0
+    # Never fall back to killing every mcp-remote: the computer is shared by all Bots.
+    echo "[Heal] Could not find this bot's exec-daemon parent; left every MCP session alone."
+    echo "[Heal] Continue with the next Heal step (bridge-check, then restart the bridge)."
+    exit 2
 fi
 
 echo "[Heal] Found exec-daemon PID: $EXEC_DAEMON_PID"

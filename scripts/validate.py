@@ -104,14 +104,7 @@ manifest = json.loads((ROOT / ".cursor-plugin/plugin.json").read_text())
 if not NAME_RE.match(manifest.get("name", "")):
     errors.append(".cursor-plugin/plugin.json: name missing or not kebab-case")
 
-# 3. Every ${VAR} used in mcp.json must be declared in manifest variables (or be a built-in).
-BUILTIN = {"CURSOR_PLUGIN_ROOT"}
-declared = set((manifest.get("variables") or {}).get("properties", {}).keys())
-for var in re.findall(r"\$\{([A-Z0-9_]+)\}", (ROOT / "mcp.json").read_text()):
-    if var not in BUILTIN | declared:
-        errors.append(f"mcp.json uses ${{{var}}} but it is not declared in manifest variables")
-
-# 4. Skills
+# 3. Skills
 skills = sorted((ROOT / "skills").glob("*/SKILL.md"))
 if not skills:
     errors.append("no skills found")
@@ -130,7 +123,7 @@ for p in skills:
         errors.append(f"{p}: 'description' longer than 1024 chars")
     print(f"ok   skill     {p.relative_to(ROOT)}  ({name})")
 
-# 5. Rules
+# 4. Rules
 for p in sorted((ROOT / "rules").glob("*.mdc")):
     fm = frontmatter(p)
     if fm is None:

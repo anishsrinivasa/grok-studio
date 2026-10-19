@@ -298,7 +298,7 @@
             "required": ["id", "owner", "title", "status"],
             "properties": {
               "id": { "type": "integer" },
-              "owner": { "enum": ["lead", "coder", "designer", "builder", "animator"] },
+              "owner": { "enum": ["lead", "coder", "designer", "builder", "animator", "vfx", "sfx", "marketing"] },
               "title": { "type": "string" },
               "specRefs": { "type": "array", "items": { "type": "string" } },
               "dependsOn": { "type": "array", "items": { "type": "integer" } },

@@ -38,15 +38,10 @@ grok-studio/
 │
 ├── scripts/                    # Automation and validation
 │   ├── roles.py                # Role discovery and validation
-│   ├── setup.py                # Setup resolver
-│   ├── selftest.py             # Headless testing
+│   ├── setup_state.py          # /setup-bridge helpers (bot-list, bot-text, gate state)
+│   ├── validate.py             # Plugin structure check
 │   ├── validate-spec-gates.py  # Artifact validator
 │   └── heal-mcp-session.sh     # MCP session repair
-│
-├── setup/                      # Setup flow definitions
-│   ├── steps.yaml              # Declarative setup flow
-│   ├── welcome-template.md     # Dynamic welcome message
-│   └── setup-config.schema.json
 │
 ├── bridge/                     # Roblox Studio bridge (runs on user's PC)
 ├── docs/                       # Platform documentation
@@ -54,8 +49,6 @@ grok-studio/
 │
 ├── README.md                   # User-facing quick start
 ├── CONTRIBUTING.md             # Add custom roles + "Lessons to Rules"
-├── SETUP_SYSTEM.md             # Setup architecture
-├── HOW_TO_TEST.md              # End-to-end testing guide
 └── CLAUDE.md                   # This file
 ```
 
@@ -138,7 +131,7 @@ uv run scripts/roles.py validate
 
 ### 5. Test Integration
 ```bash
-uv run scripts/setup.py --self-check
+python3 scripts/setup_state.py bot-list   # your role is listed
 ```
 
 ---
@@ -150,11 +143,8 @@ uv run scripts/setup.py --self-check
 # Validate all roles
 uv run scripts/roles.py validate
 
-# Test setup resolver
-uv run scripts/setup.py --self-check
-
-# Run complete selftest (has-figma, no-figma)
-uv run scripts/selftest.py
+# Plugin structure (manifest, skills, frontmatter, JSON)
+python3 scripts/validate.py
 
 # Validate example spec
 python3 -c "import json,jsonschema; jsonschema.validate(json.load(open('skills/game-spec/example.game-spec.json')), json.load(open('skills/game-spec/schema.json'))); print('✓ valid')"
@@ -213,9 +203,8 @@ All should exit 0 on success.
 - `CONTRIBUTING.md` - Complete role creation guide
 
 ### For Setup Flow
-- `setup/steps.yaml` - Declarative setup definitions
-- `scripts/setup.py` - Resolver (detection + answers → resolution)
-- `setup/welcome-template.md` - Dynamic welcome message
+- `skills/setup-bridge/SKILL.md` - The one setup command (Steps 1-7, readiness gate)
+- `scripts/setup_state.py` - Bot list/instructions, stale-id cleanup, gate state
 
 ### For Playtest Fixes
 - `skills/roblox-code/reference/GuardedAnimationLoader.luau` - Asset loading
@@ -224,9 +213,8 @@ All should exit 0 on success.
 - `scripts/heal-mcp-session.sh` - MCP session healing
 
 ### For Testing
-- `scripts/selftest.py` - Headless simulation with fixtures
-- `HOW_TO_TEST.md` - End-to-end testing from plugin install
-- `VERIFICATION_REPORT.md` - Implementation verification
+- `scripts/validate.py`, `scripts/roles.py validate` - Structure and role checks
+- `skills/blender-assets/reference/tests/` - Blender pipeline tests (`cloud_blender.sh run`)
 
 ---
 
@@ -282,10 +270,9 @@ See **[docs/GROKBOT-PLATFORM.md](docs/GROKBOT-PLATFORM.md)** for complete list.
 4. **Note:** Skills don't appear instantly (platform refresh delay)
 
 ### Extend Setup Flow
-1. Edit `setup/steps.yaml` (add check, step, or question)
-2. Update role manifest if adding capability
-3. Test: `uv run scripts/setup.py --self-check`
-4. Run: `uv run scripts/selftest.py`
+1. Edit `skills/setup-bridge/SKILL.md` (steps and readiness gate)
+2. Put deterministic logic in `scripts/setup_state.py` (stdlib only)
+3. Test: `python3 scripts/validate.py`, then run `/setup-bridge` on a Grok Bot
 
 ### Add Acceptance Check
 1. Add check function to `AcceptanceFramework.luau`
@@ -314,22 +301,18 @@ python3 -c "import json,jsonschema; jsonschema.validate(json.load(open('roles/<r
 # 1. Validate all roles
 uv run scripts/roles.py validate
 
-# 2. Test setup resolver
-uv run scripts/setup.py --self-check
+# 2. Plugin structure
+python3 scripts/validate.py
 
-# 3. Run selftest (both scenarios)
-uv run scripts/selftest.py
-
-# 4. Validate example spec
+# 3. Validate example spec
 python3 -c "import json,jsonschema; jsonschema.validate(json.load(open('skills/game-spec/example.game-spec.json')), json.load(open('skills/game-spec/schema.json'))); print('✓')"
 ```
 
 ### End-to-End (Optional)
-See **[HOW_TO_TEST.md](HOW_TO_TEST.md)** for complete guide:
-1. Install plugin via bootstrap.sh
-2. Setup Studio with MCP
-3. Message Lead: "Hi! Let's set up grok-studio."
-4. Verify welcome message shows all 8 bots
+Follow the README's *Install and Run* on a Grok Bot account:
+1. Open Studio with a place (Team Create on, Studio as MCP server)
+2. Run the bootstrap, then `/setup-bridge`
+3. Verify the ready table lists every Bot and all checks pass
 
 ---
 
@@ -339,8 +322,6 @@ See **[HOW_TO_TEST.md](HOW_TO_TEST.md)** for complete guide:
 - **[README.md](README.md)** - User quick start
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** - Add roles, "Lessons to Rules"
 - **[docs/GROKBOT-PLATFORM.md](docs/GROKBOT-PLATFORM.md)** - Platform capabilities
-- **[HOW_TO_TEST.md](HOW_TO_TEST.md)** - Testing guide
-- **[SETUP_SYSTEM.md](SETUP_SYSTEM.md)** - Setup architecture
 
 ### Key References
 - **Role manifest schema:** `roles/role-manifest.schema.json`
@@ -364,13 +345,12 @@ Look at existing roles (`roles/vfx/`, `roles/sfx/`, `roles/marketing/`) for exam
 - `roles/<id>/manifest.json` - Role definition
 - `roles/<id>/agent.md` - Agent instructions
 - `skills/<name>/SKILL.md` - Skill documentation
-- `setup/steps.yaml` - Setup flow
+- `skills/setup-bridge/SKILL.md` - Setup flow
 
 ### Commands You'll Run Most
 ```bash
 uv run scripts/roles.py validate     # After role changes
-uv run scripts/setup.py --self-check # After setup changes
-uv run scripts/selftest.py           # Full integration test
+python3 scripts/validate.py          # After any change
 ```
 
 ### Files You'll Read Most
@@ -391,6 +371,6 @@ uv run scripts/selftest.py           # Full integration test
 6. Validate **before committing** (all scripts should pass)
 7. Single source of truth: **`roles/<id>/agent.md`**
 
-**Start here:** [CONTRIBUTING.md](CONTRIBUTING.md) → Add a role → Test with validators → See it in selftest welcome message
+**Start here:** [CONTRIBUTING.md](CONTRIBUTING.md) → Add a role → Test with validators → Run `/setup-bridge`: your role gets its own Bot
 
 **Questions?** Read [docs/GROKBOT-PLATFORM.md](docs/GROKBOT-PLATFORM.md) to understand what Grok Bot can and cannot do.

@@ -67,12 +67,12 @@ It prints one JSON line, and transient failures are already retried with backoff
 Any Bot may run this one repair. Everything else on the PC stays with the Lead.
 
 **⚠️ MANDATORY: Before declaring `BLOCKED` on any Studio tool failure, ALWAYS run
-`bash /workspace/scripts/heal-mcp-session.sh`.** This restarts only this bot's own MCP
+`bash /workspace/grok-studio/plugin/scripts/heal-mcp-session.sh`.** This restarts only this bot's own MCP
 sessions (kills only the caller's exec-daemon children, never other bots' processes).
 Tunnel blips and auth token refreshes leave dead session IDs; RestartMcpServers doesn't
 fix it because that restarts the server but not stale client sessions.
 
-1. Run `bash /workspace/scripts/heal-mcp-session.sh`.
+1. Run `bash /workspace/grok-studio/plugin/scripts/heal-mcp-session.sh`.
 2. Re-run Step 0: `python3 <plugin>/scripts/bridge-check.py --studio`.
 3. Still `down`: restart the bridge on the PC. This is local execution, so the user approves
    it like any PC command.

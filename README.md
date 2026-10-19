@@ -1,6 +1,6 @@
 # grok-studio
 
-**An agentic Roblox studio inside Grok Bot.** Install the plugin, call the Lead, and setup starts automatically. You get a team of eight Grok Bots that build a complete Roblox game in *your* Roblox Studio from one prompt:
+**An agentic Roblox studio inside Grok Bot.** Install the plugin, run `/setup-bridge`, and describe your game to the Lead. You get a team of eight Grok Bots that build a complete Roblox game in *your* Roblox Studio from one prompt:
 
 | Bot | Does |
 |---|---|
@@ -21,29 +21,28 @@ break each other's work.
 
 ## Install and Run
 
-**Quick start (3 steps):**
+1. **Open Roblox Studio** on your PC: sign in, open or create a place, turn on **Team Create**
+   (Home > Collaborate), and enable **Assistant > ... > Manage MCP Servers > Enable Studio as
+   MCP server**.
 
-1. **Install the plugin** - Paste this to any Grok Bot:
+2. **Install the plugin and run setup.** Paste this to any Grok Bot:
    ```
-   Run curl -fsSL https://raw.githubusercontent.com/anishsrinivasa/grok-studio/main/scripts/bootstrap.sh | bash and do what it prints.
+   Run curl -fsSL https://raw.githubusercontent.com/anishsrinivasa/grok-studio/main/scripts/bootstrap.sh | bash, then run /setup-bridge.
    ```
-   Downloads the plugin into `/workspace/grok-studio/plugin` and links the skills.
 
-2. **Install Roblox Studio** - Sign in, open or create a place, turn on **Team Create**, and enable **Assistant > ... > Manage MCP Servers > Enable Studio as MCP server**.
+3. **Answer setup's few questions.** `/setup-bridge` does the rest:
+   - installs the bridge on your PC as a background service (you approve the PC commands)
+   - asks for keys in Grok Bot's secret prompt, never in chat: an ngrok authtoken and static
+     domain, plus an optional Roblox Open Cloud API key for automatic model uploads
+   - creates the team, one Bot per folder in `roles/` (eight by default), in a sidebar
+     section named **Grok Studio** (create the section when asked; Bots can't)
+   - installs headless Blender on the cloud computer
+   - runs a readiness check (every Bot reaches Studio, a model round trip, a UI build, a
+     5-second playtest) and shows a pass/fail table
 
-3. **Call the Lead** - Message **Lead GrokBot** (it's created automatically):
-   ```
-   Hi! Let's set up grok-studio.
-   ```
-   
-   **Setup starts automatically.** It will:
-   - Auto-detect Studio, bridge, Blender, API keys
-   - Show you templated step cards for any missing requirements
-   - Ask capability questions (Figma seat type, X posting route, animation planning)
-   - Collect upfront approvals (upload models, publish animations)
-   - Generate a dynamic welcome message listing every active bot (with full vs fallback capabilities) and any disabled bots with requirements
+   Running `/setup-bridge` again is safe and quick: it only repairs what's missing.
 
-**Then describe your game:**
+**Then describe your game to Lead GrokBot:**
 > Make a co-op tycoon where players run a volcano-powered hot sauce factory. Conveyor
 > droppers make sauce bottles, players collect cash, buy upgrades and unlock a second
 > floor. Low-poly cartoon style, mobile-friendly UI, no monetization. Save progress.
@@ -78,35 +77,35 @@ flowchart LR
   upload (automatic, if you add a key) or one **Import 3D** click per batch, with the file
   already dropped on your PC.
 
-## Connector setup reference
+## What setup connects
 
-### 1. Roblox Studio MCP (required)
-- Built into Studio; local **stdio** process. Official configs
-  ([docs](https://create.roblox.com/docs/studio/mcp)):
-  - Windows: `cmd.exe /c %LOCALAPPDATA%\Roblox\mcp.bat`
-  - macOS: `/Applications/RobloxStudio.app/Contents/MacOS/StudioMCP`
+### Roblox Studio (required)
+- Studio's built-in MCP server runs on your PC
+  ([docs](https://create.roblox.com/docs/studio/mcp)): `%LOCALAPPDATA%\Roblox\mcp.bat` on
+  Windows, `/Applications/RobloxStudio.app/Contents/MacOS/StudioMCP` on macOS. The bridge
+  ([`bridge/`](bridge/README.md)) serves it to the Bots as one `roblox-studio` connector.
 - Tools used: `list_roblox_studios`, `script_read`, `multi_edit`, `script_search`,
   `script_grep`, `execute_luau`, `search_game_tree`, `inspect_instance`, `search_asset`,
   `insert_asset`, `generate_mesh`, `generate_material`, `generate_procedural_model`,
   `get_studio_state`, `start_stop_play`, `get_console_output`, `screen_capture`,
   `character_navigation`, `user_keyboard_input`, `user_mouse_input`, `subagent`, `skill`.
-  Every call takes a `studio_id`.
+  Every call takes a `studio_id`, which changes whenever Studio restarts, so every task
+  looks it up with `list_roblox_studios`.
 
-### 2. Blender MCP (optional, recommended)
-- `uvx mcp-for-blender` (PyPI package formerly `blender-mcp`; `uvx blender-mcp` still
-  works) - [github.com/ahujasid/mcp-for-blender](https://github.com/ahujasid/mcp-for-blender).
-- Add-on: `uvx mcp-for-blender setup` or `uvx mcp-for-blender install-addon`, then enable
-  **Interface: MCP for Blender** in Preferences > Add-ons.
-- This plugin sets `BLENDER_MCP_SAFE_MODE=1`: scripts that touch arbitrary files, the
-  network, or spawn processes are blocked; modeling, materials, rendering, saving, and
-  import/export still work.
-- **Alternative:** Blender's official [Blender Lab MCP server](https://www.blender.org/lab/mcp-server/)
-  (Blender 5.1+, add-on from the Blender Lab repository). Its tool set differs; the
-  `blender-assets` skill is written against mcp-for-blender but the bpy code it sends is
-  portable. Blender Lab warns that it runs LLM-generated code without guards.
+### Blender
+- **Default:** headless Blender on the cloud computer
+  (`skills/blender-assets/reference/cloud_blender.sh`), installed by setup. Nothing to
+  install on your PC.
+- **Optional, on your PC** (`/setup-bridge --pc-blender`): the bridge also serves
+  [MCP for Blender](https://github.com/ahujasid/mcp-for-blender) (add-on:
+  `uvx mcp-for-blender setup`) with `BLENDER_MCP_SAFE_MODE=1`: scripts that touch
+  arbitrary files, the network, or spawn processes are blocked; modeling, materials,
+  rendering, saving, and import/export still work.
 
-### 3. Figma MCP (optional)
-- Remote server `https://mcp.figma.com/mcp`, OAuth on first use
+### UI design (optional)
+- Without a design tool, Designer GrokBot builds the UI directly in Studio.
+- **Penpot** (free, open source): `skills/penpot-ui`.
+- **Figma:** remote MCP server `https://mcp.figma.com/mcp`, OAuth on first use
   ([docs](https://developers.figma.com/docs/figma-mcp-server/remote-server-installation/)).
 - Canvas writes (`use_figma`) are documented for Professional, Education, Organization and
   Enterprise plans (beta, free during beta). Read tools are rate-limited: View/Collab seats

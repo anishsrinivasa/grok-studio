@@ -1,6 +1,6 @@
 ---
 name: grok-studio
-description: Lead playbook for building a complete, playable Roblox game from one prompt with the grok-studio team (Lead, Coding, Designer, Builder, Animator GrokBots) - preflight, spec, task plan, parallel dispatch, integration playtests, final gate, marketing, handoff. Use when the user asks to make/build/one-shot a Roblox game or wants an end-to-end Roblox build rather than a single script or asset.
+description: Lead playbook for building a complete, playable Roblox game from one prompt with the grok-studio team (Lead, Coding, Designer, Builder, Animator, VFX, SFX and Marketing GrokBots) - preflight, spec, task plan, parallel dispatch, integration playtests, final gate, marketing, handoff. Use when the user asks to make/build/one-shot a Roblox game or wants an end-to-end Roblox build rather than a single script or asset.
 ---
 
 # grok-studio (Lead playbook)
@@ -12,9 +12,11 @@ message formats are defined there and not repeated here.
 
 **Team modes**
 - **Grok Bot (primary):** the specialists are separate Bots (Coding, Designer, Builder,
-  Animator GrokBot) that you message. If they don't exist, run `setup-bridge`.
+  Animator, VFX, SFX and Marketing GrokBot) that you message. If they don't exist, run
+  `setup-bridge`.
 - **Solo** (no way to delegate): do the stage skills yourself in this order: code
-  skeleton, then UI, assets and animations, then the playtest gate, then marketing.
+  skeleton, then UI, assets, animations, VFX and audio, then the playtest gate, then
+  marketing.
 
 ## Stage 0 - Preflight
 
@@ -62,14 +64,22 @@ startedAt, finishedAt, notes}`). Typical first plan:
 | 2 | Builder | map + spawn + tagged gameplay parts (blockout first) | 1 (tag names) |
 | 3 | Designer | style guide + every screen, element names reported | 1 |
 | 4 | Animator | every spec animation, ids in `AnimationIds` | 1 |
-| 5 | Coding | mechanics services + persistence | 1 |
-| 6 | Builder | custom models and dressing (Blender/Studio) | 2 |
-| 7 | Coding | UI controllers + animation playback | 3, 4, 5 |
-| 8 | Lead | integration playtest | 2, 5, 7 |
-| 9 | Designer | icon + thumbnails | 8 |
+| 5 | VFX | every `vfx[]` effect as a template, trigger API reported | 1 |
+| 6 | SFX | every `audio[]` sound sourced, SoundGroups, trigger API reported | 1 |
+| 7 | Coding | mechanics services + persistence | 1 |
+| 8 | Builder | custom models and dressing (Blender/Studio) | 2 |
+| 9 | Coding | UI controllers, animation playback, VFX and SFX triggers | 3, 4, 5, 6, 7 |
+| 10 | Lead | integration playtest | 2, 7, 9 |
+| 11 | Marketing | icon + thumbnails from playtest captures | 10 |
 
 Keep tasks small, so one owner can finish each with a clear "done when". Split a big
 area into several tasks rather than one vague one.
+
+**Missing specialist:** if a specialist Bot doesn't exist or never answers `HELLO`, give
+its tasks to a stand-in and say so in the task's `notes`: VFX -> Builder (`roblox-vfx`),
+SFX -> Coding (`roblox-audio`), Marketing -> you at Stage 6 (`thumbnail-and-icon`). The
+stand-in owns that role's subtrees and spec parts for those tasks only. Coding, Designer,
+Builder and Animator have no stand-in: run `setup-bridge`.
 
 **Animation rules for every game (put them in the Animator's and Coding's task text):**
 - Characters/avatars are **R15**. Never plan, assume or suggest R6 unless the spec or the
@@ -91,7 +101,7 @@ needs a code fallback.
 ## Stage 3 - Dispatch and run
 
 - Send each ready task as `[GS] TASK #n` (team-protocol section 5). Run independent
-  tasks **in parallel**: after task 1, tasks 2-5 can all run at once.
+  tasks **in parallel**: after task 1, tasks 2-7 can all run at once.
 - On `DONE #n`: check the claim (spec statuses updated, paths exist via
   `search_game_tree`/`inspect_instance`, a quick Edit-mode `screen_capture` when it's
   visual). Then mark the task done, set `finishedAt`, and dispatch whatever it unblocked.
@@ -143,8 +153,9 @@ give the user the report with the remaining failures. Do not claim success.
 
 ## Stage 6 - Marketing and handoff
 
-Send Designer the icon and thumbnail task with your best playtest captures. Then tell the
-user:
+Send Marketing GrokBot the icon and thumbnail task with your best playtest captures. After
+the user publishes, Marketing can draft X posts (`marketing-social`); they post nothing
+without the user's yes. Then tell the user:
 - title, pitch and what was built (scripts, screens, assets, animations)
 - files (`game-spec.json`, `marketing/*`, reports)
 - the playtest summary and per-task timings (from `build.tasks[]` `startedAt`/`finishedAt`)

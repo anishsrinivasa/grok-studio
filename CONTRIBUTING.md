@@ -37,7 +37,7 @@ Create `roles/<role-id>/manifest.json` following the schema at
   "display": {
     "keyCapabilities": [
       "2-4 concise capability statements",
-      "for the welcome message"
+      "describing the role"
     ]
   },
   "ownership": {
@@ -76,15 +76,15 @@ Create `roles/<role-id>/manifest.json` following the schema at
 **Key sections:**
 
 - **`role`**: ID, display name, and one-sentence description
-- **`display.keyCapabilities`**: 2-4 bullet points for the welcome message
+- **`display.keyCapabilities`**: 2-4 bullet points describing the role
 - **`ownership`**: Which spec fields, Studio subtrees, and files this role owns (see
   `skills/team-protocol/SKILL.md` for the ownership rules)
 - **`taskTypes`**: Task types this role handles, for automatic planning and routing
 - **`capabilities`**: Required and optional integrations (connectors, secrets, checks).
-  Setup resolves these and shows what's available.
+  The Lead reads them to know when to fall back.
 - **`skills`**: Skills this role uses (`ownership: "owned"` means you maintain it;
   `"shared"` means it's used by multiple roles)
-- **`setupQuestions`**: Questions this role contributes to the guided setup (optional)
+- **`setupQuestions`**: Questions the Lead may ask the user for this role (optional)
 
 ### Step 3: Write the Agent Instructions
 
@@ -126,8 +126,7 @@ restarts: never save one in memory or notes.
 
 ## Reporting
 On Grok Bot, message **Lead GrokBot** with `DONE #n` / `BLOCKED #n`, listing what changed,
-and send `ASK #n` messages to the owner Bot. As a subagent, put the same blocks in your
-final answer.
+and send `ASK #n` messages to the owner Bot.
 ```
 
 Follow the template from existing roles (`roles/coder/agent.md`, `roles/vfx/agent.md`).
@@ -167,7 +166,8 @@ Fix any errors before committing.
 ### Step 8: Test
 
 1. Run `/setup-bridge` in a test session
-2. Verify your role appears in the welcome message
+2. Verify setup created your role's Bot (`python3 scripts/setup_state.py bot-list`, and
+   the ready table) and that it answered `READY <role>`
 3. Test a typical task: the Lead should route it to your role
 4. Verify your role's DONE report format and team-protocol compliance
 
@@ -202,11 +202,10 @@ VFX was added in v0.3.0 without touching any core files.
   overlaps
 - **Follow team protocol**: ownership rules, locks, message formats, escalation (never
   contact the user)
-- **Dynamic discovery**: the Lead and setup discover roles from manifests, so your role
-  appears automatically
+- **Dynamic discovery**: setup creates a Bot for every folder in `roles/`. Also add your
+  task types to the Lead's plan in `skills/grok-studio/SKILL.md` so it gets work
 - **Capability resolution**: use `capabilities.required` and `capabilities.optional` to
-  declare what your role needs (connectors, secrets). Setup resolves them and shows the
-  fallback.
+  declare what your role needs (connectors, secrets) and the fallback when it's missing.
 - **Test with existing specs**: ensure your role doesn't break the example spec
   (`skills/game-spec/example.game-spec.json`)
 
@@ -243,7 +242,7 @@ This approach turns debugging into lasting process improvements.
 | **3. Attachments to rigs break** | Everything attached to or held by a character must be checked against the rig. Tools, accessories, welded props, mounts, and vehicles must have correct orientation, anchor point, and scale on an R15 rig, verified automatically. | Builder self-check: Attach on dummy R15 rig, verify orientation/position/scale, screenshot. Playtest: `AcceptanceFramework` verifies every declared tool, accessory, and attached object on a test rig. | `skills/roblox-building/SKILL.md` (rig attachments section), `roles/builder/agent.md` |
 | **4. DONE claims lack proof** | Every DONE claim must be backed by machine-checkable artifacts. Each role's DONE must pass a validator that checks its declared outputs exist and are complete for every item in its task, not only assets (e.g., `reports/<id>_import.json` for assets at `placed`, `assetId` for animations at `published`, `config` for VFX at `verified`, script tests for code). | Pre-DONE validator: `scripts/validate-spec-gates.py` checks every terminal status has required artifacts. Fails if missing. Each role defines what artifacts it produces. | `scripts/validate-spec-gates.py`, `skills/blender-assets/SKILL.md` |
 | **5. Gameplay doesn't match design** | Spec numbers must match runtime, and the game must be fair to a new player. The spec declares measurable targets for every gameplay tunable (rates, chances, damage, cooldowns, timers, economy rates) with tolerance. Coding implements measured checks. The spec includes a genre-neutral new-player-experience check: a freshly joined player, idle and acting normally (not exploiting, not AFK), isn't killed, stuck, softlocked, or overwhelmed within a spec-defined grace window (genre-specific, e.g., 5s for action, 30s for puzzles), and can reach the core loop. No hardcoded defaults; declare grace window and fairness criteria explicitly. | Coding: Implement measurement code for every tunable. Playtest: `AcceptanceFramework` verifies measured values match spec targets within tolerance, and new-player fairness check passes (idle survival, core loop reachability). | `skills/game-spec/SKILL.md`, `skills/roblox-code/SKILL.md` (tunable measurement section) |
-| **6. MCP sessions go stale** | Before declaring `BLOCKED` on any Studio tool failure, always run `bash /workspace/scripts/heal-mcp-session.sh`. Gateway restarts, tunnel blips, and auth token refreshes drop open MCP sessions. The heal script kills only the calling bot's exec-daemon children (process hierarchy isolation), never other bots' processes. Mandatory step. | Any bot self-check: Run heal script before escalating Studio errors. | `scripts/heal-mcp-session.sh`, `skills/connect-studio/SKILL.md` (Heal section mandatory step), `skills/team-protocol/SKILL.md` (section 7a) |
+| **6. MCP sessions go stale** | Before declaring `BLOCKED` on any Studio tool failure, always run `bash /workspace/grok-studio/plugin/scripts/heal-mcp-session.sh`. Gateway restarts, tunnel blips, and auth token refreshes drop open MCP sessions. The heal script kills only the calling bot's exec-daemon children (process hierarchy isolation), never other bots' processes. Mandatory step. | Any bot self-check: Run heal script before escalating Studio errors. | `scripts/heal-mcp-session.sh`, `skills/connect-studio/SKILL.md` (Heal section mandatory step), `skills/team-protocol/SKILL.md` (section 7a) |
 | **7. Coordination messages lost** | The coordinator itself always sends coordination messages, never delegates to helpers without messaging tools. For playtest-loop, the Lead itself always sends `[GS] PLAY ON` and `[GS] PLAY OFF` (even on failure), never delegates to helpers. | Lead self-check: Never delegate coordination messages. Always send both messages directly, even on error paths. | `skills/playtest-loop/SKILL.md` (team mode section) |
 
 ### How to Apply This Pattern

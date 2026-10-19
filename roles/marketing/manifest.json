@@ -67,7 +67,7 @@
   "skills": [
     {
       "path": "skills/thumbnail-and-icon",
-      "ownership": "shared"
+      "ownership": "owned"
     },
     {
       "path": "skills/marketing-social",

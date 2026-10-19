@@ -5,7 +5,7 @@ description: Shared operating rules for the grok-studio bot team (Lead, Coding, 
 
 # Team protocol
 
-Eight specialists share **one Roblox Studio** (on the user's PC, behind the bridge), **one
+Eight Bots share **one Roblox Studio** (on the user's PC, behind the bridge), **one
 cloud computer** (`/workspace`), and **one `game-spec.json`**. These rules keep them from
 breaking each other's work. Each role is its own Grok Bot.
 
@@ -55,9 +55,9 @@ Everyone may **read** anything. You **write** (create, edit, destroy, reparent) 
 |---|---|
 | Coding | `ServerScriptService`, `ReplicatedStorage.Shared` (except `AnimationIds`), `StarterPlayer` |
 | Designer | `StarterGui`, `ReplicatedStorage.Assets.UI` |
-| Builder | `Workspace` (map, spawn, tagged gameplay parts), `Lighting`, `Terrain`, `ReplicatedStorage.Assets.Models`, `ServerStorage.Templates` |
+| Builder | `Workspace` (map, spawn, tagged gameplay parts), `Lighting` (properties, Atmosphere, Sky), `Terrain`, `ReplicatedStorage.Assets.Models`, `ServerStorage.Templates` |
 | Animator | `ReplicatedStorage.Shared.AnimationIds` (ModuleScript: name -> `rbxassetid://`), `ReplicatedStorage.Assets.Rigs`, `ServerStorage.RBX_ANIMSAVES` |
-| VFX | `ReplicatedStorage.Assets.VFX` (ParticleEmitters, Beams, Trails as templates) |
+| VFX | `ReplicatedStorage.Assets.VFX` (ParticleEmitters, Beams, Trails as templates), transient `Lighting` post-effects (Bloom, ColorCorrection, Blur) |
 | SFX | `SoundService` (sounds, SoundGroups), `ReplicatedStorage.Assets.Audio` |
 | Marketing | (no Studio ownership; works in external tools and files) |
 | Lead | `ServerStorage.GameSpec` (spec mirror), play mode, nothing else |
@@ -83,14 +83,17 @@ Never pick a different place on your own.
 
 | Owner | Writes these parts of `game-spec.json` |
 |---|---|
-| Lead | `meta`, `pitch`, `coreLoop`, `mechanics`, `progression`, `monetization`, `world`, `acceptanceTests`, `build` (except your own task entries) |
+| Lead | `meta`, `pitch`, `coreLoop`, `mechanics`, `progression`, `monetization`, `world`, `acceptanceTests`, `build` (except your own task entries), `marketing.description` |
 | Coding | `scripts[]`, `remotes[]`, `dataModel` |
 | Designer | `ui` |
 | Builder | `assets` |
 | Animator | `animations[]` |
 | VFX | `vfx[]` |
 | SFX | `audio[]` |
-| Marketing | `marketing` (icon, thumbnails, socialMedia) |
+| Marketing | `marketing.icon`, `marketing.thumbnails`, `marketing.socialMedia` |
+
+If a role's Bot doesn't exist, the Lead gives its tasks to a stand-in (`grok-studio`
+Stage 2), who owns that role's subtrees and spec parts for those tasks only.
 
 Anyone may update **their own** entry in `build.tasks[]` (status, notes). If you think
 something outside your parts is wrong, `ASK` the Lead. Never rewrite the whole file from
@@ -210,7 +213,7 @@ drop. Its session details are in `/workspace/grok-studio/.bridge.json`, written 
 ## 7a. MCP session healing
 
 **⚠️ MANDATORY: Before declaring `BLOCKED` on any Studio tool failure, ALWAYS run
-`bash /workspace/scripts/heal-mcp-session.sh`.** A gateway restart, tunnel blip, or auth
+`bash /workspace/grok-studio/plugin/scripts/heal-mcp-session.sh`.** A gateway restart, tunnel blip, or auth
 token refresh drops open MCP sessions. If a Studio call suddenly fails with "session not
 found", "No valid session ID", or a 404, this is a transient error. The heal script
 restarts **only the calling bot's own MCP sessions** (kills only the caller's exec-daemon
@@ -236,7 +239,7 @@ a message, never copy it anywhere else. It stops working when the user stops the
 
 ## 8. Escalation
 
-**Specialists (Coding, Designer, Builder, Animator) never message the user, never send
+**Specialists (every Bot except the Lead) never message the user, never send
 question widgets or approval popups to the user, and never ask the user for anything.**
 Every question, approval request, and decision must go to the Lead as `ASK` or `BLOCKED`.
 Only the Lead talks to the user.

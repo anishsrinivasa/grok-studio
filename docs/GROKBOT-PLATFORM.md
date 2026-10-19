@@ -272,17 +272,7 @@ Submit button
 - **Fallback:** Plain numbered checklist when widgets unavailable
 
 ✅ **User-only steps as templated cards:**
-```yaml
-# From setup/steps.yaml
-- id: install_studio
-  type: manual
-  title: "Install Roblox Studio"
-  steps:
-    - Download from roblox.com
-    - Sign in
-    - Open or create a place
-  confirmPrompt: "Studio installed and place open?"
-```
+See *What only the user does* in `skills/setup-bridge/SKILL.md`.
 
 ### Team Coordination
 ✅ **All user contact through Lead:**

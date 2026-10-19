@@ -27,7 +27,7 @@
         "description": {
           "type": "string",
           "maxLength": 200,
-          "description": "One-sentence role summary for the welcome message."
+          "description": "One-sentence role summary."
         }
       }
     },
@@ -41,7 +41,7 @@
           "items": { "type": "string", "maxLength": 80 },
           "minItems": 2,
           "maxItems": 4,
-          "description": "2-4 concise capability statements for the welcome message."
+          "description": "2-4 concise capability statements describing the role."
         },
         "emoji": {
           "type": "string",

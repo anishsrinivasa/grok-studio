@@ -3,13 +3,12 @@
   "role": {
     "id": "designer",
     "name": "Designer GrokBot",
-    "description": "Builds mobile-ready UI in Studio and creates game icons and thumbnails."
+    "description": "Builds mobile-ready UI in Studio (HUD, menus, shops, prompts)."
   },
   "display": {
     "keyCapabilities": [
       "Mobile-first ScreenGuis (HUD, menus, shops) with scale-based layout",
-      "Figma integration (paid plans with Full seat) or Studio-direct path",
-      "High-CTR game icons and thumbnails"
+      "Figma integration (paid plans with Full seat) or Studio-direct path"
     ],
     "emoji": "\ud83c\udfa8"
   },
@@ -22,7 +21,6 @@
       "ReplicatedStorage.Assets.UI"
     ],
     "files": [
-      "marketing/",
       "renders/ui/"
     ]
   },
@@ -40,13 +38,6 @@
       "typicalDependsOn": [
         "skeleton",
         "style-guide"
-      ]
-    },
-    {
-      "id": "icon-thumbnails",
-      "description": "Compose icon and thumbnails from game content",
-      "typicalDependsOn": [
-        "playtest"
       ]
     },
     {
@@ -89,10 +80,6 @@
   "skills": [
     {
       "path": "skills/roblox-ui",
-      "ownership": "owned"
-    },
-    {
-      "path": "skills/thumbnail-and-icon",
       "ownership": "owned"
     },
     {

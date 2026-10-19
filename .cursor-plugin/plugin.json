@@ -2,7 +2,7 @@
   "name": "grok-studio",
   "displayName": "Grok Studio",
   "version": "0.2.0",
-  "description": "An agentic Roblox studio for Grok Bot: a Lead bot runs Designer (UI), Animator, Builder (Studio + Blender) and Coding bots that build a complete game from one prompt in your Roblox Studio - spec, Luau code, mobile UI, maps and models, animations, an automated playtest-and-fix loop, icon and thumbnails. One setup command creates the team and connects Studio, Blender and Figma.",
+  "description": "An agentic Roblox studio for Grok Bot: a Lead bot runs Coding, Designer (UI), Builder (Studio + Blender), Animator, VFX, SFX and Marketing bots that build a complete game from one prompt in your Roblox Studio - spec, Luau code, mobile UI, maps and models, animations, effects, sound, an automated playtest-and-fix loop, icon, thumbnails and launch posts. One setup command creates the team and connects Studio and Blender.",
   "author": {
     "name": "Anish Srinivasan"
   },

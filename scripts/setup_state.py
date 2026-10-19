@@ -9,7 +9,7 @@ Runs on the Grok Bot cloud computer. Every command prints one JSON line.
                                restart; only the place id is kept.
   bot-list                     List every Bot to create (one per roles/<id>/, name from its manifest).
   bot-text <role>              Print the instructions a Bot should have (its file without the
-                               --- frontmatter). role: lead | coder | designer | builder | animator
+                               --- frontmatter). role: a folder under roles/ (see bot-list)
   bot-diff <role> <file>       Compare a Bot's current instructions (its description, saved to
                                <file>) with the expected text. Whitespace-only differences
                                (line endings, indentation, blank lines, trailing spaces) do NOT
@@ -17,7 +17,7 @@ Runs on the Grok Bot cloud computer. Every command prints one JSON line.
   needs-full-gate [--full] [--repaired]
                                Should this run do the full readiness gate (G2 asset upload,
                                G3 UI build, G4 playtest)? Yes on the first install, when the
-                               plugin's skills/agents changed since the last full pass, when
+                               plugin's skills/roles changed since the last full pass, when
                                the last full gate failed, when --repaired (setup fixed
                                something this run) or --full.
   record-gate --ok|--fail      Remember the result of a full gate for this plugin content.
@@ -41,7 +41,7 @@ STATE = os.path.join(GS, ".setup-state.json")
 BRIDGE = os.path.join(GS, ".bridge.json")
 
 def _discover_roles():
-    """Every role folder under roles/ becomes a Bot. Lead keeps its bot prompt file."""
+    """Every role folder under roles/ (with a manifest.json) becomes a Bot."""
     files, names = {}, {}
     rdir = os.path.join(PLUGIN, "roles")
     for rid in sorted(os.listdir(rdir)) if os.path.isdir(rdir) else []:
@@ -52,7 +52,7 @@ def _discover_roles():
             names[rid] = json.load(open(man, encoding="utf-8"))["role"]["name"]
         except Exception:
             names[rid] = rid
-        files[rid] = "skills/setup-bridge/lead-bot.md" if rid == "lead" else f"roles/{rid}/agent.md"
+        files[rid] = f"roles/{rid}/agent.md"
     return files, names
 
 
@@ -103,8 +103,8 @@ def expected_text(role):
 
 def plugin_content_hash():
     files = sorted(glob.glob(os.path.join(PLUGIN, "skills", "*", "SKILL.md"))
-                   + glob.glob(os.path.join(PLUGIN, "agents", "*.md"))
-                   + [os.path.join(PLUGIN, ROLE_FILES["lead"])])
+                   + glob.glob(os.path.join(PLUGIN, "roles", "*", "agent.md"))
+                   + glob.glob(os.path.join(PLUGIN, "roles", "*", "manifest.json")))
     h = hashlib.sha256()
     for p in files:
         h.update(os.path.relpath(p, PLUGIN).replace("\\", "/").encode())
@@ -173,7 +173,7 @@ def cmd_needs_full_gate(args):
     if not st.get("last_full_gate_at"):
         reasons.append("no full gate has passed yet")
     elif st.get("plugin_content") != content:
-        reasons.append("plugin skills/agents changed since the last full gate")
+        reasons.append("plugin skills/roles changed since the last full gate")
     elif not st.get("last_full_gate_ok"):
         reasons.append("the last full gate failed")
     out({"full": bool(reasons), "reasons": reasons, "plugin_content": content,

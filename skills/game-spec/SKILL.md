@@ -1,6 +1,6 @@
 ---
 name: game-spec
-description: Turns a one-line Roblox game idea into a complete, validated game-spec.json (genre, core loop, mechanics, progression, scripts with services and locations, remotes, UI screens, asset list with style guide and triangle budgets, animations, thumbnail/icon brief, acceptance tests). Use at the start of any Roblox build, or when the user wants a game design document for Roblox.
+description: Turns a one-line Roblox game idea into a complete, validated game-spec.json (genre, core loop, mechanics, progression, scripts with services and locations, remotes, UI screens, asset list with style guide and triangle budgets, animations, VFX, audio, thumbnail/icon brief, acceptance tests). Use at the start of any Roblox build, or when the user wants a game design document for Roblox.
 ---
 
 # Game spec
@@ -68,9 +68,20 @@ skill folder:
     big and readable in `trigger`/`notes`. If gameplay timing differs, the clip is played
     faster or slower (speed = clip length / gameplay duration), so don't shrink the clip
     to fit.
-11. **Marketing brief:** icon (512x512, one bold subject, no small text) and 1+ thumbnails
-    (1920x1080, 16:9, real gameplay moment) - see `thumbnail-and-icon`.
-12. **Acceptance tests:** 3-8 concrete, automatable checks phrased as steps + expected
+11. **VFX** (`vfx[]`, built by VFX GrokBot): every effect that gives feedback or mood -
+    pickups, hits, abilities, explosions, ambient embers or fog, a damage flash. Each entry:
+    `id`, `name`, `type` (`particle`, `beam`, `trail`, `screen-effect`, `lighting`),
+    `trigger` (the gameplay event), `authority` (`client` for cosmetic effects, `server`
+    only when everyone must see it in sync, else `shared`) and `status: "planned"`; add
+    `location` and `duration` (seconds) when known. Typical games have 5-12.
+12. **Audio** (`audio[]`, sourced by SFX GrokBot): one entry per sound - UI clicks,
+    pickups, hits, abilities, ambience, music. Each entry: `id`, `purpose`, `source`
+    (`creator-store`, or `none` for a deliberate silence) and `status: "planned"`. Leave
+    `assetId` out; SFX fills it in. Typical games have 6-15.
+13. **Marketing brief:** icon (512x512, one bold subject, no small text), 1+ thumbnails
+    (1920x1080, 16:9, real gameplay moment) and a store `description` (up to 1000
+    characters) - see `thumbnail-and-icon`. Marketing GrokBot makes the images.
+14. **Acceptance tests:** 3-8 concrete, automatable checks phrased as steps + expected
     result, covering the core loop, persistence, and at least one exploit attempt (client
     fires a remote with bad data). The playtest gate runs exactly these.
     **Spec numbers must match runtime:** Declare measurable targets for every gameplay
@@ -83,7 +94,7 @@ skill folder:
     seconds for action games, 30 seconds for puzzles), and can reach the core loop. No
     hardcoded defaults; these are examples only — declare the grace window and fairness
     criteria in acceptance tests.
-13. Initialize `build` with `stage: "spec"`, `connectors` from preflight, empty
+15. Initialize `build` with `stage: "spec"`, `connectors` from preflight, empty
     `checkpoints`.
 
 ## Validate

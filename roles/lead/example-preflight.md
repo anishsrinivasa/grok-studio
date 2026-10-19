@@ -12,7 +12,7 @@ This example shows how Lead GrokBot handles the preflight stage and writes the i
 ## Preflight
 
 1. **Studio check**: `list_roblox_studios` → one Studio open, place "HotSauceTycoon", placeId 123456789
-2. **Team check**: all five Bots respond READY
+2. **Team check**: every Bot from `bot-list` (8) responds READY
 3. **Workspace**: create `/workspace/grok-studio/games/hot-sauce-tycoon/`
 4. **Connectors**: cloud Blender ✓, Figma auth ✗ (free seat), Open Cloud key ✓
 5. **Gated approvals**: user approves automatic uploads and publishing

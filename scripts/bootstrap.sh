@@ -55,5 +55,7 @@ cat <<EOF
 [grok-studio] Next:
   1. If /setup-bridge is not in your skills list yet, import each SKILL.md above as a
      skill with the same name (skills are shared by all your Bots, so once is enough).
-  2. Run /setup-bridge.
+  2. Make sure Roblox Studio is open on the user's PC with their place (Team Create on,
+     Assistant > Manage MCP Servers > Enable Studio as MCP server).
+  3. Run /setup-bridge. It creates the team of Bots and connects everything.
 EOF

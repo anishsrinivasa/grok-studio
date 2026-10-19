@@ -3,8 +3,8 @@ name: setup-bridge
 description: >-
   The one command that takes a fresh grok-studio install on Grok Bot to a working team.
   Loads the skills, collects keys through the secret prompt, installs cloud Blender,
-  connects the user's Roblox Studio through a persistent bridge, creates the Lead, Coding,
-  Designer, Builder and Animator GrokBots, then runs a readiness gate (every Bot reaches
+  connects the user's Roblox Studio through a persistent bridge, creates one GrokBot per
+  role (Lead, Coding, Designer, Builder, Animator, VFX, SFX, Marketing), then runs a readiness gate (every Bot reaches
   Studio and Blender, a Blender-to-Studio model round trip, a Luau play test, screen
   capture). It only says ready when the gate passes. Safe to re-run: it checks, repairs
   and reconnects. Use right after installing the plugin, for "setup bridge", "set up grok
@@ -52,17 +52,17 @@ Ask for these only when a step needs them, and only if they aren't already done:
 
 ```bash
 GS=/workspace/grok-studio; mkdir -p "$GS/games" "$GS/.tools"
-if [ ! -f "$GS/plugin/skills/setup-bridge/lead-bot.md" ]; then
+if [ ! -f "$GS/plugin/roles/lead/agent.md" ]; then
   SRC_ROOT=""   # fill in: the folder this SKILL.md was loaded from, two levels up, if you know it
-  [ -z "$SRC_ROOT" ] && SRC_ROOT=$(timeout 60 find / -xdev -path '*/skills/setup-bridge/lead-bot.md' \
-      -not -path "$GS/*" 2>/dev/null | head -n1 | sed 's#/skills/setup-bridge/lead-bot.md##')
+  [ -z "$SRC_ROOT" ] && SRC_ROOT=$(timeout 60 find / -xdev -path '*/roles/lead/agent.md' \
+      -not -path "$GS/*" 2>/dev/null | head -n1 | sed 's#/roles/lead/agent.md##')
   if [ -n "$SRC_ROOT" ]; then ln -sfn "$SRC_ROOT" "$GS/plugin"
   else
     for REF in tags/v0.2.0 heads/main; do
       rm -rf "$GS/plugin.tmp" && mkdir -p "$GS/plugin.tmp"
       curl -fsSL "https://github.com/anishsrinivasa/grok-studio/archive/refs/$REF.tar.gz" |
         tar -xz -C "$GS/plugin.tmp" --strip-components=1 2>/dev/null &&
-        [ -f "$GS/plugin.tmp/skills/setup-bridge/lead-bot.md" ] && break
+        [ -f "$GS/plugin.tmp/roles/lead/agent.md" ] && break
     done
     rm -rf "$GS/plugin" && mv "$GS/plugin.tmp" "$GS/plugin"
   fi
@@ -236,7 +236,7 @@ changed".
 
 | # | Check | Who | How |
 |---|---|---|---|
-| G1 | Every Bot reaches the same Studio place and Blender | all five | `[GS] TASK ping`: `list_roblox_studios`, then `get_studio_state` with the id of the entry for `place_id` from `.bridge.json`, and `cloud_blender.sh version`. Reply `DONE ping <place> <state> <blender version>`. All replies must name the same place. |
+| G1 | Every Bot reaches the same Studio place and Blender | every Bot from `bot-list` | `[GS] TASK ping`: `list_roblox_studios`, then `get_studio_state` with the id of the entry for `place_id` from `.bridge.json`, and `cloud_blender.sh version`. Reply `DONE ping <place> <state> <blender version>`. All replies must name the same place. |
 | G2 | Blender -> Studio round trip | Builder | `[GS] TASK smoke-model`, `R=<plugin>/skills/blender-assets/reference`, files in `GS/.smoke/`: (1) `cloud_blender.sh run $R/smoke_test.py` (2-material mesh: split by colour, audit, FBX + manifest, plus the three-quarter compare render; its result has `compare.camera_json` and `compare.backdrop`). (2) `python3 <plugin>/scripts/opencloud_upload.py upload GS/.smoke/gs_smoke.fbx --name GrokStudioSmoke` (goes to the place owner, waits, prints `assetId`). (3) `insert_asset` (`assetName` `gs_smoke`). (4) `python3 $R/fill_luau.py` fills `apply_manifest.luau` and `post_import_check.luau` (`MANIFEST_JSON@=GS/.smoke/gs_smoke.manifest.json`, `MODEL_PATH=...`) and `capture_booth.luau` (`CAMERA_JSON@=<camera_json>`, `BACKDROP`, `MODE`); run each with `execute_luau` (`"$file:<out>"`). Apply must say `ok`, the check must `pass` (no overlay Parts; save it to `reports/smoke_import.json`). (5) Booth `setup`, `capture_pixels.luau` (filled with the booth's `camera_position` / `look_at_position`, MCP `write_to_file`), `decode_capture.py`, then `cloud_blender.sh run $R/smoke_test.py -- --capture <png>` must `pass`; look at both images too. Booth `cleanup` always. Then **delete the test model from the place**. *Skipped* without an Open Cloud key. Live, Oct 18 2026: silhouette 0.977, palette 0.993. |
 | G3 | UI builds and passes its check | Designer | `[GS] TASK smoke-ui`: build the test screen with `<plugin>/converters/penpot-to-roblox/PenpotUIBuilder.luau` from `<plugin>/converters/penpot-to-roblox/fixtures/smoke-ui.spec.json`, with `{ parent = StarterGui, name = "GrokStudioSmokeUI" }`. Then `PenpotUIVerifier.verify` must return PASS, followed by an Edit-mode `screen_capture` (title + Play/Shop/Quit). Generate the call instead of wrapping by hand: `python3 <plugin>/converters/penpot-to-roblox/scripts/studio_payload.py <plugin>/converters/penpot-to-roblox/fixtures/smoke-ui.spec.json /workspace/grok-studio/.smoke/smoke_ui.luau --name GrokStudioSmokeUI` writes one `execute_luau` body that builds and verifies (returns `"status": "PASS"`); the same with `--delete` writes the cleanup, which deletes `StarterGui.GrokStudioSmokeUI` only if it has the `PenpotBoardId` attribute. If Penpot is connected, Designer may build from a Penpot board instead (`penpot-ui` loop). Live result, Oct 2026: 9 elements, PASS with 123 checks. |
 | G4 | Luau + 5 s play, clean console | Coding writes, setup plays | Coding creates `ServerScriptService.GrokStudioSmoke` (a Script with attribute `BuiltBy = "grok-studio-setup"` that prints `GROK_STUDIO_SMOKE_OK`). Check `get_studio_state` first: never start play while the user is playing. Then take the `studio-play` lock, tell the user "running a 5-second test play", start play, and wait 5 s (`execute_luau` Server: `task.wait(5)`). Read `get_console_output` (MCP `write_to_file`), stop play, release the lock, then classify it: `python3 <plugin>/scripts/console_classify.py <file> --marker GROK_STUDIO_SMOKE_OK` (rules below; exit 0 = pass). Coding deletes the script, only if the attribute matches. |
@@ -275,7 +275,7 @@ Then show the user one table. Every row is **pass**, **fail: <fix>** or **skippe
 
 | | Studio | Blender | Notes |
 |---|---|---|---|
-| Lead / Coding / Designer / Builder / Animator GrokBot | pass | pass | |
+| One row per Bot from `bot-list` (8 by default) | pass | pass | |
 | Connector `roblox-studio` | pass | | "<place name>", Team Create on |
 | Bridge service | pass | | static URL, survives restarts |
 | Cloud Blender | | pass | version, render engine |

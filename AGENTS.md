@@ -24,8 +24,7 @@ This repository is designed for development by Claude and other AI coding assist
 ## Additional Resources
 
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** - Complete guide to adding custom roles, "Lessons to Rules" section
-- **[HOW_TO_TEST.md](HOW_TO_TEST.md)** - End-to-end testing from plugin install to Lead invocation
-- **[README.md](README.md)** - User-facing quick start (8 bots, setup flow, capabilities)
+- **[README.md](README.md)** - User-facing quick start (install, `/setup-bridge`, the 8 Bots)
 
 ---
 
@@ -33,4 +32,4 @@ This repository is designed for development by Claude and other AI coding assist
 - Role schema: [`roles/role-manifest.schema.json`](roles/role-manifest.schema.json)
 - Spec schema: [`skills/game-spec/schema.json`](skills/game-spec/schema.json)
 - Team protocol: [`skills/team-protocol/SKILL.md`](skills/team-protocol/SKILL.md)
-- Validation: [`scripts/roles.py`](scripts/roles.py), [`scripts/selftest.py`](scripts/selftest.py)
+- Validation: [`scripts/validate.py`](scripts/validate.py), [`scripts/roles.py`](scripts/roles.py)
