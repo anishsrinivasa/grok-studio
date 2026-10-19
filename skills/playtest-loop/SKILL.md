@@ -50,7 +50,11 @@ verify its claims with your own state checks). Every call needs `studio_id`.
 1. `start_stop_play` (start). Wait ~3-5 s (use `get_studio_state` until it reports play).
 2. `get_console_output`: any red error (stack traces, "attempt to index nil",
    "Infinite yield possible") is a failure. Infinite-yield warnings are failures if they
-   reference your own instances.
+   reference your own instances. Save the output to a file (MCP `write_to_file`) and run
+   `python3 <plugin>/scripts/console_classify.py <file> [--marker <a line your scripts
+   print>]`: it drops Roblox/CorePackages/plugin noise and lists fail / warn / expected
+   lines. For a `ContentId ... failed` warning, `<plugin>/scripts/find_asset_refs.luau`
+   tells whether the place references that id at all.
 3. Server snapshot via `execute_luau` (`Server`):
    ```lua
    local out = {}

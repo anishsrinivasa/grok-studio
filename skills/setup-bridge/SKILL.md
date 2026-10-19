@@ -179,11 +179,12 @@ only then mark it failed.
 | G1 | Every Bot reaches the same Studio place and Blender | all five | `[GS] TASK ping`: `get_studio_state` with `studio_id` from `.bridge.json`, and `cloud_blender.sh version`. Reply `DONE ping <place> <state> <blender version>`. All replies must name the same place. |
 | G2 | Blender -> Studio round trip | Builder | `[GS] TASK smoke-model`: `cloud_blender.sh run <plugin>/skills/blender-assets/reference/smoke_test.py` (a 2-material mesh: split by colour, audit, FBX + manifest), then `python3 <plugin>/scripts/opencloud_upload.py upload <fbx> --name GrokStudioSmoke` (waits for processing, prints the asset id), `insert_asset`, `apply_manifest.luau`, `post_import_check.luau` (must pass, no overlay Parts; result saved to `reports/smoke_import.json`), and a `screen_capture` compared with the Blender render. If the capture can't be saved as a file, compare by eye and say so. Then **delete the test model from the place**. *Skipped* without an Open Cloud key. |
 | G3 | UI builds and passes its check | Designer | `[GS] TASK smoke-ui`: build the test screen with `<plugin>/converters/penpot-to-roblox/PenpotUIBuilder.luau` from `<plugin>/converters/penpot-to-roblox/fixtures/smoke-ui.spec.json`, with `{ parent = StarterGui, name = "GrokStudioSmokeUI" }`. Then `PenpotUIVerifier.verify` must return PASS, followed by an Edit-mode `screen_capture` (title + Play/Shop/Quit). Wrap both files as `penpot-ui` step 4 shows. Then delete `StarterGui.GrokStudioSmokeUI`, only if it has the `PenpotBoardId` attribute. If Penpot is connected, Designer may build from a Penpot board instead (`penpot-ui` loop). Live result, Oct 2026: 9 elements, PASS with 123 checks. |
-| G4 | Luau + 5 s play, clean console | Coding writes, setup plays | Coding creates `ServerScriptService.GrokStudioSmoke` (a Script with attribute `BuiltBy = "grok-studio-setup"` that prints `GROK_STUDIO_SMOKE_OK`). Check `get_studio_state` first: never start play while the user is playing. Then take the `studio-play` lock, tell the user "running a 5-second test play", start play, and wait 5 s (`execute_luau` Server: `task.wait(5)`). Read `get_console_output` and classify it (below), stop play, release the lock. Coding deletes the script, only if the attribute matches. |
+| G4 | Luau + 5 s play, clean console | Coding writes, setup plays | Coding creates `ServerScriptService.GrokStudioSmoke` (a Script with attribute `BuiltBy = "grok-studio-setup"` that prints `GROK_STUDIO_SMOKE_OK`). Check `get_studio_state` first: never start play while the user is playing. Then take the `studio-play` lock, tell the user "running a 5-second test play", start play, and wait 5 s (`execute_luau` Server: `task.wait(5)`). Read `get_console_output` (MCP `write_to_file`), stop play, release the lock, then classify it: `python3 <plugin>/scripts/console_classify.py <file> --marker GROK_STUDIO_SMOKE_OK` (rules below; exit 0 = pass). Coding deletes the script, only if the attribute matches. |
 | G5 | Screen capture | you | `screen_capture` returns an image. Look at it: it should show the place. |
 
-**Reading the G4 console.** Studio's log mixes in lines that aren't the game's. Classify
-every line:
+**Reading the G4 console.** Studio's log mixes in lines that aren't the game's.
+`console_classify.py` applies these rules the same way every time (use it rather than
+reading by eye; also for `playtest-loop`):
 - **Required:** a `GROK_STUDIO_SMOKE_OK` line. Missing = fail (the script didn't run).
 - **Ignore (not the game):**
   - `[Roblox]...` and `CorePackages...` lines, plus their stack-trace lines (e.g. UIBlox
@@ -193,12 +194,15 @@ every line:
 - **Expected:** `DataStoreService: StudioAccessToApisNotAllowed` and the game's own "persistence
   disabled" notes. Mention once that DataStores need Game Settings > Security > Enable Studio
   Access to API Services.
-- **Fail:** a stack trace or error from the place's scripts (`ServerScriptService.`,
-  `ReplicatedStorage.`, `StarterPlayer.`, `Workspace.`, `Script '...', Line n`, `attempt
-  to ...`, `Infinite yield possible`).
-- **Warn (list it, don't fail):** other game-side problems, e.g. `ContentId: rbxassetid://...
-  failed due to: Asset type does not match requested type`. That's a wrong asset type in
-  the place.
+- **Fail:** a stack trace or error from the place's scripts (a `ServerScriptService.X:12`
+  / `Workspace.Y:3 function f` trace line, `Script '...', Line n`, `attempt to ...`,
+  `Infinite yield possible`). A plain log line that only mentions a path (`[LionService]
+  Registered Workspace.Map.Lion`) is not a failure.
+- **Warn (list it, don't fail):** other problems, e.g. `ContentId: rbxassetid://<id>
+  failed due to: Asset type does not match requested type`. Don't assume it's the place:
+  run `<plugin>/scripts/find_asset_refs.luau` (set `ASSET_ID`; Edit, and Server/Client
+  during play). No hits = a Studio plugin or Roblox loads it, not the game (live, Oct
+  2026: 203785492, an Audio asset, not referenced anywhere in the place).
 
 "Clean console" means: marker present, zero fail lines. List the warnings in the table
 notes. A pre-existing place's own warnings are not setup's fault.
