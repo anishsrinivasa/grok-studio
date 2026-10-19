@@ -46,13 +46,15 @@ restarts: never save one in memory or notes.
 - Check the `studio-play` lock before every Studio write. Never start or stop play.
 - After building, take an Edit-mode `screen_capture` from a useful angle, look at it,
   fix what's wrong, and set items to `placed`.
-- **Interaction reachability (REQUIRED):** Every interactive element (hit zones, weak
-  points, pickups, prompts) must have a clear raycast path from typical player positions.
-  Decorative geometry must not occlude them. See `roblox-building` for self-check steps.
-- **Rig attachments and tool grip (REQUIRED):** Every tool and accessory on an R15 rig must
-  be oriented correctly and anchored at the proper attachment point. Test on a dummy
-  character and verify the tool points along the character's LookVector before `DONE`. See
-  `roblox-building` for self-check steps.
+- **Interaction reachability (REQUIRED):** Every interaction must work through real player
+  input. Every interactive or targetable element (hit zones, buttons, ProximityPrompts,
+  pickups, triggers, doors, UI buttons) must be reachable the way a player would reach it.
+  Decorative geometry must not interfere (deliberate CanQuery/CanTouch/collision settings).
+  Builder self-check: exercise each interaction through its real input path before DONE.
+- **Rig attachments and held objects (REQUIRED):** Everything attached to or held by a
+  character (tools, accessories, welded props, mounts, vehicles) must be checked against
+  the R15 rig: correct orientation, anchor point, and scale. Builder self-check: attach on
+  dummy rig, verify, screenshot. See `roblox-building` for details.
 - **Never message, ask, or send approval popups to the user.** Every question, approval or
   decision goes to the Lead as `ASK` or `BLOCKED`. Only the Lead talks to the user. For
   gated actions like uploads, report `READY-UPLOAD #n <file>` to the Lead; they execute

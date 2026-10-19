@@ -21,33 +21,37 @@ Ownership and locks: `team-protocol` (Builder owns `Workspace`, `Lighting`, `Ter
    then props and dressing.
 3. **Custom models** from Blender or `generate_mesh` replace blockout pieces last.
 
-## Interaction reachability (REQUIRED)
+## Interaction reachability (REQUIRED - general rule)
 
-**Every interactive element (hit zones, weak points, pickups, prompts, buttons) must be
-reachable by typical player input (raycast, touch, proximity).** Decorative geometry must
-NOT occlude gameplay-critical parts.
+**Every interaction must work through real player input.** Every interactive or targetable
+element the spec declares (hit zones, buttons, ProximityPrompts, ClickDetectors, pickups,
+touch triggers, doors, UI buttons) must be reachable the way a player would reach it.
 
-**Problem:** A gameplay part (e.g. weak point, pickup trigger, ProximityPrompt) placed
-inside or behind decorative collision (the hull mesh) registers nothing — player raycasts
-and touches hit the hull first.
+**Problem:** Decorative or visual geometry blocks interaction. A ProximityPrompt inside a
+decorative hull never triggers. A touch part with `CanTouch=true` sits behind a wall with
+`CanTouch=true`. A UI button is under another transparent frame that eats clicks.
 
 **Solution:**
-1. **Hit zones and weak points** are always **separate BaseParts** (e.g. a 2×2×2 cube),
-   placed at the surface where the player should aim, NOT inside the model.
-2. **Decorative hulls** set `CanQuery = false` and `CanTouch = false` (or simplified
-   collision via `CollisionFidelity = Box`). Coding resolves hits explicitly via hit zone
-   parts, never by `Mouse.Target` or `Raycast` filtering the hull.
-3. **ProximityPrompts and pickup triggers**: Parts are small and flush with walkable
-   surfaces, never occluded by walls or large collision geometry.
+1. **Separation of concerns:** Interactive parts (hit zones, prompts, triggers, buttons)
+   are distinct instances with deliberate collision and query settings.
+2. **Decorative geometry** sets `CanQuery=false`, `CanTouch=false`, or simplified
+   collision (`CollisionFidelity=Box`) so it never interferes with interaction paths.
+3. **Coding resolves interactions explicitly:** Hit detection uses specific parts (by name
+   or tag), never relies on `Mouse.Target` or broad raycasts that might hit decoration.
+4. **UI layering:** Interactive buttons have higher `ZIndex` than decorative frames, or
+   decorative frames set `Active=false`.
 
-**Builder self-check (before `DONE`):** For every declared hit zone / weak point / pickup:
-- Place a dummy R15 character at typical player positions (spawn, cover, mid-range).
-- `workspace:Raycast(origin, direction, raycastParams)` with `raycastParams.FilterType =
-  Enum.RaycastFilterType.Include` and `FilterDescendantsInstances = {hitZonePart}`.
-- Verify the ray hits the intended part, not the decorative hull.
+**Builder self-check (before `DONE`):** For every declared interactive element:
+- **Camera raycast targets (hit zones, ClickDetectors):** Place dummy R15 at typical
+  player positions, raycast toward the element, verify the intended part is hit (not
+  decoration).
+- **Touch/proximity triggers (pickups, ProximityPrompts, doors):** Verify character can
+  reach the part (walkable path, not occluded by walls/collision).
+- **UI buttons:** Click each button in a test UI scene, verify it fires.
 
-**Playtest check:** AcceptanceFramework verifies every declared interactive part has a
-clear raycast path from typical player positions.
+**Playtest check:** AcceptanceFramework exercises **every declared interaction through real
+input paths** (camera raycast, character touch, prompt trigger, UI click), **never by
+calling server functions directly**, and fails any element that doesn't respond.
 
 ## Structure
 
@@ -127,45 +131,51 @@ props, PreciseConvexDecomposition only when needed). Turn `CastShadow` off on ti
 and add the tags. Put templates in `ReplicatedStorage.Assets.Models` and instances in
 `Workspace.Map`.
 
-## Rig attachments and tool grip (REQUIRED - Builder self-check)
+## Rig attachments and held objects (REQUIRED - Builder self-check)
 
-**Every tool, accessory, or held object attached to an R15 rig must be oriented correctly
-and anchored at the proper attachment point.** Misaligned grips leave tools pointing the
-wrong direction.
+**Everything attached to or held by a character must be checked against the rig.** Tools,
+accessories, welded props, mounts, and vehicles must have the correct orientation, anchor
+point, and scale on an R15 rig.
 
-**Problem:** A `Tool` with default `Grip` (zero rotation, zero offset) may point upward
-or sideways instead of along the character's forward direction. Accessories parented to
-wrong attachments (e.g. a hat on a hand) break visually.
+**Problem:** A `Tool` with default `Grip` (zero rotation, zero offset) points the wrong
+direction. An `Accessory` parented to the wrong attachment floats or clips. A welded prop
+(shield, jetpack, mount) has wrong orientation or scale.
 
 **Solution:**
 1. **Tools (weapons, items held in hand):**
-   - `Tool.Grip` CFrame must orient the tool's forward axis (typically -Z or +Y, depending
-     on model) along the character's LookVector (the direction they face).
-   - Common grip for a forward-pointing tool (e.g. blaster, sword):
-     `Tool.Grip = CFrame.new(0, 0, 0) * CFrame.Angles(0, 0, 0)` — adjust angles until the
-     tool points forward when equipped. Test on a dummy before committing.
-   - `Tool.GripPos` anchors the tool at the right hand attachment.
+   - `Tool.Grip` CFrame must orient the tool's forward axis along the character's
+     LookVector (the direction they face).
+   - Test on a dummy R15: the tool should point forward when equipped, not up/sideways.
+   - `Tool.GripPos` anchors at the right hand attachment.
 
-2. **Accessories (hats, backpacks, shoulder mounts):**
+2. **Accessories (hats, backpacks, shoulder items):**
    - Parent to the correct `Attachment` in the character rig:
      - Hats: `HatAttachment` (in Head)
      - Backpacks: `BodyBackAttachment` (in UpperTorso)
      - Shoulder items: `LeftShoulderAttachment` or `RightShoulderAttachment`
    - Use an `Accessory` instance with `Handle` and correct `AttachmentPoint` CFrame.
 
-**Builder self-check (before `DONE` on any tool/accessory):**
-1. Spawn a dummy R15 character in Studio (or use a test rig).
-2. `character.Humanoid:EquipTool(toolInstance)` for tools, or parent the accessory and
-   call `Humanoid:BuildRigFromAttachments()`.
-3. Set the character's `HumanoidRootPart.CFrame` to face a known direction (e.g. +Z).
-4. Verify:
-   - **Tool forward axis** aligns with `HumanoidRootPart.CFrame.LookVector` (within ~15°).
-   - **Accessory position** sits at the expected body part (head, back, shoulder), not
-     floating or clipping.
-5. Take a screenshot and include it in the `DONE` message.
+3. **Welded props, mounts, vehicles:**
+   - WeldConstraint or Motor6D between character part and prop must have correct `C0`/`C1`
+     offsets for orientation and position.
+   - Scale: model must fit the R15 rig (e.g., a mount's seat at hip height, a shield
+     sized for the arm).
 
-**Playtest check:** AcceptanceFramework verifies every declared tool and accessory on a
-test rig.
+**Builder self-check (before `DONE` on any attached/held object):**
+1. Spawn a dummy R15 character in Studio (or use a test rig).
+2. Attach the object:
+   - Tools: `character.Humanoid:EquipTool(toolInstance)`
+   - Accessories: parent and call `Humanoid:BuildRigFromAttachments()`
+   - Welded props: create WeldConstraint, set `C0`/`C1`
+3. Set `HumanoidRootPart.CFrame` to face a known direction (e.g., +Z).
+4. Verify:
+   - **Tools:** forward axis aligns with `LookVector` (within ~15°)
+   - **Accessories:** sit at expected body part (head, back, shoulder), no float/clip
+   - **Welded props:** correct position relative to body, appropriate scale
+5. Take a screenshot, include in `DONE` message.
+
+**Playtest check:** AcceptanceFramework verifies every declared tool, accessory, and
+attached object on a test rig automatically.
 
 ## Quality gates (a failed gate blocks `placed`)
 

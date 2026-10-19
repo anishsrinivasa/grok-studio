@@ -93,20 +93,30 @@ For each `acceptanceTests[]` item, in order:
 
 **Automated checks (always run):** Before writing the report, run the
 `AcceptanceFramework` checks (`reference/AcceptanceFramework.luau`) via `execute_luau`
-(`Server`). These verify:
+(`Server`). The framework is **generic and extensible**, driven by `game-spec.json`, so
+new roles and genres plug in their own checks. Core checks:
+
 - **Asset loading:** Every animation clip in `animations[]` has `track.Length > 0` and
   visibly moves at least one Motor6D (Transform changes during Play). Every declared sound
   is `IsLoaded`. Every critical mesh/image passed ContentProvider preload.
-- **Interaction reachability:** Every declared weak point, hit zone, pickup, prompt, or
-  button has a clear raycast path from typical player positions (not occluded by
-  decorative geometry).
-- **Rig attachments / tool grip:** Every tool or held object on an R15 rig is oriented
-  along the character's LookVector and anchored at the correct attachment point (right
-  hand for tools, head for hats, etc.).
-- **Tunable conformance:** Probabilistic stats (spawn rates, hit rates, cooldowns) match
-  the spec within tolerance (±10% or spec-declared margin).
-- **New-player grace:** An idle player survives the grace period (default 3 seconds)
-  without NPC aggro or environmental damage.
+  
+- **Interaction via real input paths:** Every declared interactive or targetable element
+  (hit zones in `mechanics[]`, buttons/prompts in `ui[]`, pickups/triggers in `world[]`,
+  doors, UI buttons) is exercised **through its real input path** (camera raycast,
+  character touch, ProximityPrompt trigger, UI click), **never by calling server functions
+  directly**. Fails any element that doesn't respond.
+  
+- **Rig attachments and held objects:** Every tool, accessory, and attached object
+  (declared in `assets.items[]` or `mechanics[]`) is checked against an R15 rig:
+  orientation along character LookVector (tools), anchor at correct attachment
+  (accessories), appropriate scale and position (welded props, mounts).
+  
+- **Tunable conformance:** Measured values for every gameplay tunable (rates, chances,
+  damage, cooldowns, timers, economy rates) match spec targets within declared tolerance.
+  
+- **New-player fairness:** A freshly joined player, idle and acting normally, survives the
+  spec-defined grace window and can reach the core loop (not killed, stuck, softlocked, or
+  overwhelmed).
 
 Pass all framework results to `analyze_checks` (built-in) and report failures. If a check
 fails, treat it as a test failure and fix it in step 3.

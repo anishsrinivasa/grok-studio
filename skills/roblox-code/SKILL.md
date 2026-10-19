@@ -267,42 +267,73 @@ The client is hostile. Assume every RemoteEvent argument is attacker-controlled.
 - Physics: keep important parts anchored or server-owned (`SetNetworkOwner(nil)`) when
   clients shouldn't be able to move them.
 
-## Tunable measurement and new-player grace (REQUIRED)
+## Tunable measurement and new-player fairness (REQUIRED)
 
-**Probabilistic gameplay stats must be measured against spec targets with tolerance.**
+**Spec numbers must match runtime, and the game must be fair to a new player.**
 
-**Problem:** A spec says "NPC hit rate ≤35%" but the implemented rate is 61% because spawn
-protection was 1.5 s instead of ≥3 s. The player is spawn-killed repeatedly.
+**Problem 1 (Tunable drift):** A spec says "coin spawn rate 1.2/s" but the implemented
+rate is 0.8/s because a timer was set to 1.25 instead of 0.83. A spec says "door cooldown
+3.0s" but the measured cooldown is 4.1s. Players experience a different game than designed.
+
+**Problem 2 (New-player unfairness):** A freshly joined player is immediately killed by
+NPCs, stuck behind a locked door with no visible path, or softlocked in a tutorial. The
+game is unplayable for new players.
 
 **Solution:**
-1. **Spec declares tunable targets with tolerance** (e.g., "spawn protection ≥3s", "NPC
-   hit rate ≤35% ±10%"). See `game-spec` acceptance tests.
-2. **Coding implements measurement:** For probabilistic stats (hit rates, spawn rates,
-   success rates), add measurement code that samples outcomes over a window and compares
-   with the spec target. Example:
-   ```lua
-   -- In NPC attack service
-   local hitCount, totalShots = 0, 0
-   -- ... on each shot
-   totalShots += 1
-   if hit then hitCount += 1 end
-   
-   -- Measure and warn
-   local measuredRate = hitCount / totalShots
-   local targetRate = 0.35  -- from spec
-   local tolerance = 0.10   -- ±10%
-   if measuredRate > targetRate + tolerance then
-       warn(string.format("[Stats] NPC hit rate %.2f exceeds spec %.2f + %.2f tolerance",
-           measuredRate, targetRate, tolerance))
-   end
-   ```
-3. **New-player grace (default):** An idle player survives the grace period (default 3
-   seconds) without NPC aggro or environmental damage. Spawn protection and NPC aggro grace
-   are distinct tunables; both default to ≥3 s unless gameplay explicitly requires instant
-   danger.
 
-**Playtest check:** AcceptanceFramework verifies tunable conformance and idle survival
-time.
+### 1. Measurable Tunable Targets
+The spec declares measurable targets for **every gameplay tunable** (rates, chances,
+damage, cooldowns, timers, economy rates) with tolerance. Examples:
+- "Coin spawn rate: 1.2/s ±10%"
+- "Door cooldown: 3.0s ±0.2s"
+- "Enemy damage: 15 HP ±2"
+- "Unlock cost: 100 coins (exact)"
+
+Coding implements **measurement code** that samples outcomes over a window and compares with
+the spec target:
+```lua
+-- Example: Coin spawn rate measurement
+local spawnCount = 0
+local measureWindow = 10  -- seconds
+local startTime = os.clock()
+
+-- ... on each coin spawn
+spawnCount += 1
+
+-- After measure window
+local elapsed = os.clock() - startTime
+if elapsed >= measureWindow then
+    local measuredRate = spawnCount / elapsed
+    local targetRate = 1.2  -- from spec
+    local tolerance = 0.12  -- ±10%
+    
+    if math.abs(measuredRate - targetRate) > tolerance then
+        warn(string.format("[Tunables] Coin spawn rate %.2f/s outside spec %.2f ±%.2f",
+            measuredRate, targetRate, tolerance))
+    end
+    
+    -- Reset for next window
+    spawnCount, startTime = 0, os.clock()
+end
+```
+
+### 2. New-Player Fairness Check
+The spec includes a **genre-neutral new-player-experience check** in `acceptanceTests[]`:
+- A freshly joined player, **idle and acting normally** (not exploiting, not AFK), isn't
+  killed, stuck, softlocked, or overwhelmed within a **spec-defined grace window**.
+- The grace window depends on genre (examples only, not defaults):
+  - Action games: 5-10 seconds (time to orient and see the core loop)
+  - Puzzle games: 30-60 seconds (time to read instructions and try the first puzzle)
+  - Exploration games: 15-30 seconds (time to look around and find the first objective)
+- The player can **reach the core loop** after the grace window (not blocked by locked
+  doors, missing tutorials, or overwhelming difficulty).
+
+**No hardcoded defaults.** The spec declares the grace window and fairness criteria
+explicitly for each game.
+
+**Playtest check:** AcceptanceFramework verifies:
+- **Tunable conformance:** Measured values match spec targets within tolerance.
+- **New-player fairness:** Idle player survives grace window, can reach core loop.
 
 ## Persistence (DataStoreService)
 

@@ -48,6 +48,9 @@ restarts: never save one in memory or notes.
 - If Rojo manages a folder, never `multi_edit` inside it.
 - Server authority, argument validation and rate limits on every remote. The client is
   hostile.
+- **Animation loading:** Always use `GuardedAnimationLoader` (roblox-code reference) to load
+  animations. Never call `Animator:LoadAnimation` directly. Check for `nil` return and use
+  tween/procedural fallback. The loader waits for `track.Length > 0` and warns on failure.
 - **Never message, ask, or send approval popups to the user.** Every question, approval or
   decision goes to the Lead as `ASK` or `BLOCKED`. Only the Lead talks to the user.
 

@@ -73,12 +73,16 @@ skill folder:
 12. **Acceptance tests:** 3-8 concrete, automatable checks phrased as steps + expected
     result, covering the core loop, persistence, and at least one exploit attempt (client
     fires a remote with bad data). The playtest gate runs exactly these.
-    **Tunable targets:** For probabilistic or measurable gameplay stats (spawn rates, hit
-    rates, cooldowns, damage, timers, NPC aggro), specify target values with tolerance
-    (e.g., "NPC hit rate ≤35% ±10%", "spawn protection ≥3s"). Coding implements measured
-    checks against these targets.
-    **New-player grace:** Default 3 seconds spawn protection and NPC aggro grace on fresh
-    spawns unless gameplay explicitly requires instant danger.
+    **Spec numbers must match runtime:** Declare measurable targets for every gameplay
+    tunable (rates, chances, damage, cooldowns, timers, economy rates) with tolerance
+    (e.g., "coin spawn rate 1.2/s ±10%", "door cooldown 3.0s ±0.2s"). Coding implements
+    measured checks against these targets.
+    **Fair to a new player:** Include a genre-neutral new-player-experience check: a
+    freshly joined player, idle and acting normally (not exploiting, not AFK), isn't
+    killed, stuck, softlocked, or overwhelmed within a spec-defined grace window (e.g., 5
+    seconds for action games, 30 seconds for puzzles), and can reach the core loop. No
+    hardcoded defaults; these are examples only — declare the grace window and fairness
+    criteria in acceptance tests.
 13. Initialize `build` with `stage: "spec"`, `connectors` from preflight, empty
     `checkpoints`.
 
