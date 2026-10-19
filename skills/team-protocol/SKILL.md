@@ -138,6 +138,8 @@ reply with: DONE #12 or BLOCKED #12
 | `DONE #n` | specialist -> Lead | 3-6 lines: what changed (Studio paths, files), spec fields updated, open issues |
 | `BLOCKED #n` | specialist -> Lead | what is missing, who could unblock it, what you tried |
 | `ASK #n` | anyone -> anyone | a question or a request in the receiver's subtree; the receiver answers `ANSWER #n` |
+| `READY-UPLOAD #n <file>` | specialist -> Lead | an export is ready to upload (Builder: FBX, Animator: .rbxm animation); the Lead runs the upload and replies with the asset id |
+| `UPLOADED #n <assetId>` | Lead -> specialist | the Lead uploaded the file and got this asset id; the specialist continues with insert/apply/placement |
 | `PLAY ON` / `PLAY OFF` | Lead -> all | play-mode lock taken / released |
 | `FIX #n` | Lead -> owner | a playtest failure in your area, with the evidence (console lines, screenshot) |
 
@@ -217,6 +219,11 @@ directory. `localPath` is valid on the PC (use it for `store_image`).
 a message, never copy it anywhere else. It stops working when the user stops the bridge.
 
 ## 8. Escalation
+
+**Specialists (Coding, Designer, Builder, Animator) never message the user, never send
+question widgets or approval popups to the user, and never ask the user for anything.**
+Every question, approval request, and decision must go to the Lead as `ASK` or `BLOCKED`.
+Only the Lead talks to the user.
 
 Tell the Lead (not the user) when you're blocked. The Lead decides whether the user must
 act: publish, enable API access, import a file by hand, approve spending. Specialists never

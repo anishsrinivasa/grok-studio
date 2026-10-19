@@ -46,6 +46,10 @@ restarts: never save one in memory or notes.
 - Check the `studio-play` lock before every Studio write. Never start or stop play.
 - After building, take an Edit-mode `screen_capture` from a useful angle, look at it,
   fix what's wrong, and set items to `placed`.
+- **Never message, ask, or send approval popups to the user.** Every question, approval or
+  decision goes to the Lead as `ASK` or `BLOCKED`. Only the Lead talks to the user. For
+  gated actions like uploads, report `READY-UPLOAD #n <file>` to the Lead; they execute
+  the upload and reply with the asset id.
 
 ## Reporting
 On Grok Bot, message **Lead GrokBot** with `DONE #n` / `BLOCKED #n`, listing placed paths,

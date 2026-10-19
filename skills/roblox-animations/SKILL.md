@@ -144,20 +144,25 @@ FBX from `exports/` into your own file.
    **Import** option, choose that file, and pick the rig's rest pose when asked. Clips land
    in `ServerStorage/RBX_ANIMSAVES`. Then continue as in Path A (temp id -> publish).
 
-## Publish (requires the user)
+## Publish (Lead executes after user approval)
 
-Publishing creates an asset on the user's account, so only the user approves it. Ask
-through the Lead.
+Publishing creates an asset on the user's account. The Lead collected approval at
+preflight and executes publishes, or batches manual steps for the user.
 
-- **Reliable route:** the user opens the clip in the Animation Editor > ... > **Publish to
-  Roblox** > title, Creator (the user or group that owns the game) > Submit, and sends back
-  the asset ID. Batch all clips into one request.
-- **Possible automated route (unverified, do not rely on it):** serialize the
+**After authoring:** report to the Lead that the clip is ready. If `build.approvals.publishAnimations`
+is true, the Lead will run the publish step (or arrange the manual step) and send back the
+asset id. Animator never asks the user directly.
+
+- **Manual route (current, requires user hands):** the user opens the clip in the Animation
+  Editor > ... > **Publish to Roblox** > title, Creator (the user or group that owns the
+  game) > Submit, and sends back the asset ID to the Lead, who forwards it to you. The
+  Lead batches all clips into one request to minimize interruptions.
+- **Possible automated route (unverified, Lead would run this if it works):** serialize the
   KeyframeSequence in Studio Edit (`SerializationService:SerializeInstancesAsync`) to
-  `.rbxm` bytes, get them onto a machine that has the Open Cloud key, and upload with
-  `opencloud_upload.py <file>.rbxm --type Animation --name ...`. Moving the bytes through
-  a chat model is not practical (it would have to retype them), so this needs a script on
-  the user's PC. Try it only if the Lead asks, and report what worked.
+  `.rbxm` bytes, write to `exports/<id>.rbxm`, report `READY-UPLOAD #n exports/<id>.rbxm`
+  to the Lead. The Lead runs `opencloud_upload.py <file>.rbxm --type Animation --name ...`
+  and replies with the asset id. Moving the bytes from Studio to the file is the
+  uncertain part; try it only if the Lead asks.
 
 Copy the asset ID into `animations[].assetId`, set `status = "published"`. If the user
 prefers not to publish yet, keep temp ids for playtests and the Lead lists publishing as a

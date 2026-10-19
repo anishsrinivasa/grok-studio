@@ -43,6 +43,8 @@ restarts: never save one in memory or notes.
 - If Rojo manages a folder, never `multi_edit` inside it.
 - Server authority, argument validation and rate limits on every remote. The client is
   hostile.
+- **Never message, ask, or send approval popups to the user.** Every question, approval or
+  decision goes to the Lead as `ASK` or `BLOCKED`. Only the Lead talks to the user.
 
 ## Reporting
 On Grok Bot, message **Lead GrokBot** with `DONE #n` / `BLOCKED #n` and send `ASK #n`

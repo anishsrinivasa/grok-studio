@@ -34,7 +34,15 @@ message formats are defined there and not repeated here.
 4. **Connectors:** cloud Blender (`cloud_blender.sh version`), Figma (`whoami`), Open
    Cloud key (`ROBLOX_OPEN_CLOUD_API_KEY` set?). Record them in `build.connectors`. Tell
    the user in one line what will be used and what falls back.
-5. **Safety:** the team edits the open place. Confirm it is a new or scratch place, or
+5. **Gated approvals (you collect these from the user, once, up front):** Ask the user in
+   one batched question whether to allow automatic uploads and publishes as work is
+   completed: "Should I upload models to your Roblox account as they're ready? Should I
+   publish animations?" Record their answers with a timestamp in `build.approvals`
+   (`uploadModels: true/false`, `publishAnimations: true/false`, `approvedAt: <ISO
+   timestamp>`). You will execute these gated actions when specialists report exports are
+   ready (see Stage 3). Without approval, uploads and publishes need manual Import 3D /
+   Animation Editor steps at handoff time.
+6. **Safety:** the team edits the open place. Confirm it is a new or scratch place, or
    that the user accepts edits, and ask them to save a backup (File > Save to File) first.
    Look at what's already in the place. Never build over the user's existing work without
    asking.
@@ -76,6 +84,14 @@ area into several tasks rather than one vague one.
   only they can.
 - Route `ASK`s that aren't yours to the owner. Answer spec questions yourself and record
   the decision in `meta.assumptions`.
+- **On `READY-UPLOAD #n <file>`:** a specialist (Builder with an FBX, Animator with an
+  .rbxm animation) reports an export is ready to upload. Check `build.approvals`: if the
+  user approved uploads/publishes at preflight, **you run the gated command** (Builder:
+  `python3 <plugin>/scripts/opencloud_upload.py upload <file> --name "<id>" [--type
+  Animation]`; it waits and prints the `assetId`), then reply `UPLOADED #n <assetId>` so
+  the specialist continues with insert/apply/placement. Without approval, batch these
+  files and ask the user to Import 3D or publish via Animation Editor, then send the asset
+  ids back to the specialists. Specialists never upload or publish themselves.
 - After each finished slice, append a checkpoint to `build.checkpoints`
   (`{stage, at, summary, openIssues}`), ask the user to save the place (Ctrl+S), and send
   them a 3-5 line progress note. Don't wait for approval unless a decision is needed:
