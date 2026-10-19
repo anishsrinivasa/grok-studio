@@ -1,82 +1,70 @@
 # grok-studio
 
-**An agentic Roblox studio inside Grok Bot.** Install the plugin, run one setup command,
-and you get a team of five Grok Bots that build a complete Roblox game in *your* Roblox
-Studio from one prompt:
+**An agentic Roblox studio inside Grok Bot.** Install the plugin, call the Lead, and setup starts automatically. You get a team of eight Grok Bots that build a complete Roblox game in *your* Roblox Studio from one prompt:
 
 | Bot | Does |
 |---|---|
 | **Lead GrokBot** | talks to you, writes the game spec, plans and hands out tasks, runs playtests, final gate |
 | **Coding GrokBot** | all Luau: server services, remotes with validation, DataStores, client controllers |
-| **Designer GrokBot** | UI (HUD, menus, shops) in Studio, optional Figma, icon and thumbnails |
+| **Designer GrokBot** | UI (HUD, menus, shops) in Studio, optional Figma |
 | **Builder GrokBot** | the world and every 3D model, in Studio (parts, procedural and generated models) and in Blender |
 | **Animator GrokBot** | rigs and animations (Luau keyframes in Studio, or Blender) |
+| **VFX GrokBot** | particle effects, beams, trails, explosions, screen post-effects |
+| **SFX GrokBot** | sound design via Creator Store, SoundGroups, mixing, spatial audio |
+| **Marketing GrokBot** | icons, thumbnails, and post-ship X (Twitter) marketing drafts |
 
 The Bots message each other directly, work in parallel, and share one cloud computer and
-one `game-spec.json`. They follow a team protocol, so five agents in one Studio don't
+one `game-spec.json`. They follow a team protocol, so eight agents in one Studio don't
 break each other's work.
 
 Also works in **Claude Code / Grok Build / Cursor**: the same roles ship as subagents in
 `agents/` (redirect files; canonical source is `roles/`), and the main session plays the Lead.
 
-> Status: **v0.2.0, early.** The bridge was run end to end against a live Studio on
+> Status: **v0.3.0, early.** The bridge was run end to end against a live Studio on
 > Windows. The multi-bot flow has not yet done a full build. See [Limitations](#limitations).
 
 ---
 
-## Run it on Grok Bot
+## Install and Run
 
-**You do only this:**
-1. **Install the plugin.** Until it's listed on the marketplace, paste this to any Grok Bot:
-   > Run `curl -fsSL https://raw.githubusercontent.com/anishsrinivasa/grok-studio/multi-bot-team/scripts/bootstrap.sh | bash`
-   > and do what it prints.
+**Quick start (3 steps):**
 
-   It downloads the plugin into `/workspace/grok-studio/plugin` and links the skills. If
-   they don't show up as skills, the Bot imports each one.
-2. **Roblox Studio:** install it, sign in, open or create a place, turn on **Team Create**,
-   and enable **Assistant > ... > Manage MCP Servers > Enable Studio as MCP server**. In
-   Grok Bot, set **Settings > General > Bot > Execution on Local Computer** to *Ask every
-   time*.
-3. **Type `/setup-bridge`.** Paste keys only when it opens the secret prompt:
-   - the Roblox Open Cloud key: it shows the link and the scopes
-   - an ngrok authtoken and static domain, if ngrok isn't set up yet
-4. **Approve** the first-time PC and firewall prompts, and create a **Grok Studio** sidebar
-   section if it asks (Bots can't).
+1. **Install the plugin** - Paste this to any Grok Bot:
+   ```
+   Run curl -fsSL https://raw.githubusercontent.com/anishsrinivasa/grok-studio/multi-bot-team/scripts/bootstrap.sh | bash and do what it prints.
+   ```
+   Downloads the plugin into `/workspace/grok-studio/plugin` and links the skills.
 
-**`/setup-bridge` does the rest:**
-- checks the Open Cloud key's scopes and owner without printing it
-- installs Node and the bridge on your PC as a background service. The service survives
-  restarts, uses one stable key and a static URL, and the Studio connector is registered
-  once.
-- installs headless Blender on the Bots' cloud computer
-- creates the team Bots
-- runs a readiness gate:
-  - the team reaches the same Studio place and Blender
-  - a Blender-to-Studio model round trip (upload, insert, import checks, then the test
-    model is deleted)
-  - a 5-second Luau play test
-  - a screen capture
+2. **Install Roblox Studio** - Sign in, open or create a place, turn on **Team Create**, and enable **Assistant > ... > Manage MCP Servers > Enable Studio as MCP server**.
 
-It says **ready** only when the gate passes. Then describe the game right there (it goes
-to **Lead GrokBot**), or in Lead GrokBot:
+3. **Call the Lead** - Message **Lead GrokBot** (it's created automatically):
+   ```
+   Hi! Let's set up grok-studio.
+   ```
+   
+   **Setup starts automatically.** It will:
+   - Auto-detect Studio, bridge, Blender, API keys
+   - Show you templated step cards for any missing requirements
+   - Ask capability questions (Figma seat type, X posting route, animation planning)
+   - Collect upfront approvals (upload models, publish animations)
+   - Generate a dynamic welcome message listing every active bot (with full vs fallback capabilities) and any disabled bots with requirements
 
+**Then describe your game:**
 > Make a co-op tycoon where players run a volcano-powered hot sauce factory. Conveyor
 > droppers make sauce bottles, players collect cash, buy upgrades and unlock a second
 > floor. Low-poly cartoon style, mobile-friendly UI, no monetization. Save progress.
 > Make a thumbnail and icon.
 
-**Afterwards:** every task starts with a health check that reconnects on its own. If
-anything is off, run `/setup-bridge` again: it only repairs what's broken. **Stop:** tell
-a grok-studio Bot "disconnect Studio".
+**Afterwards:** every task starts with a health check. If anything breaks, message Lead GrokBot "reconnect Studio" or "run setup again".
 
 ## How it works
 
 ```mermaid
 flowchart LR
    U([You]) <--> L[Lead GrokBot]
-    L -- TASK / FIX --> C[Coding] & D[Designer] & B[Builder] & A[Animator] & V[VFX] & S[SFX] & M[Marketing]
-    C & D & B & A & V & S & M -- DONE / BLOCKED / ASK --> L
-    subgraph Cloud computer shared by all Bots
+   L -- TASK / FIX --> C[Coding] & D[Designer] & B[Builder] & A[Animator] & V[VFX] & S[SFX] & M[Marketing]
+   C & D & B & A & V & S & M -- DONE / BLOCKED / ASK --> L
+   subgraph Cloud computer shared by all Bots
       SPEC[(/workspace/grok-studio/games/slug/<br/>game-spec.json, locks, .blend files, exports)]
       BL[headless Blender]
     end
