@@ -21,6 +21,34 @@ Ownership and locks: `team-protocol` (Builder owns `Workspace`, `Lighting`, `Ter
    then props and dressing.
 3. **Custom models** from Blender or `generate_mesh` replace blockout pieces last.
 
+## Interaction reachability (REQUIRED)
+
+**Every interactive element (hit zones, weak points, pickups, prompts, buttons) must be
+reachable by typical player input (raycast, touch, proximity).** Decorative geometry must
+NOT occlude gameplay-critical parts.
+
+**Problem:** A gameplay part (e.g. weak point, pickup trigger, ProximityPrompt) placed
+inside or behind decorative collision (the hull mesh) registers nothing — player raycasts
+and touches hit the hull first.
+
+**Solution:**
+1. **Hit zones and weak points** are always **separate BaseParts** (e.g. a 2×2×2 cube),
+   placed at the surface where the player should aim, NOT inside the model.
+2. **Decorative hulls** set `CanQuery = false` and `CanTouch = false` (or simplified
+   collision via `CollisionFidelity = Box`). Coding resolves hits explicitly via hit zone
+   parts, never by `Mouse.Target` or `Raycast` filtering the hull.
+3. **ProximityPrompts and pickup triggers**: Parts are small and flush with walkable
+   surfaces, never occluded by walls or large collision geometry.
+
+**Builder self-check (before `DONE`):** For every declared hit zone / weak point / pickup:
+- Place a dummy R15 character at typical player positions (spawn, cover, mid-range).
+- `workspace:Raycast(origin, direction, raycastParams)` with `raycastParams.FilterType =
+  Enum.RaycastFilterType.Include` and `FilterDescendantsInstances = {hitZonePart}`.
+- Verify the ray hits the intended part, not the decorative hull.
+
+**Playtest check:** AcceptanceFramework verifies every declared interactive part has a
+clear raycast path from typical player positions.
+
 ## Structure
 
 ```
@@ -98,6 +126,46 @@ with `Model:ScaleTo(model:GetScale() * f)` (ScaleTo is absolute, so multiply), p
 props, PreciseConvexDecomposition only when needed). Turn `CastShadow` off on tiny props,
 and add the tags. Put templates in `ReplicatedStorage.Assets.Models` and instances in
 `Workspace.Map`.
+
+## Rig attachments and tool grip (REQUIRED - Builder self-check)
+
+**Every tool, accessory, or held object attached to an R15 rig must be oriented correctly
+and anchored at the proper attachment point.** Misaligned grips leave tools pointing the
+wrong direction.
+
+**Problem:** A `Tool` with default `Grip` (zero rotation, zero offset) may point upward
+or sideways instead of along the character's forward direction. Accessories parented to
+wrong attachments (e.g. a hat on a hand) break visually.
+
+**Solution:**
+1. **Tools (weapons, items held in hand):**
+   - `Tool.Grip` CFrame must orient the tool's forward axis (typically -Z or +Y, depending
+     on model) along the character's LookVector (the direction they face).
+   - Common grip for a forward-pointing tool (e.g. blaster, sword):
+     `Tool.Grip = CFrame.new(0, 0, 0) * CFrame.Angles(0, 0, 0)` — adjust angles until the
+     tool points forward when equipped. Test on a dummy before committing.
+   - `Tool.GripPos` anchors the tool at the right hand attachment.
+
+2. **Accessories (hats, backpacks, shoulder mounts):**
+   - Parent to the correct `Attachment` in the character rig:
+     - Hats: `HatAttachment` (in Head)
+     - Backpacks: `BodyBackAttachment` (in UpperTorso)
+     - Shoulder items: `LeftShoulderAttachment` or `RightShoulderAttachment`
+   - Use an `Accessory` instance with `Handle` and correct `AttachmentPoint` CFrame.
+
+**Builder self-check (before `DONE` on any tool/accessory):**
+1. Spawn a dummy R15 character in Studio (or use a test rig).
+2. `character.Humanoid:EquipTool(toolInstance)` for tools, or parent the accessory and
+   call `Humanoid:BuildRigFromAttachments()`.
+3. Set the character's `HumanoidRootPart.CFrame` to face a known direction (e.g. +Z).
+4. Verify:
+   - **Tool forward axis** aligns with `HumanoidRootPart.CFrame.LookVector` (within ~15°).
+   - **Accessory position** sits at the expected body part (head, back, shoulder), not
+     floating or clipping.
+5. Take a screenshot and include it in the `DONE` message.
+
+**Playtest check:** AcceptanceFramework verifies every declared tool and accessory on a
+test rig.
 
 ## Quality gates (a failed gate blocks `placed`)
 
