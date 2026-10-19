@@ -182,7 +182,7 @@
           "prompt": { "type": "string" },
           "options": { "type": "array", "items": { "type": "string" } },
           "default": {},
-          "mapsToCapability": { "type": "string", "description": "Capability id this question resolves." }
+          "mapsToCapability": { "type": ["string", "null"], "description": "Capability id this question resolves, or null if it doesn't map to a capability." }
         }
       },
       "description": "Setup questions this role contributes, processed during the guided setup."
